@@ -23,6 +23,16 @@ const PORT         = process.env.PORT || 4000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 const NODE_ENV     = process.env.NODE_ENV || 'development';
 
+// ── Startup env validation ────────────────────────────────────────────────────
+if (NODE_ENV === 'production') {
+  const required = ['SUPABASE_URL','SUPABASE_SERVICE_KEY','JWT_SECRET','ENCRYPTION_KEY','GITHUB_CLIENT_ID','GITHUB_CLIENT_SECRET','GITHUB_CALLBACK_URL','FRONTEND_URL'];
+  const missing = required.filter(k => !process.env[k]);
+  if (missing.length) {
+    console.error('❌ Missing required env vars:', missing.join(', '));
+    process.exit(1);
+  }
+}
+
 const app    = express();
 const server = http.createServer(app);
 
@@ -255,11 +265,10 @@ app.get('/api/auth/github/callback', authLimiter, async (req,res) => {
     const isNew = !user;
 
     // generate unique handle from github login
-    const baseHandle = ghUser.login.toLowerCase().replace(/[^a-z0-9_]/g,'');
+    const baseHandle = ghUser.login.toLowerCase().replace(/[^a-z0-9_]/g,'') || 'user';
     let finalHandle = baseHandle;
-    // ensure handle is unique
     let attempt = 0;
-    while (true) {
+    while (attempt < 20) {
       const { data: existing } = await db.userByHandle(finalHandle);
       if (!existing) break;
       attempt++;
@@ -362,7 +371,12 @@ app.get('/api/users/:handle', authenticate, async (req,res) => {
 // ── WORKSPACES ────────────────────────────────────────────────────────────────
 app.get('/api/workspaces', authenticate, async (req,res) => {
   const { data } = await db.workspacesByUser(req.userId);
-  ok(res, data||[]);
+  const out = (data||[]).map(ws => ({
+    ...ws,
+    name: ws.name ? tryDecrypt(ws.name) : 'Workspace',
+    description: ws.description ? tryDecrypt(ws.description) : null,
+  }));
+  ok(res, out);
 });
 
 app.post('/api/workspaces', authenticate, async (req,res) => {
@@ -465,8 +479,9 @@ app.post('/api/workspaces/:wid/projects', authenticate, async (req,res) => {
     const { data, error } = await db.createProject(p);
     if (error) return fail(res, error.message);
     await db.addProjectMember(data.id, req.userId, 'manager');
-    // auto-create project channel
-    await db.createChannel({ id:uuid(), workspace_id:req.params.wid, name:`proj-${safeStr(name,20).toLowerCase().replace(/[^a-z0-9]/g,'-')}`, description:`Project: ${name}`, type:'private', created_by:req.userId, archived:false, created_at:new Date().toISOString() });
+    // auto-create project channel (ignore collision - channel may already exist)
+    const chanName = `proj-${safeStr(name,20).toLowerCase().replace(/[^a-z0-9]/g,'-')}-${require('./services/crypto').randomHex(2)}`;
+    await db.createChannel({ id:uuid(), workspace_id:req.params.wid, name:chanName, description:`Project: ${name}`, type:'private', created_by:req.userId, archived:false, created_at:new Date().toISOString() }).catch(()=>{});
     ok(res, data, 201);
   } catch(e) { fail(res, e.message); }
 });
@@ -546,8 +561,11 @@ app.patch('/api/tasks/:id', authenticate, async (req,res) => {
     if (description !== undefined) updates.description = description?encrypt(safeStr(description,5000)):null;
     const { data, error } = await db.updateTask(req.params.id, updates);
     if (error) return fail(res, error.message);
-    io.emit('task:updated', { task:decryptTask(data) });
-    ok(res, decryptTask(data));
+    const updated = decryptTask(data);
+    if (updated.workspace_id) {
+      io.to(`ws:${updated.workspace_id}`).emit('task:updated', { task: updated });
+    }
+    ok(res, updated);
   } catch(e) { fail(res, e.message); }
 });
 
@@ -868,7 +886,10 @@ app.post('/webhooks/github', express.raw({type:'application/json'}), async (req,
     const event = req.headers['x-github-event'];
     const payload = JSON.parse(req.body.toString());
     const repoId = String(payload.repository?.id);
-    const { data:repo } = await db.repoByGithubId(repoId, '').catch(()=>({data:null}));
+    // Look up repo by github_repo_id only (no workspace filter needed in webhook)
+    const { data:repo } = await db.supabase()
+      .from('linked_repos').select('*').eq('github_repo_id', repoId).limit(1).single()
+      .catch(() => ({ data: null }));
     if (repo) {
       let msg = null;
       if (event==='push') msg = `📤 **${payload.pusher?.name}** pushed ${payload.commits?.length||0} commit(s) to \`${payload.ref?.replace('refs/heads/','')}\``;
@@ -908,12 +929,26 @@ function decryptTask(t) {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 async function start() {
-  const ok = await testConnection();
-  if (!ok && NODE_ENV==='production') { console.error('DB failed'); process.exit(1); }
+  const dbOk = await testConnection();
+  if (!dbOk) {
+    console.error('\n❌ DATABASE CONNECTION FAILED');
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('Most likely cause: wrong Supabase key in Render env vars.');
+    console.error('');
+    console.error('Fix: Go to Supabase → Project Settings → API');
+    console.error('  Copy the "service_role" secret key (NOT the anon key)');
+    console.error('  Paste it as SUPABASE_SERVICE_KEY in Render → Environment');
+    console.error('');
+    console.error('Also check: SUPABASE_URL is correct (no trailing slash)');
+    console.error('Also check: schema.sql has been run in Supabase SQL Editor');
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    if (NODE_ENV === 'production') process.exit(1);
+  }
   server.listen(PORT, () => {
     console.log(`\n🚀 DevCollab Hub v2.0 on :${PORT} [${NODE_ENV}]`);
     console.log(`   GitHub OAuth: /api/auth/github`);
-    console.log(`   Frontend: ${FRONTEND_URL}\n`);
+    console.log(`   Frontend:     ${FRONTEND_URL}`);
+    console.log(`   DB:           ${dbOk ? '✅ Connected' : '⚠️  Not connected'}\n`);
   });
 }
 start();
