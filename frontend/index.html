@@ -643,7 +643,7 @@ input,textarea,select{font-family:inherit}
           <div class="sb-bot-name" id="sb-uname">Loading...</div>
           <div class="sb-bot-status" id="sb-status">● Online</div>
         </div>
-        <button class="sb-bot-out" onclick="logout()" title="Sign out">
+        <button class="sb-out-btn" onclick="logout()" title="Sign out">
           <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
@@ -1508,8 +1508,12 @@ function pickEmoji(mid){
   setTimeout(()=>document.addEventListener('click',hideCtx,{once:true}),50);
 }
 function startDM(uid){
-  if(S.socket?.connected)S.socket.emit('dm:send',{toUserId:uid,content:'👋 Hey!'});
-  toast('i','DM','Conversation started');
+  const u = S.users.find(x => x.id === uid);
+  const name = u?.display_name || u?.handle || 'user';
+  const msg = prompt(`Send a direct message to ${name}:`);
+  if (!msg || !msg.trim()) return;
+  if(S.socket?.connected) S.socket.emit('dm:send', {toUserId: uid, content: msg.trim()});
+  toast('i','DM sent', `To @${name}`);
 }
 
 // ════════════════════════════════════════════════════════════
