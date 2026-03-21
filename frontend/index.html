@@ -94,24 +94,26 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 }
 .auth-bg {
   position:absolute;inset:0;overflow:hidden;
-  background:radial-gradient(ellipse 80% 60% at 50% -20%,rgba(34,197,94,.08),transparent),
-             radial-gradient(ellipse 50% 40% at 80% 80%,rgba(59,130,246,.05),transparent);
+  background:
+    radial-gradient(ellipse 70% 50% at 50% -10%,rgba(34,197,94,.06),transparent),
+    radial-gradient(ellipse 40% 30% at 85% 85%,rgba(59,130,246,.04),transparent);
 }
 .auth-grid {
   position:absolute;inset:0;
-  background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),
-                   linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
-  background-size:40px 40px;
-  mask-image:radial-gradient(ellipse at center,black 30%,transparent 70%);
+  background-image:
+    linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:radial-gradient(ellipse 60% 60% at center,black 20%,transparent 65%);
 }
 .auth-card {
   position:relative;z-index:1;
-  width:400px;padding:40px;
-  background:rgba(17,17,19,.8);
-  border:1px solid rgba(255,255,255,.07);
-  border-radius:var(--r20);
-  box-shadow:var(--sh4),inset 0 1px 0 rgba(255,255,255,.05);
-  backdrop-filter:blur(20px);
+  width:420px;padding:44px 48px;
+  background:rgba(10,10,11,.88);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:20px;
+  box-shadow:0 32px 80px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04),inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter:blur(24px);
 }
 .auth-logo {
   display:flex;align-items:center;gap:10px;margin-bottom:8px;
@@ -261,7 +263,7 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
   display:flex;align-items:center;justify-content:center;
   font-weight:700;font-size:11px;color:#000;
 }
-.nav-brand-name{font-size:14px;font-weight:700;letter-spacing:-.2px;white-space:nowrap}
+.nav-brand-name{font-size:14px;font-weight:700;letter-spacing:-.3px;white-space:nowrap;line-height:1}
 .nav-brand-name em{font-style:normal;color:var(--gr)}
 .nav-divider{width:1px;height:18px;background:var(--c4);flex-shrink:0}
 .nav-ws{
@@ -318,7 +320,7 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 .sb-section{padding:0 0 4px}
 .sb-section-hdr{
   display:flex;align-items:center;justify-content:space-between;
-  padding:10px 14px 4px;
+  padding:14px 14px 4px;
 }
 .sb-section-label{
   font-size:10px;font-weight:700;color:var(--tx4);
@@ -417,7 +419,7 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 .home-header{
   display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;
 }
-.home-greeting{font-size:24px;font-weight:700;letter-spacing:-.5px;line-height:1.2}
+.home-greeting{font-size:22px;font-weight:700;letter-spacing:-.4px;line-height:1.3}
 .home-greeting .name{color:var(--gr)}
 .home-sub{font-size:13px;color:var(--tx3);margin-top:6px;display:flex;align-items:center;gap:8px}
 .home-sub-dot{width:3px;height:3px;border-radius:50%;background:var(--c5)}
@@ -433,7 +435,7 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 }
 .stat-card:hover{border-color:var(--c5);transform:translateY(-1px);box-shadow:var(--sh2)}
 .stat-label{font-size:11px;font-weight:600;color:var(--tx3);letter-spacing:.3px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.stat-val{font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1}
+.stat-val{font-size:28px;font-weight:700;letter-spacing:-.5px;line-height:1.1;margin:6px 0 4px}
 .stat-sub{font-size:11px;color:var(--tx4);margin-top:6px}
 
 /* ── Activity Graph ── */
@@ -476,7 +478,7 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 }
 .chat-hdr-icon{flex-shrink:0;display:flex;align-items:center;color:var(--tx3)}
 .chat-hdr-name{font-size:14px;font-weight:600;letter-spacing:-.2px}
-.chat-hdr-desc{font-size:12px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-hdr-desc{font-size:12px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px}
 .chat-hdr-sep{width:1px;height:16px;background:var(--c4)}
 .chat-hdr-meta{font-size:11px;color:var(--tx4)}
 .chat-hdr-acts{margin-left:auto;display:flex;gap:3px}
@@ -603,9 +605,10 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
   display:flex;background:var(--c1);border:1px solid var(--c4);border-radius:var(--r8);overflow:hidden;
 }
 .filter-pill-btn{
-  padding:6px 12px;font-size:11px;font-weight:600;color:var(--tx3);cursor:pointer;transition:all var(--t1);
+  padding:6px 12px;font-size:11px;font-weight:600;color:var(--tx3);cursor:pointer;
+  transition:all var(--t1);border-radius:6px;
 }
-.filter-pill-btn.on{background:var(--c3);color:var(--tx1)}
+.filter-pill-btn.on{background:var(--c3);color:var(--tx1);box-shadow:var(--sh1)}
 .task-card{
   background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);
   padding:16px;margin-bottom:8px;transition:all var(--t2);
@@ -723,8 +726,8 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 }
 .rp-tabs{display:flex;border-bottom:1px solid var(--c4);flex-shrink:0}
 .rp-tab{
-  flex:1;padding:13px 0;font-size:10px;font-weight:700;color:var(--tx4);
-  text-align:center;cursor:pointer;letter-spacing:.5px;text-transform:uppercase;
+  flex:1;padding:12px 0;font-size:11px;font-weight:600;color:var(--tx3);
+  text-align:center;cursor:pointer;letter-spacing:.1px;
   border-bottom:2px solid transparent;transition:all var(--t2);
 }
 .rp-tab.active{color:var(--tx1);border-bottom-color:var(--gr)}
@@ -798,9 +801,9 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
   animation:slideR .22s var(--spring);
 }
 .ai-hdr{
-  padding:16px;border-bottom:1px solid rgba(255,255,255,.06);
-  display:flex;align-items:center;gap:12px;flex-shrink:0;
-  background:linear-gradient(to bottom,rgba(168,85,247,.04),transparent);
+  padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.07);
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+  background:var(--c2);
 }
 .ai-hdr-icon{
   width:36px;height:36px;border-radius:10px;flex-shrink:0;
@@ -924,10 +927,10 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 }
 .modal-title{font-size:15px;font-weight:700;letter-spacing:-.2px}
 .modal-close{
-  width:26px;height:26px;border-radius:var(--r6);
+  width:28px;height:28px;border-radius:var(--r6);
   display:flex;align-items:center;justify-content:center;
-  color:var(--tx4);cursor:pointer;font-size:16px;line-height:1;
-  transition:all var(--t1);
+  color:var(--tx3);cursor:pointer;font-size:15px;line-height:1;
+  transition:all var(--t1);flex-shrink:0;
 }
 .modal-close:hover{background:var(--c3);color:var(--tx1)}
 .modal-body{padding:20px;overflow-y:auto;flex:1}
@@ -1067,7 +1070,7 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 .empty-desc{font-size:12px;color:var(--tx4);line-height:1.6;max-width:280px}
 
 /* Repo tabs */
-.repo-tab{padding:12px 14px;font-size:12px;font-weight:600;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;transition:all var(--t2);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.repo-tab{padding:13px 14px;font-size:11px;font-weight:600;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;transition:all var(--t2);display:flex;align-items:center;gap:5px;white-space:nowrap;letter-spacing:.1px}
 .repo-tab:hover{color:var(--tx2)}
 .repo-tab.active{color:var(--tx1);border-bottom-color:var(--gr)}
 /* Repo filter pills */
@@ -1111,9 +1114,116 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 
 /* Animations */
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes slideUp{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes slideUp{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes slideR{from{transform:translateX(100%)}to{transform:translateX(0)}}
-@keyframes scaleIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes scaleIn{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ── PROFESSIONAL POLISH LAYER ─────────────────────────────────── */
+/* Fix all jagged/clipped text */
+*, *::before, *::after { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+
+/* Improved panel shadows for depth */
+.sidebar, .rpanel { box-shadow: 1px 0 0 var(--c4); }
+.ai-panel { box-shadow:-24px 0 60px rgba(0,0,0,.6),inset 1px 0 0 rgba(255,255,255,.04); }
+
+/* Nav refinement - no gap between brand icon and workspace name */
+.nav { height:52px; }
+.nav-mark { letter-spacing:-.5px; font-size:12px; }
+
+/* Sidebar footer - cleaner */
+.sb-footer { background:rgba(0,0,0,.2); }
+
+/* All panel headers consistent */
+.chat-hdr, .repo-sb-hdr, .repo-file-hdr, .rp-tabs { height:auto; min-height:52px; }
+
+/* Clean empty states */
+.empty { opacity:.85; }
+.empty-icon { font-size:36px; opacity:.4; }
+.empty-title { font-size:14px; font-weight:600; }
+.empty-desc { font-size:12px; max-width:240px; }
+
+/* Smooth all interactive elements */
+.btn, .sb-item, .rp-tab, .modal, .toast, .stat-card, .task-card, .repo-list-item,
+.gh-item, .commit-full-item, .notif-item { transition:all 150ms cubic-bezier(.4,0,.2,1); }
+
+/* Fix modal overlay blur */
+.modal-ov { backdrop-filter:blur(8px); }
+
+/* Better focus rings */
+.field-input:focus, .field-select:focus { outline:none; }
+button:focus-visible { outline:2px solid var(--gr); outline-offset:2px; border-radius:var(--r6); }
+
+/* Message hover highlight */
+.msg { border-radius:var(--r6); padding-left:4px; padding-right:4px; margin-left:-4px; margin-right:-4px; }
+.msg:hover { background:rgba(255,255,255,.02); }
+.msg.cont:hover { background:rgba(255,255,255,.02); }
+
+/* Code blocks - more polished */
+.msg-code-block { border:1px solid var(--c4); border-radius:var(--r10); overflow:hidden; margin-top:8px; }
+.code-body { font-size:12px; line-height:1.65; }
+
+/* Better input area */
+.input-box { border-radius:var(--r12); }
+
+/* Stat cards consistent height */
+.stat-card { min-height:100px; }
+
+/* Right panel repo card hover */
+.repo-card-sm:hover { background:var(--c3); }
+
+/* Tooltip polish */
+#g-tooltip { font-size:11px !important; padding:6px 10px !important; }
+
+/* AI panel message scroll */
+.ai-msgs { gap:14px; }
+
+/* Home view consistent spacing */
+#home-view { padding:28px 32px; }
+.home-header { margin-bottom:24px; }
+
+/* Repo tab height fix */
+.repo-tab { padding:14px 16px; }
+
+/* Fix jagged text in all badges */
+.prio-chip, .chip, .role-tag, .mem-status, .pr-badge, .sb-item-badge, .notif-dot-ind { 
+  -webkit-font-smoothing:auto; 
+}
+
+/* Consistent card border hover */
+.stat-card:hover, .task-card:hover, .repo-list-item.active, .gh-item:hover {
+  border-color: var(--c5);
+}
+
+/* Activity feed animation */
+#activity-feed-list > div { animation: fadeIn .3s ease forwards; }
+
+/* Pinned bar */
+#pinned-bar { border-bottom:1px solid rgba(234,179,8,.12) !important; }
+
+/* Thread panel */
+#thread-panel { border-radius:var(--r12) 0 0 var(--r12) !important; }
+
+/* Mention popup polish */
+#mention-popup { animation:scaleIn .12s var(--spring); transform-origin:bottom left; }
+
+/* Command palette input */
+#cmd-input { font-size:15px; }
+
+/* Mobile responsive basics */
+@media (max-width:768px) {
+  .sidebar { width:200px; }
+  .rpanel { display:none; }
+  .nav-search-wrap { display:none; }
+  #home-view { padding:16px; }
+  .home-stats { grid-template-columns:1fr; }
+  .repo-right { display:none; }
+}
+@media (max-width:600px) {
+  .sidebar { position:fixed; left:0; top:52px; bottom:0; z-index:200; transform:translateX(-100%); transition:transform .25s var(--spring); }
+  .sidebar.open { transform:translateX(0); box-shadow:4px 0 24px rgba(0,0,0,.5); }
+  .shell { flex-direction:column; }
+  .rpanel { display:none; }
+}
 
 /* Color swatches for profile */
 .av-colors{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
@@ -1145,19 +1255,20 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 
 <!-- ══ AUTH ══════════════════════════════════════════════ -->
 <div id="auth">
-  <div class="auth-bg"><div class="auth-grid"></div></div>
+  <div class="auth-bg"></div>
+  <div class="auth-grid"></div>
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="auth-logo-mark">DC</div>
-      <div class="auth-logo-text">DevCollab <em>Hub</em></div>
+      <div class="auth-logo-mark" style="font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:-.5px">DC</div>
+      <div class="auth-logo-text" style="font-size:20px;letter-spacing:-.4px">DevCollab <em>Hub</em></div>
     </div>
-    <div class="auth-sub">Enterprise engineering operations platform.<br>Connect with your GitHub account to continue.</div>
+    <div class="auth-sub" style="margin-bottom:28px;line-height:1.7;font-size:13px;color:var(--tx3)">Enterprise engineering operations platform.<br>Sign in with your GitHub account to continue.</div>
     <button class="auth-gh-btn" onclick="loginWithGitHub()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
       Continue with GitHub
     </button>
     <div id="auth-err" class="auth-err"></div>
-    <div class="auth-feats">
+    <div class="auth-feats" style="margin-top:28px;border-top:1px solid rgba(255,255,255,.06);padding-top:20px">
       <div class="auth-feat"><div class="auth-feat-dot"></div>End-to-end encrypted</div>
       <div class="auth-feat"><div class="auth-feat-dot"></div>GitHub OAuth only</div>
       <div class="auth-feat"><div class="auth-feat-dot"></div>Role-based access</div>
@@ -1237,7 +1348,7 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
       <div class="nav-brand-name">DevCollab <em>Hub</em></div>
     </div>
     <div class="nav-divider"></div>
-    <div class="nav-ws" id="nav-ws-name" onclick="openSettings()">Workspace</div>
+    <div class="nav-ws" id="nav-ws-name" onclick="openSettings()" data-tip="Workspace settings" style="max-width:140px">Workspace</div>
     <div class="nav-search-wrap">
       <div class="nav-search" id="nav-search-box">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -2377,11 +2488,11 @@ function onMsgInput(el){autoGrow(el);if(!S.ch||!S.socket?.connected)return;S.soc
 function stopTyping(){if(S.ch&&S.socket?.connected)S.socket.emit('typing:stop',{channelId:S.ch});}
 function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,150)+'px';}
 function wrap(b,a){const ta=document.getElementById('msg-input');const s=ta.selectionStart,e=ta.selectionEnd;const sel=ta.value.slice(s,e)||'text';ta.value=ta.value.slice(0,s)+b+sel+a+ta.value.slice(e);ta.focus();}
-function insertCode(){const ta=document.getElementById('msg-input');ta.value+=(ta.value?'\n':'')+'```javascript\n// your code here\n```';ta.focus();autoGrow(ta);}
+function insertCode(){const ta=document.getElementById('msg-input');ta.value+=(ta.value?'\n':'')+'```javascript\n// code\n```';ta.focus();autoGrow(ta);}
 function copyCode(btn){navigator.clipboard.writeText(btn.closest('.msg-code-block').querySelector('.code-body').textContent).then(()=>toast('s','Copied',''));}
-function forkCode(btn){const c=btn.closest('.msg-code-block').querySelector('.code-body').textContent;document.getElementById('msg-input').value='```javascript\n'+c+'```';document.getElementById('msg-input').focus();}
+function forkCode(btn){const c=btn.closest('.msg-code-block').querySelector('.code-body').textContent;const ta=document.getElementById('msg-input');ta.value='\`\`\`javascript\n'+c+'\n```';ta.focus();}
 function reviewCode(btn){const c=btn.closest('.msg-code-block').querySelector('.code-body').textContent;openAI();setMode('review');setTimeout(()=>{document.getElementById('ai-input').value=c;},100);}
-function explainCode(btn){const c=btn.closest('.msg-code-block').querySelector('.code-body').textContent;openAI();setTimeout(()=>{document.getElementById('ai-input').value='Explain this:\n```\n'+c+'\n```';},100);}
+function explainCode(btn){const c=btn.closest('.msg-code-block').querySelector('.code-body').textContent;openAI();setTimeout(()=>{document.getElementById('ai-input').value='Explain this code:\n'+c;},100);}
 function doReact(mid,emoji){if(S.socket?.connected)S.socket.emit('msg:react',{messageId:mid,emoji});}
 const EMOJIS=['👍','🔥','✓','❤️','😂','🚀','👀','💯','🎉','⚡','🤔','👏'];
 function pickEmoji(mid){
@@ -2756,7 +2867,7 @@ function reviewCurrentFile(){
   const fc=document.getElementById('file-content');
   if(!fc||!S.currentFile){toast('e','Select a file first','');return;}
   openAI();setMode('review');
-  setTimeout(()=>{document.getElementById('ai-input').value=`Review this ${S.currentFile}:\n\`\`\`\n${fc.innerText.slice(0,3000)}\n\`\`\``;},100);
+  setTimeout(()=>{const ftext=fc?fc.innerText.slice(0,3000):'';document.getElementById('ai-input').value='Review this file ('+S.currentFile+'):\n'+ftext;},100);
 }
 
 async function loadCommitsTab(){
@@ -3327,7 +3438,7 @@ function showMsgCtx(e,m){
   const items=[
     {label:'React ✨',fn:()=>pickEmoji(m.id)},
     {label:'Reply',fn:()=>{const u=S.users.find(x=>x.id===m.userId)||m.user;document.getElementById('msg-input').value=`@${u?.handle||u?.display_name||'user'} `;document.getElementById('msg-input').focus();}},
-    ...(m.code?[{sep:true},{label:'✦ AI Review',fn:()=>{openAI();setMode('review');setTimeout(()=>{document.getElementById('ai-input').value=m.code.body;},100);}},{label:'✦ Explain',fn:()=>{openAI();setTimeout(()=>{document.getElementById('ai-input').value='Explain:\n```\n'+m.code.body+'\n```';},100);}}]:[]),
+    ...(m.code?[{sep:true},{label:'✦ AI Review',fn:()=>{openAI();setMode('review');setTimeout(()=>{document.getElementById('ai-input').value=m.code.body;},100);}},{label:'✦ Explain',fn:()=>{openAI();setTimeout(()=>{document.getElementById('ai-input').value='Explain this code:\n'+m.code.body;},100);}}]:[]),
     {sep:true},
     {label:'Copy Text',fn:()=>navigator.clipboard.writeText(m.content||'').then(()=>toast('s','Copied',''))},
     ...(isOwn?[{sep:true},{label:'Edit',fn:()=>{const t=prompt('Edit message:',m.content||'');if(t!==null&&S.socket?.connected)S.socket.emit('msg:edit',{messageId:m.id,content:t});}},{label:'Delete',danger:true,fn:()=>{if(confirm('Delete this message?')&&S.socket?.connected)S.socket.emit('msg:delete',{messageId:m.id});}}]:[]),
@@ -3461,3 +3572,1154 @@ window.addEventListener('DOMContentLoaded',()=>{
 </script>
 </body>
 </html>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// FEATURE PACK 2 — Threads, Presence, Real Contributions, AI Context,
+//                  Diff Viewer, Code Search, Activity Feed, Command Palette,
+//                  Tooltips, Shortcuts, Onboarding, Dark/Light Theme,
+//                  @mention autocomplete, Read Receipts, Pinned Messages
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── TOOLTIP SYSTEM ──────────────────────────────────────────────────────
+(function initTooltips(){
+  const tip = document.createElement('div');
+  tip.id = 'g-tooltip';
+  Object.assign(tip.style, {
+    position:'fixed',zIndex:'9999',background:'rgba(24,24,27,.97)',
+    color:'#fafafa',border:'1px solid rgba(255,255,255,.1)',
+    borderRadius:'6px',padding:'5px 10px',fontSize:'11px',fontWeight:'600',
+    pointerEvents:'none',opacity:'0',transition:'opacity .12s',
+    boxShadow:'0 4px 12px rgba(0,0,0,.5)',letterSpacing:'.2px',
+    whiteSpace:'nowrap',maxWidth:'220px',lineHeight:'1.4',
+    fontFamily:"'Inter',sans-serif",
+  });
+  document.body.appendChild(tip);
+  let hideTimer;
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest('[data-tip]');
+    if (!el) { clearTimeout(hideTimer); hideTimer = setTimeout(()=>tip.style.opacity='0', 80); return; }
+    clearTimeout(hideTimer);
+    const text = el.getAttribute('data-tip');
+    const shortcut = el.getAttribute('data-shortcut');
+    tip.innerHTML = text + (shortcut ? `<span style="margin-left:8px;opacity:.5;font-size:10px;font-family:'JetBrains Mono',monospace">${shortcut}</span>` : '');
+    const r = el.getBoundingClientRect();
+    tip.style.opacity = '1';
+    requestAnimationFrame(()=>{
+      const tr = tip.getBoundingClientRect();
+      let x = r.left + r.width/2 - tr.width/2;
+      let y = r.bottom + 8;
+      if (x < 8) x = 8;
+      if (x + tr.width > window.innerWidth - 8) x = window.innerWidth - tr.width - 8;
+      if (y + tr.height > window.innerHeight - 8) y = r.top - tr.height - 8;
+      tip.style.left = x + 'px'; tip.style.top = y + 'px';
+    });
+  });
+  document.addEventListener('mouseout', e => {
+    if (!e.target.closest('[data-tip]')) return;
+    hideTimer = setTimeout(()=>tip.style.opacity='0', 120);
+  });
+})();
+
+// Add data-tip to all nav/sidebar buttons after DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  const tips = [
+    ['#sb-home', 'Home', '1'],
+    ['#sb-tasks', 'My Tasks', '2'],
+    ['#sb-repos', 'Repositories', '3'],
+    ['.nav-notif', 'Notifications', 'N'],
+    ['.sb-footer-logout', 'Sign out', ''],
+  ];
+  tips.forEach(([sel, tip, sc]) => {
+    const el = document.querySelector(sel);
+    if (el) { el.setAttribute('data-tip', tip); if (sc) el.setAttribute('data-shortcut', sc); }
+  });
+});
+
+// ── THEME TOGGLE (dark / light) ─────────────────────────────────────────
+(function initTheme(){
+  const saved = localStorage.getItem('dc_theme') || 'dark';
+  applyTheme(saved);
+})();
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('dc_theme', t);
+  if (t === 'light') {
+    document.documentElement.style.setProperty('--c0','#f4f4f5');
+    document.documentElement.style.setProperty('--c1','#ffffff');
+    document.documentElement.style.setProperty('--c2','#fafafa');
+    document.documentElement.style.setProperty('--c3','#e4e4e7');
+    document.documentElement.style.setProperty('--c4','#d4d4d8');
+    document.documentElement.style.setProperty('--c5','#a1a1aa');
+    document.documentElement.style.setProperty('--tx1','#09090b');
+    document.documentElement.style.setProperty('--tx2','#3f3f46');
+    document.documentElement.style.setProperty('--tx3','#71717a');
+    document.documentElement.style.setProperty('--tx4','#a1a1aa');
+  } else {
+    document.documentElement.style.setProperty('--c0','#09090b');
+    document.documentElement.style.setProperty('--c1','#111113');
+    document.documentElement.style.setProperty('--c2','#18181b');
+    document.documentElement.style.setProperty('--c3','#1f1f23');
+    document.documentElement.style.setProperty('--c4','#27272a');
+    document.documentElement.style.setProperty('--c5','#3f3f46');
+    document.documentElement.style.setProperty('--tx1','#fafafa');
+    document.documentElement.style.setProperty('--tx2','#a1a1aa');
+    document.documentElement.style.setProperty('--tx3','#71717a');
+    document.documentElement.style.setProperty('--tx4','#52525b');
+  }
+}
+function toggleTheme(){
+  const current = localStorage.getItem('dc_theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+  const btn = document.querySelector('[onclick="toggleTheme()"]');
+  if (btn) btn.textContent = current === 'dark' ? '☀️' : '🌙';
+}
+// Wire the theme button in nav (the settings gear icon area)
+document.addEventListener('DOMContentLoaded', () => {
+  const nav = document.querySelector('.nav-actions');
+  if (nav) {
+    const themeBtn = document.createElement('button');
+    themeBtn.className = 'btn btn-icon';
+    themeBtn.setAttribute('data-tip', 'Toggle theme');
+    themeBtn.setAttribute('data-shortcut', 'T');
+    themeBtn.innerHTML = localStorage.getItem('dc_theme')==='light' ? '☀️' : '🌙';
+    themeBtn.onclick = toggleTheme;
+    themeBtn.style.fontSize = '14px';
+    nav.insertBefore(themeBtn, nav.querySelector('.nav-avatar'));
+  }
+});
+
+// ── COMMAND PALETTE (⌘K) ─────────────────────────────────────────────────
+(function buildCommandPalette(){
+  const overlay = document.createElement('div');
+  overlay.id = 'cmd-palette';
+  overlay.innerHTML = `
+    <div class="cmd-panel" id="cmd-panel">
+      <div class="cmd-search-row">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="cmd-input" placeholder="Search commands, channels, users, files…" autocomplete="off">
+        <kbd style="font-size:10px;color:var(--tx4);background:var(--c3);border:1px solid var(--c4);border-radius:4px;padding:2px 6px;flex-shrink:0">Esc</kbd>
+      </div>
+      <div id="cmd-results"></div>
+      <div id="cmd-recents"></div>
+    </div>`;
+  Object.assign(overlay.style, {
+    position:'fixed',inset:'0',zIndex:'10000',background:'rgba(0,0,0,.65)',
+    backdropFilter:'blur(6px)',display:'none',alignItems:'flex-start',
+    justifyContent:'center',paddingTop:'18vh',
+  });
+  overlay.addEventListener('click', e => { if(e.target===overlay) closeCmdPalette(); });
+  document.body.appendChild(overlay);
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .cmd-panel{background:var(--c1);border:1px solid rgba(255,255,255,.08);border-radius:14px;width:560px;max-height:480px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.7)}
+    .cmd-search-row{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--c4)}
+    #cmd-input{flex:1;font-size:15px;color:var(--tx1);background:transparent;outline:none;font-family:inherit}
+    #cmd-input::placeholder{color:var(--tx4)}
+    #cmd-results,#cmd-recents{overflow-y:auto;max-height:340px}
+    .cmd-section-label{padding:8px 16px 4px;font-size:10px;font-weight:700;color:var(--tx4);letter-spacing:.7px;text-transform:uppercase}
+    .cmd-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background .1s;border-radius:0}
+    .cmd-item:hover,.cmd-item.focused{background:rgba(255,255,255,.06)}
+    .cmd-item-icon{width:30px;height:30px;border-radius:8px;background:var(--c3);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+    .cmd-item-text{flex:1;min-width:0}
+    .cmd-item-name{font-size:13px;font-weight:500;color:var(--tx1)}
+    .cmd-item-sub{font-size:11px;color:var(--tx3)}
+    .cmd-item-kbd{font-size:10px;color:var(--tx4);background:var(--c3);border:1px solid var(--c4);border-radius:4px;padding:2px 6px;font-family:monospace;flex-shrink:0}
+  `;
+  document.head.appendChild(style);
+})();
+
+let _cmdFocused = 0;
+function openCmdPalette(){
+  const el = document.getElementById('cmd-palette');
+  el.style.display = 'flex';
+  setTimeout(() => document.getElementById('cmd-input')?.focus(), 20);
+  renderCmdRecents();
+  document.getElementById('cmd-input').oninput = e => filterCmd(e.target.value);
+  document.getElementById('cmd-input').onkeydown = handleCmdKey;
+}
+function closeCmdPalette(){
+  const el = document.getElementById('cmd-palette');
+  el.style.display = 'none';
+  document.getElementById('cmd-input').value = '';
+  document.getElementById('cmd-results').innerHTML = '';
+}
+function getCmdCommands(){
+  const cmds = [
+    { icon:'🏠', name:'Go to Home',        sub:'Dashboard overview',         shortcut:'1',      fn:showHome },
+    { icon:'✅', name:'Go to My Tasks',     sub:'View all assigned tasks',    shortcut:'2',      fn:showTasks },
+    { icon:'🐙', name:'Go to Repositories', sub:'GitHub repo browser',        shortcut:'3',      fn:showRepos },
+    { icon:'✦',  name:'Open AI Assistant',  sub:'Gemini 2.5 — chat, review, fix', shortcut:'⌘/', fn:openAI },
+    { icon:'🔔', name:'Notifications',      sub:'View all notifications',     shortcut:'N',      fn:openNotifs },
+    { icon:'👤', name:'Edit Profile',       sub:'Change name, avatar, status', shortcut:'',      fn:openProfile },
+    { icon:'⚙️', name:'Settings',           sub:'Workspace & preferences',    shortcut:'',       fn:openSettings },
+    { icon:'🌙', name:'Toggle Theme',       sub:'Switch dark / light',        shortcut:'T',      fn:toggleTheme },
+    { icon:'📋', name:'New Task',           sub:'Create a task',              shortcut:'',       fn:openNewTask },
+    { icon:'📣', name:'New Channel',        sub:'Create a workspace channel', shortcut:'',       fn:openNewChannel },
+    { icon:'🐙', name:'Add Repository',     sub:'Link a GitHub repo',         shortcut:'',       fn:openNewRepo },
+    { icon:'🔍', name:'Code Search', sub:'Search across all your repos', shortcut:'', fn:openCodeSearch },
+    { icon:'?',  name:'Keyboard Shortcuts', sub:'View all shortcuts',         shortcut:'?',      fn:openShortcuts },
+    ...(S.channels||[]).map(ch => ({ icon:'#', name:'#'+ch.name, sub:'Channel', shortcut:'', fn:()=>switchChannel(ch.id) })),
+    ...(S.users||[]).filter(u=>u.id!==S.user?.id).slice(0,5).map(u => ({ icon:'👤', name:(u.display_name||u.handle||''), sub:'@'+u.handle, shortcut:'', fn:()=>startDM(u.id) })),
+  ];
+  return cmds;
+}
+function filterCmd(q){
+  const res = document.getElementById('cmd-results');
+  const rec = document.getElementById('cmd-recents');
+  rec.style.display = q ? 'none' : 'block';
+  if (!q) { res.innerHTML=''; _cmdFocused=0; return; }
+  const cmds = getCmdCommands().filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || c.sub?.toLowerCase().includes(q.toLowerCase()));
+  _cmdFocused = 0;
+  res.innerHTML = cmds.length
+    ? `<div class="cmd-section-label">Actions</div>` + cmds.map((c,i) => `<div class="cmd-item${i===0?' focused':''}" data-ci="${i}" onclick="runCmd(${i},this)" onmouseover="focusCmd(${i})">
+        <div class="cmd-item-icon">${c.icon}</div>
+        <div class="cmd-item-text"><div class="cmd-item-name">${esc(c.name)}</div><div class="cmd-item-sub">${esc(c.sub||'')}</div></div>
+        ${c.shortcut?`<span class="cmd-item-kbd">${esc(c.shortcut)}</span>`:''}
+      </div>`).join('')
+    : '<div style="padding:24px;text-align:center;font-size:12px;color:var(--tx4)">No results</div>';
+  window.__cmdResults = cmds;
+}
+function renderCmdRecents(){
+  const rec = document.getElementById('cmd-recents');
+  const cmds = getCmdCommands().slice(0,8);
+  rec.innerHTML = `<div class="cmd-section-label">Quick Actions</div>` + cmds.map((c,i)=>`<div class="cmd-item" onclick="runCmd(${i},this)">
+    <div class="cmd-item-icon">${c.icon}</div>
+    <div class="cmd-item-text"><div class="cmd-item-name">${esc(c.name)}</div><div class="cmd-item-sub">${esc(c.sub||'')}</div></div>
+    ${c.shortcut?`<span class="cmd-item-kbd">${esc(c.shortcut)}</span>`:''}
+  </div>`).join('');
+  window.__cmdResults = cmds;
+}
+function focusCmd(i){ document.querySelectorAll('.cmd-item').forEach((el,j)=>el.classList.toggle('focused',j===i)); _cmdFocused=i; }
+function runCmd(i, el){ const cmd=(window.__cmdResults||[])[i]; if(cmd?.fn){closeCmdPalette();cmd.fn();} }
+function handleCmdKey(e){
+  const items = document.querySelectorAll('#cmd-results .cmd-item, #cmd-recents .cmd-item');
+  if(e.key==='ArrowDown'){e.preventDefault();_cmdFocused=Math.min(_cmdFocused+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('focused',i===_cmdFocused));}
+  else if(e.key==='ArrowUp'){e.preventDefault();_cmdFocused=Math.max(_cmdFocused-1,0);items.forEach((el,i)=>el.classList.toggle('focused',i===_cmdFocused));}
+  else if(e.key==='Enter'){const focused=items[_cmdFocused];if(focused){const ci=parseInt(focused.dataset.ci||'0');runCmd(ci,focused);}}
+  else if(e.key==='Escape'){closeCmdPalette();}
+}
+
+// Override ⌘K to open command palette
+document.addEventListener('keydown', e => {
+  if ((e.metaKey||e.ctrlKey) && e.key==='k') { e.preventDefault(); openCmdPalette(); }
+  if (e.key==='?' && !e.target.matches('input,textarea')) { e.preventDefault(); openShortcuts(); }
+  if (e.key==='t' && !e.target.matches('input,textarea') && (e.metaKey||e.ctrlKey)) { e.preventDefault(); toggleTheme(); }
+  // Number shortcuts for views
+  if (!e.target.matches('input,textarea,select') && !e.metaKey && !e.ctrlKey) {
+    if (e.key==='1') showHome();
+    if (e.key==='2') showTasks();
+    if (e.key==='3') showRepos();
+  }
+}, true);
+
+// ── KEYBOARD SHORTCUTS MODAL ─────────────────────────────────────────────
+function openShortcuts(){
+  const shortcuts = [
+    ['Navigation',''],
+    ['⌘K', 'Command palette'],
+    ['1', 'Go to Home'],
+    ['2', 'Go to My Tasks'],
+    ['3', 'Go to Repositories'],
+    ['?', 'Show this panel'],
+    ['Esc', 'Close modal / panel'],
+    ['Messaging',''],
+    ['Enter', 'Send message'],
+    ['Shift+Enter', 'New line in message'],
+    ['/ai ...', 'Ask AI in channel'],
+    ['@', 'Mention a teammate'],
+    ['AI Panel',''],
+    ['⌘/', 'Open AI assistant'],
+    ['⌘T', 'Toggle dark/light theme'],
+  ];
+  const html = shortcuts.map(([k,v]) => v
+    ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--c4)"><span style="font-size:12px;color:var(--tx2)">${esc(v)}</span><kbd style="font-size:11px;color:var(--tx1);background:var(--c3);border:1px solid var(--c4);border-radius:5px;padding:3px 8px;font-family:'JetBrains Mono',monospace">${esc(k)}</kbd></div>`
+    : `<div style="font-size:10px;font-weight:700;color:var(--tx4);letter-spacing:.7px;text-transform:uppercase;margin:16px 0 8px;padding-top:8px;border-top:1px solid var(--c4)">${esc(k)}</div>`
+  ).join('');
+  // Reuse a generic modal
+  const mo = document.createElement('div');
+  mo.className = 'modal-ov';
+  mo.id = 'shortcuts-modal';
+  mo.onclick = e => { if(e.target===mo) mo.remove(); };
+  mo.innerHTML = `<div class="modal sm"><div class="modal-hdr"><div class="modal-title">Keyboard Shortcuts</div><div class="modal-close" onclick="document.getElementById('shortcuts-modal').remove()">✕</div></div><div class="modal-body" style="max-height:420px;overflow-y:auto">${html}</div></div>`;
+  document.body.appendChild(mo);
+}
+
+// ── REAL GITHUB CONTRIBUTION GRAPH ───────────────────────────────────────
+async function loadRealContribs(){
+  try {
+    const data = await GET('/github/contributions');
+    if (!data?.contributionCalendar) return; // fallback to fake
+    const cal = data.contributionCalendar;
+    const grid = document.getElementById('cg-grid');
+    if (!grid) return;
+    const days = cal.weeks.flatMap(w => w.contributionDays);
+    grid.innerHTML = days.map(d => {
+      const c = d.contributionCount;
+      const bg = c === 0 ? '#111113' : c <= 3 ? '#14532d' : c <= 6 ? '#166534' : c <= 9 ? '#16a34a' : '#22c55e';
+      return `<div class="cg-cell" style="background:${bg}" title="${d.date}: ${c} contribution${c!==1?'s':''}"></div>`;
+    }).join('');
+    // Update stat cards
+    const totalEl = document.getElementById('stat-contribs-total');
+    if (totalEl) totalEl.textContent = cal.totalContributions;
+    // Update streak
+    document.getElementById('stat-streak')?.setAttribute('data-real', data.totalCommitContributions||0);
+  } catch(e) {
+    console.warn('[contribs]', e.message);
+  }
+}
+
+// ── PERSONAL STATS ────────────────────────────────────────────────────────
+async function loadPersonalStats(){
+  try {
+    const stats = await GET('/users/me/stats');
+    const commitEl = document.getElementById('stat-commits-week');
+    if (commitEl) commitEl.textContent = stats.commitsThisWeek || 0;
+    const taskEl = document.getElementById('stat-tasks-month');
+    if (taskEl) taskEl.textContent = stats.tasksThisMonth || 0;
+  } catch{}
+}
+
+// ── ACTIVITY FEED ─────────────────────────────────────────────────────────
+async function loadActivityFeed(){
+  const el = document.getElementById('activity-feed-list');
+  if (!el || !S.ws?.id) return;
+  try {
+    const data = await GET(`/workspaces/${S.ws.id}/activity`);
+    if (!(data||[]).length) {
+      el.innerHTML = '<div style="font-size:12px;color:var(--tx4);text-align:center;padding:16px">No activity yet</div>';
+      return;
+    }
+    const actionIcons = { message_deleted:'🗑️', task_created:'📋', task_updated:'✅', channel_created:'📣', repo_linked:'🔗', member_joined:'👋', commit_pushed:'🚀', pr_opened:'⇄', pr_merged:'🎉', issue_created:'🐛' };
+    el.innerHTML = data.slice(0,15).map(a => `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--c4)">
+      <div style="font-size:16px;flex-shrink:0;margin-top:1px">${actionIcons[a.action]||'•'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;color:var(--tx2)">${esc(a.action?.replace(/_/g,' ')||'')}</div>
+        <div style="font-size:10px;color:var(--tx4)">${new Date(a.created_at).toLocaleString()}</div>
+      </div>
+    </div>`).join('');
+  } catch{}
+}
+
+// ── THREAD SIDEBAR ────────────────────────────────────────────────────────
+let _threadParentId = null;
+function openThread(messageId, msgContent){
+  _threadParentId = messageId;
+  let panel = document.getElementById('thread-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'thread-panel';
+    panel.style.cssText = 'position:absolute;right:0;top:0;bottom:0;width:380px;background:var(--c1);border-left:1px solid var(--c4);display:flex;flex-direction:column;z-index:50;animation:slideR .2s cubic-bezier(.16,1,.3,1);box-shadow:-8px 0 24px rgba(0,0,0,.3)';
+    panel.innerHTML = `
+      <div style="padding:14px 16px;border-bottom:1px solid var(--c4);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--c1)">
+        <div style="font-size:14px;font-weight:700">Thread</div>
+        <button class="btn btn-icon" onclick="closeThread()"><svg viewBox="0 0 24 24" style="stroke:var(--tx3);fill:none;stroke-width:2;stroke-linecap:round;width:15px;height:15px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div style="padding:12px 14px;background:rgba(34,197,94,.04);border-bottom:1px solid var(--c4);flex-shrink:0">
+        <div style="font-size:11px;font-weight:600;color:var(--gr);margin-bottom:4px">ORIGINAL MESSAGE</div>
+        <div id="thread-parent-msg" style="font-size:12px;color:var(--tx2);line-height:1.6"></div>
+      </div>
+      <div id="thread-msgs" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px"></div>
+      <div style="padding:10px 14px;border-top:1px solid var(--c4);flex-shrink:0">
+        <div style="background:var(--c2);border:1px solid var(--c4);border-radius:var(--r10);padding:8px 12px;display:flex;gap:8px;align-items:flex-end">
+          <textarea id="thread-input" placeholder="Reply in thread…" style="flex:1;background:transparent;resize:none;min-height:36px;max-height:100px;font-size:12px;color:var(--tx1);font-family:inherit;outline:none" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendThread();}" oninput="autoGrow(this)"></textarea>
+          <div style="width:28px;height:28px;border-radius:6px;background:var(--gr);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0" onclick="sendThread()">
+            <svg viewBox="0 0 24 24" style="stroke:#000;fill:none;stroke-width:2;stroke-linecap:round;width:13px;height:13px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('chat-view')?.appendChild(panel);
+  }
+  document.getElementById('thread-parent-msg').innerHTML = fmtText(msgContent||'');
+  loadThreadReplies(messageId);
+  document.getElementById('thread-input')?.focus();
+}
+function closeThread(){
+  document.getElementById('thread-panel')?.remove();
+  _threadParentId = null;
+}
+async function loadThreadReplies(parentId){
+  const container = document.getElementById('thread-msgs');
+  if (!container) return;
+  container.innerHTML = '<div style="font-size:11px;color:var(--tx4);padding:8px">Loading replies…</div>';
+  try {
+    const replies = await GET(`/messages/${parentId}/thread`);
+    container.innerHTML = '';
+    if (!(replies||[]).length){container.innerHTML='<div style="font-size:11px;color:var(--tx4);text-align:center;padding:12px">No replies yet. Be first!</div>';return;}
+    replies.forEach(r => {
+      const u = S.users.find(x=>x.id===r.userId)||r.user||{};
+      const initials=(u.display_name||u.github_username||'?').replace(/[^A-Za-z0-9 ]/g,'').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
+      const el=document.createElement('div');
+      el.style.cssText='display:flex;gap:8px;align-items:flex-start';
+      el.innerHTML=`<div style="width:26px;height:26px;border-radius:50%;background:${u.avatar_color||'#22c55e'};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#000;flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:3px">
+            <span style="font-size:12px;font-weight:600">${esc(u.display_name&&u.display_name.length<50?u.display_name:u.github_username||'User')}</span>
+            <span style="font-size:10px;color:var(--tx4)">${new Date(r.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+          </div>
+          <div style="font-size:12px;color:var(--tx2);line-height:1.6">${fmtText(r.content||'')}</div>
+        </div>`;
+      container.appendChild(el);
+    });
+    container.scrollTop = container.scrollHeight;
+  } catch(e) { container.innerHTML=`<div style="font-size:11px;color:var(--red);padding:8px">${esc(e.message)}</div>`; }
+}
+async function sendThread(){
+  const inp = document.getElementById('thread-input');
+  const content = inp?.value?.trim();
+  if (!content || !_threadParentId) return;
+  inp.value = ''; inp.style.height='auto';
+  if (S.socket?.connected) S.socket.emit('thread:send', { parentMessageId: _threadParentId, content });
+  else {
+    try {
+      await POST('/messages/'+_threadParentId+'/thread', { content });
+    } catch(e) { toast('e','Error',e.message); return; }
+  }
+  loadThreadReplies(_threadParentId);
+}
+// Socket listener for new thread replies
+if (S.socket) {
+  S.socket.on('thread:new', ({ parentMessageId, reply }) => {
+    if (parentMessageId === _threadParentId) loadThreadReplies(parentMessageId);
+    // Add thread count badge to original message
+    const msgEl = document.querySelector(`[data-mid="${parentMessageId}"]`);
+    if (msgEl) {
+      let badge = msgEl.querySelector('.thread-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'thread-badge';
+        badge.style.cssText = 'font-size:11px;color:var(--blue);cursor:pointer;margin-top:5px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;background:var(--blue-dim);border:1px solid rgba(59,130,246,.2)';
+        badge.innerHTML = '💬 <span class="thread-count">1</span> reply';
+        const content = msgEl.querySelector('.msg-text');
+        if (content?.parentNode) content.parentNode.insertBefore(badge, content.nextSibling);
+        badge.onclick = () => openThread(parentMessageId, reply.content || '');
+      } else {
+        const cnt = badge.querySelector('.thread-count');
+        if (cnt) cnt.textContent = parseInt(cnt.textContent||'0') + 1;
+      }
+    }
+  });
+}
+
+// ── PINNED MESSAGES ───────────────────────────────────────────────────────
+async function loadPinnedMessages(channelId){
+  try {
+    const pins = await GET(`/channels/${channelId}/pins`);
+    const container = document.getElementById('pinned-bar');
+    if (!container) return;
+    if (!(pins||[]).length) { container.style.display='none'; return; }
+    container.style.display = 'flex';
+    container.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--yellow);display:flex;align-items:center;gap:6px;flex-shrink:0"><span>📌</span>${pins.length} pinned</div>
+      <div style="flex:1;font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 12px">${esc(pins[0]?.content?.slice(0,80)||'')}</div>
+      <button class="btn btn-ghost btn-sm" onclick="showAllPins('${channelId}')">View all</button>`;
+  } catch{}
+}
+function showAllPins(channelId){
+  GET('/channels/'+channelId+'/pins').then(pins => {
+    if (!(pins||[]).length) return;
+    const mo = document.createElement('div');
+    mo.className = 'modal-ov';
+    mo.onclick = e => { if(e.target===mo) mo.remove(); };
+    const pinHtml = (pins||[]).map(p => '<div style="padding:10px;background:var(--c0);border:1px solid var(--c4);border-radius:var(--r8);margin-bottom:8px;font-size:12px;color:var(--tx2);line-height:1.6">'+fmtText(p.content||'')+'</div>').join('');
+    mo.innerHTML = '<div class="modal sm"><div class="modal-hdr"><div class="modal-title">📌 Pinned Messages</div><div class="modal-close" onclick="this.closest(\'.modal-ov\').remove()">✕</div></div><div class="modal-body">'+pinHtml+'</div></div>';
+    document.body.appendChild(mo);
+  });
+}
+
+// Hook pin into message context (adds to existing showMsgCtx)
+const _origMsgCtx = window.showMsgCtx || function(){};
+window.showMsgCtx = function(e, m){
+  e.preventDefault();
+  const isOwn = m.userId === S.user?.id;
+  const items = [
+    { label:'💬 Reply in Thread', fn:()=>openThread(m.id, m.content||'') },
+    { label:'React ✨', fn:()=>pickEmoji(m.id) },
+    { label:'Reply', fn:()=>{ const u=S.users.find(x=>x.id===m.userId)||m.user; document.getElementById('msg-input').value=`@${u?.handle||u?.display_name||'user'} `; document.getElementById('msg-input').focus(); }},
+    { sep:true },
+    { label:'📌 Pin Message', fn:()=>{ if(S.socket?.connected) S.socket.emit('msg:pin',{messageId:m.id,channelId:S.ch}); toast('s','Pinned',''); } },
+    ...(m.code?[{sep:true},{label:'✦ AI Review',fn:()=>{openAI();setMode('review');setTimeout(()=>{document.getElementById('ai-input').value=m.code.body;},100);}},{label:'✦ Explain',fn:()=>{openAI();setTimeout(()=>{document.getElementById('ai-input').value='Explain this code:\n'+m.code.body;},100);}}]:[]),
+    {sep:true},
+    {label:'Copy Text',fn:()=>navigator.clipboard.writeText(m.content||'').then(()=>toast('s','Copied',''))},
+    ...(isOwn?[{sep:true},{label:'Edit',danger:false,fn:()=>{const t=prompt('Edit message:',m.content||'');if(t!==null&&S.socket?.connected)S.socket.emit('msg:edit',{messageId:m.id,content:t});}},{label:'Delete',danger:true,fn:()=>{if(confirm('Delete this message?')&&S.socket?.connected)S.socket.emit('msg:delete',{messageId:m.id});}}]:[]),
+  ];
+  buildCtx(e, items);
+};
+
+// ── @MENTION AUTOCOMPLETE ─────────────────────────────────────────────────
+(function initMentionAutocomplete(){
+  const style = document.createElement('style');
+  style.textContent = `
+    #mention-popup{position:fixed;z-index:5000;background:rgba(24,24,27,.97);border:1px solid rgba(255,255,255,.1);border-radius:var(--r10);padding:4px;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;max-height:200px;overflow-y:auto}
+    .mention-opt{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r6);cursor:pointer;transition:background .1s}
+    .mention-opt:hover,.mention-opt.focused{background:rgba(255,255,255,.07)}
+    .mention-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;flex-shrink:0}
+    .mention-name{font-size:12px;font-weight:500}
+    .mention-handle{font-size:10px;color:var(--tx3)}
+  `;
+  document.head.appendChild(style);
+  const popup = document.createElement('div');
+  popup.id = 'mention-popup';
+  document.body.appendChild(popup);
+})();
+
+let _mentionStart = -1, _mentionFocused = 0;
+document.addEventListener('input', e => {
+  const ta = e.target;
+  if (!ta.matches('#msg-input')) return;
+  const val = ta.value, pos = ta.selectionStart;
+  const before = val.slice(0, pos);
+  const match = before.match(/@(\w*)$/);
+  if (!match) { hideMentionPopup(); return; }
+  _mentionStart = before.lastIndexOf('@');
+  const query = match[1].toLowerCase();
+  const users = S.users.filter(u => {
+    if (u.id === S.user?.id) return false;
+    return !query || (u.handle||'').toLowerCase().startsWith(query) || (u.display_name||'').toLowerCase().startsWith(query);
+  }).slice(0, 8);
+  // Also add @here and @everyone
+  const specials = [
+    ...(query==='' || 'here'.startsWith(query) ? [{id:'@here',handle:'here',display_name:'Notify active members',avatar_color:'#eab308'}]:[]),
+    ...(query==='' || 'everyone'.startsWith(query) ? [{id:'@everyone',handle:'everyone',display_name:'Notify all members',avatar_color:'#ef4444'}]:[]),
+    ...users,
+  ];
+  if (!specials.length) { hideMentionPopup(); return; }
+  showMentionPopup(ta, specials);
+}, true);
+
+function showMentionPopup(ta, users){
+  const popup = document.getElementById('mention-popup');
+  _mentionFocused = 0;
+  popup.innerHTML = users.map((u,i) => {
+    const initials=(u.display_name||u.handle||'?').replace(/[^A-Za-z0-9 ]/g,'').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
+    return `<div class="mention-opt${i===0?' focused':''}" data-mi="${i}" onclick="insertMention_${i}()">
+      <div class="mention-av" style="background:${u.avatar_color||'#22c55e'}">${initials}</div>
+      <div><div class="mention-name">${esc(u.display_name&&u.display_name.length<40?u.display_name:u.handle||'')}</div><div class="mention-handle">@${esc(u.handle||'')}</div></div>
+    </div>`;
+  }).join('');
+  users.forEach((u,i) => { window[`insertMention_${i}`]=()=>applyMention(ta, u); });
+  const r = ta.getBoundingClientRect();
+  popup.style.display = 'block';
+  popup.style.left = (r.left+8)+'px';
+  popup.style.bottom = (window.innerHeight-r.top+4)+'px';
+  window.__mentionUsers = users;
+}
+function hideMentionPopup(){ const p=document.getElementById('mention-popup');if(p)p.style.display='none'; _mentionStart=-1; }
+function applyMention(ta, user){
+  const val = ta.value, pos = ta.selectionStart;
+  const before = val.slice(0, _mentionStart);
+  const after = val.slice(pos);
+  ta.value = before + '@' + (user.handle||user.id) + ' ' + after;
+  ta.selectionStart = ta.selectionEnd = before.length + user.handle.length + 2;
+  hideMentionPopup(); ta.focus();
+  // Highlight @here/@everyone special
+  if (user.id === '@here') toast('i','@here','All active members will be notified');
+  if (user.id === '@everyone') toast('i','@everyone','All channel members will be notified');
+}
+document.addEventListener('keydown', e => {
+  const popup = document.getElementById('mention-popup');
+  if (!popup || popup.style.display==='none') return;
+  const items = popup.querySelectorAll('.mention-opt');
+  if (e.key==='ArrowDown'){e.preventDefault();_mentionFocused=Math.min(_mentionFocused+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('focused',i===_mentionFocused));}
+  else if (e.key==='ArrowUp'){e.preventDefault();_mentionFocused=Math.max(_mentionFocused-1,0);items.forEach((el,i)=>el.classList.toggle('focused',i===_mentionFocused));}
+  else if (e.key==='Enter'||e.key==='Tab'){
+    e.preventDefault();
+    const u=(window.__mentionUsers||[])[_mentionFocused];
+    const ta=document.getElementById('msg-input');
+    if(u&&ta)applyMention(ta,u);
+  } else if (e.key==='Escape') { hideMentionPopup(); }
+}, true);
+document.addEventListener('click', e => { if(!e.target.closest('#mention-popup'))hideMentionPopup(); });
+
+// ── READ RECEIPTS ─────────────────────────────────────────────────────────
+const _readBy = {}; // messageId → Set<userId>
+if (S.socket) {
+  S.socket.on('msg:read:ack', ({ userId, messageId }) => {
+    if (!_readBy[messageId]) _readBy[messageId] = new Set();
+    _readBy[messageId].add(userId);
+    // Update receipt bar under message
+    const msgEl = document.querySelector(`[data-mid="${messageId}"] .read-receipts`);
+    if (msgEl) {
+      const u = S.users.find(x=>x.id===userId);
+      if (u && !msgEl.querySelector(`[data-uid="${userId}"]`)) {
+        const av = document.createElement('div');
+        av.dataset.uid = userId;
+        av.setAttribute('data-tip', `Read by ${u.display_name||u.handle||''}`);
+        const initials=(u.display_name||u.handle||'?').slice(0,2).toUpperCase();
+        av.style.cssText=`width:14px;height:14px;border-radius:50%;background:${u.avatar_color||'#22c55e'};display:inline-flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#000;margin-left:2px`;
+        av.textContent = initials;
+        msgEl.appendChild(av);
+      }
+    }
+  });
+}
+// Send read receipt when channel switches
+const _origSwitchChannel = window.switchChannel;
+window.switchChannel = function(id){
+  _origSwitchChannel(id);
+  // Emit read for last visible message after short delay
+  setTimeout(() => {
+    const msgs = S.messages[id]||[];
+    const last = msgs[msgs.length-1];
+    if (last && S.socket?.connected) S.socket.emit('msg:read', { channelId:id, messageId:last.id });
+  }, 800);
+  loadPinnedMessages(id);
+};
+
+// ── AI CONTEXT AWARENESS ──────────────────────────────────────────────────
+function getAIContext(){
+  const parts = [];
+  if (S.currentGhRepo) parts.push(`Current repo: ${S.currentGhRepo.full_name} (${S.currentGhRepo.language||'unknown'}, ${S.currentGhRepo.private?'private':'public'})`);
+  if (S.currentFile) parts.push(`Current file: ${S.currentFile} on branch ${S.currentBranch}`);
+  if (S.ch) { const ch=S.channels.find(c=>c.id===S.ch); if(ch) parts.push(`Current channel: #${ch.name}`); }
+  const openTasks = S.tasks.filter(t=>t.status!=='done').slice(0,3);
+  if (openTasks.length) parts.push(`Open tasks: ${openTasks.map(t=>t.title).join(', ')}`);
+  if (S.user) parts.push(`User: ${S.user.display_name||S.user.github_username}, role: ${S.user.role||'developer'}`);
+  return parts.length ? '\n\n[Context: ' + parts.join(' | ') + ']' : '';
+}
+
+// Patch sendAI to inject context
+const _origSendAI = window.sendAI;
+window.sendAI = async function(){
+  const inp = document.getElementById('ai-input');
+  if (!inp) return;
+  const ctx = getAIContext();
+  if (ctx && !inp.value.includes('[Context:')) inp.value += ctx;
+  return _origSendAI();
+};
+
+// ── AI COMMIT MESSAGE GENERATOR ───────────────────────────────────────────
+async function generateCommitMsg(){
+  if (!S.currentGhRepo || !S.currentFile) { toast('e','Select a file first',''); return; }
+  const fileContent = document.getElementById('file-content')?.innerText?.slice(0,2000)||'';
+  const btn = document.getElementById('gen-commit-btn');
+  if (btn) { btn.textContent='✦ Generating…'; btn.disabled=true; }
+  try {
+    const prompt_cm = 'Write a conventional commit message for changes to ' + S.currentFile + '. Be concise (one line, max 72 chars). Format: type(scope): description. File snippet:\n```\n' + fileContent.slice(0,1500) + '\n```';
+    const data = await POST('/ai/chat', { message: prompt_cm, history:[], mode:'lite' });
+    const msg = (data.reply||'').split('\n')[0].replace(/^["'`]|["'`]$/g,'').trim();
+    document.getElementById('commit-msg-in').value = msg;
+    if (btn) { btn.textContent='✦ Generate'; btn.disabled=false; }
+  } catch(e) { toast('e','AI error',e.message); if(btn){btn.textContent='✦ Generate';btn.disabled=false;} }
+}
+
+// ── AI PR DESCRIPTION WRITER ──────────────────────────────────────────────
+async function generatePRDesc(){
+  if (!S.currentGhRepo) { toast('e','Select a repo first',''); return; }
+  const head = document.getElementById('pr-head-in')?.value||S.currentBranch||'';
+  const btn = document.getElementById('gen-pr-btn');
+  if (btn) { btn.textContent='✦ Generating…'; btn.disabled=true; }
+  try {
+    const data = await POST('/ai/chat', { message:`Write a professional GitHub pull request description for a branch named "${head}" in the repo ${S.currentGhRepo.full_name}. Include: Summary, Changes Made, Testing Done, Notes. Keep it concise and professional.`, history:[], mode:'lite' });
+    document.getElementById('pr-body-in').value = data.reply||'';
+    if (btn) { btn.textContent='✦ Generate'; btn.disabled=false; }
+  } catch(e) { toast('e','AI error',e.message); if(btn){btn.textContent='✦ Generate';btn.disabled=false;} }
+}
+
+// ── CODE SEARCH ───────────────────────────────────────────────────────────
+function openCodeSearch(){
+  const mo = document.createElement('div');
+  mo.className = 'modal-ov';
+  mo.id = 'code-search-modal';
+  mo.onclick = e => { if(e.target===mo) mo.remove(); };
+  mo.innerHTML = `<div class="modal lg">
+    <div class="modal-hdr"><div class="modal-title">🔍 Code Search</div><div class="modal-close" onclick="document.getElementById('code-search-modal').remove()">✕</div></div>
+    <div class="modal-body" style="padding:16px">
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <input class="field-input" id="cs-query" placeholder="Search function names, variables, patterns…" style="flex:1" onkeydown="if(event.key==='Enter')runCodeSearch()">
+        <input class="field-input" id="cs-lang" placeholder="Language (optional)" style="width:140px">
+        <button class="btn btn-primary" onclick="runCodeSearch()">Search</button>
+      </div>
+      <div id="cs-results" style="max-height:380px;overflow-y:auto"></div>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+  setTimeout(()=>document.getElementById('cs-query')?.focus(), 50);
+}
+async function runCodeSearch(){
+  const q = document.getElementById('cs-query')?.value?.trim();
+  const lang = document.getElementById('cs-lang')?.value?.trim();
+  if (!q) return;
+  const el = document.getElementById('cs-results');
+  el.innerHTML = '<div style="font-size:11px;color:var(--tx4);padding:8px">Searching…</div>';
+  try {
+    const data = await GET(`/github/search/code?q=${encodeURIComponent(q)}${lang?'&lang='+encodeURIComponent(lang):''}`);
+    const items = data.items||[];
+    if (!items.length) { el.innerHTML='<div style="font-size:12px;color:var(--tx4);padding:12px;text-align:center">No results found</div>'; return; }
+    el.innerHTML = `<div style="font-size:11px;color:var(--tx3);margin-bottom:10px">${data.total_count||0} results</div>` + items.map(it => `<div style="background:var(--c0);border:1px solid var(--c4);border-radius:var(--r8);padding:12px;margin-bottom:8px;cursor:pointer" onclick="window.open('${esc(it.html_url)}','_blank')">
+      <div style="font-size:12px;font-weight:600;color:var(--blue);margin-bottom:3px">${esc(it.repository?.full_name)} / ${esc(it.path)}</div>
+      <div style="font-size:11px;color:var(--tx3)">${esc(it.name)}</div>
+      ${it.text_matches?.length ? `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx2);background:var(--c2);border-radius:4px;padding:6px 8px;margin-top:8px;overflow:hidden;max-height:60px">${esc(it.text_matches[0]?.fragment||'')}</div>` : ''}
+    </div>`).join('');
+  } catch(e) { el.innerHTML=`<div style="color:var(--red);font-size:12px;padding:8px">${esc(e.message)}</div>`; }
+}
+
+// ── DIFF VIEWER ───────────────────────────────────────────────────────────
+async function openDiffViewer(repoId, sha){
+  const mo = document.createElement('div');
+  mo.className = 'modal-ov';
+  mo.onclick = e => { if(e.target===mo) mo.remove(); };
+  mo.innerHTML = `<div class="modal lg" style="width:700px;max-height:90vh"><div class="modal-hdr"><div class="modal-title">Diff — ${sha?.slice(0,7)||''}</div><div class="modal-close" onclick="this.closest('.modal-ov').remove()">✕</div></div><div class="modal-body" style="padding:0;max-height:70vh;overflow-y:auto"><div id="diff-content" style="padding:16px;font-size:11px;font-family:'JetBrains Mono',monospace">Loading…</div></div></div>`;
+  document.body.appendChild(mo);
+  try {
+    const commit = await GET(`/repos/${repoId}/commits/${sha}/diff`);
+    const files = commit.files||[];
+    const html = files.map(f => {
+      const lines = (f.patch||'').split('\n').map(l => {
+        const cls = l.startsWith('+')?'diff-add':l.startsWith('-')?'diff-del':l.startsWith('@@')?'diff-hunk':'';
+        const bg = l.startsWith('+')?'rgba(34,197,94,.08)':l.startsWith('-')?'rgba(239,68,68,.08)':l.startsWith('@@')?'rgba(59,130,246,.06)':'';
+        return `<div style="padding:1px 8px;white-space:pre;background:${bg};color:${l.startsWith('+')?'#86efac':l.startsWith('-')?'#fca5a5':l.startsWith('@@')?'#93c5fd':'#d4d4d8'}">${esc(l)}</div>`;
+      }).join('');
+      return `<div style="margin-bottom:16px"><div style="padding:8px 12px;background:var(--c2);border:1px solid var(--c4);border-radius:var(--r8) var(--r8) 0 0;font-size:11px;font-weight:600;display:flex;align-items:center;gap:8px"><span style="color:var(--blue)">${esc(f.filename)}</span><span style="color:var(--gr);font-size:10px">+${f.additions}</span><span style="color:var(--red);font-size:10px">-${f.deletions}</span></div><div style="border:1px solid var(--c4);border-top:none;border-radius:0 0 var(--r8) var(--r8);overflow:hidden">${lines||'<div style="padding:8px;color:var(--tx4);font-size:11px">Binary file or no changes</div>'}</div></div>`;
+    }).join('');
+    document.getElementById('diff-content').innerHTML = html || '<div style="color:var(--tx4)">No changes found</div>';
+  } catch(e) { document.getElementById('diff-content').innerHTML = `<div style="color:var(--red)">${esc(e.message)}</div>`; }
+}
+
+// ── ONBOARDING FLOW ───────────────────────────────────────────────────────
+function checkOnboarding(){
+  if (localStorage.getItem('dc_onboarded')) return;
+  const steps = [
+    { title:'Welcome to DevCollab Hub! 🎉', desc:'Your enterprise engineering platform is ready. Let\'s take a quick tour.', btn:'Start Tour →', fn:()=>onboardStep(1) },
+    { title:'Step 1 — Link a repository 🐙', desc:'Connect your GitHub repos to browse code, review PRs, and track commits directly here.', btn:'Link a Repo →', fn:()=>{ openNewRepo(); onboardDone(); } },
+    { title:'Step 2 — Create a task ✅', desc:'Assign tasks to yourself or teammates with priorities, deadlines, and file links.', btn:'Create a Task →', fn:()=>{ openNewTask(); onboardDone(); } },
+    { title:'Step 3 — Invite a teammate 👋', desc:'Use the Members tab or search by @handle to send invites to your team.', btn:'Invite Someone →', fn:()=>{ openModal('invite-modal'); onboardDone(); } },
+    { title:'You\'re all set! 🚀', desc:'Press ⌘K anytime for the command palette. Press ? for keyboard shortcuts.', btn:'Start Collaborating →', fn:onboardDone },
+  ];
+  window.__onboardSteps = steps;
+  onboardStep(0);
+}
+function onboardStep(i){
+  document.getElementById('onboard-mo')?.remove();
+  const steps = window.__onboardSteps||[];
+  if (i >= steps.length) return onboardDone();
+  const s = steps[i];
+  const mo = document.createElement('div');
+  mo.id = 'onboard-mo';
+  mo.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:8000;width:320px;background:var(--c1);border:1px solid rgba(34,197,94,.2);border-radius:var(--r16);padding:20px;box-shadow:0 16px 40px rgba(0,0,0,.6),0 0 0 1px rgba(34,197,94,.1);animation:slideUp .25s cubic-bezier(.16,1,.3,1)';
+  mo.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="font-size:13px;font-weight:700">${esc(s.title)}</div>
+    <div style="font-size:10px;color:var(--tx4)">${i+1}/${steps.length}</div>
+  </div>
+  <div style="font-size:12px;color:var(--tx3);line-height:1.7;margin-bottom:16px">${esc(s.desc)}</div>
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <button class="btn btn-ghost btn-sm" onclick="onboardDone()">Skip</button>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('onboard-mo').remove();(window.__onboardSteps||[])[${i}]?.fn?.()">
+      ${esc(s.btn)}</button>
+  </div>
+  <div style="display:flex;gap:4px;justify-content:center;margin-top:12px">
+    ${steps.map((_,j)=>`<div style="width:${j===i?'16':'6'}px;height:6px;border-radius:3px;background:${j===i?'var(--gr)':'var(--c4)'};transition:all .3s"></div>`).join('')}
+  </div>`;
+  document.body.appendChild(mo);
+}
+function onboardDone(){ document.getElementById('onboard-mo')?.remove(); localStorage.setItem('dc_onboarded','1'); }
+
+// ── CHANNEL PRESENCE (who's viewing the channel) ─────────────────────────
+const _channelViewers = {}; // channelId → Set of {userId, user}
+if (S.socket) {
+  S.socket.on('channel:viewer:joined', ({ userId, user, channelId }) => {
+    if (!_channelViewers[channelId]) _channelViewers[channelId] = new Map();
+    _channelViewers[channelId].set(userId, user);
+    updatePresenceBar(channelId);
+  });
+  S.socket.on('channel:viewer:left', ({ userId, channelId }) => {
+    _channelViewers[channelId]?.delete(userId);
+    updatePresenceBar(channelId);
+  });
+}
+function updatePresenceBar(channelId){
+  if (channelId !== S.ch) return;
+  const viewers = [...(_channelViewers[channelId]||new Map()).values()].filter(u=>u?.id!==S.user?.id);
+  const bar = document.getElementById('presence-bar');
+  if (!bar) return;
+  bar.innerHTML = viewers.length
+    ? `<span style="font-size:10px;color:var(--tx4)">Viewing:</span>` + viewers.slice(0,5).map(u=>{
+        const initials=(u?.display_name||u?.handle||'?').slice(0,2).toUpperCase();
+        return `<div data-tip="${esc(u?.display_name||u?.handle||'User')}" style="width:18px;height:18px;border-radius:50%;background:${u?.avatar_color||'#22c55e'};display:inline-flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#000;margin-right:2px">${initials}</div>`;
+      }).join('')
+    : '';
+  bar.style.display = viewers.length ? 'flex' : 'none';
+}
+// Emit viewing event on channel switch
+const _origSwitch2 = window.switchChannel;
+window.switchChannel = function(id){
+  _origSwitch2(id);
+  if (S.socket?.connected) S.socket.emit('channel:viewing', { channelId: id });
+};
+
+// ── HOOK INTO enterApp ────────────────────────────────────────────────────
+const _origEnterApp = window.enterApp;
+window.enterApp = function(){
+  _origEnterApp();
+  setTimeout(()=>{
+    loadRealContribs();
+    loadPersonalStats();
+    loadActivityFeed();
+    setTimeout(checkOnboarding, 2000);
+  }, 1500);
+};
+
+// ── WIRE AI BUTTONS INTO MODALS ───────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', ()=>{
+  // Add AI generate button to commit modal
+  const commitMsgField = document.getElementById('commit-msg-in');
+  if (commitMsgField?.parentElement) {
+    const wrap = commitMsgField.parentElement;
+    const aiBtn = document.createElement('button');
+    aiBtn.id = 'gen-commit-btn';
+    aiBtn.className = 'btn btn-ghost btn-sm';
+    aiBtn.style.cssText = 'color:var(--purple);margin-top:6px;width:100%;justify-content:center';
+    aiBtn.setAttribute('data-tip', 'Generate commit message with AI');
+    aiBtn.innerHTML = '✦ Generate commit message';
+    aiBtn.onclick = generateCommitMsg;
+    wrap.appendChild(aiBtn);
+  }
+  // Add AI generate button to PR modal
+  const prBodyField = document.getElementById('pr-body-in');
+  if (prBodyField?.parentElement) {
+    const wrap2 = prBodyField.parentElement;
+    const aiBtn2 = document.createElement('button');
+    aiBtn2.id = 'gen-pr-btn';
+    aiBtn2.className = 'btn btn-ghost btn-sm';
+    aiBtn2.style.cssText = 'color:var(--purple);margin-top:6px;width:100%;justify-content:center';
+    aiBtn2.setAttribute('data-tip', 'Generate PR description with AI');
+    aiBtn2.innerHTML = '✦ Generate PR description';
+    aiBtn2.onclick = generatePRDesc;
+    wrap2.appendChild(aiBtn2);
+  }
+  // Add pinned bar above chat
+  const chatView = document.getElementById('chat-view');
+  if (chatView) {
+    const bar = document.createElement('div');
+    bar.id = 'pinned-bar';
+    bar.style.cssText = 'display:none;align-items:center;gap:10px;padding:6px 20px;background:rgba(234,179,8,.04);border-bottom:1px solid rgba(234,179,8,.15);font-size:11px;flex-shrink:0';
+    const msgsArea = document.getElementById('msgs-area');
+    if (msgsArea) chatView.insertBefore(bar, msgsArea);
+  }
+  // Add presence bar
+  const presBar = document.createElement('div');
+  presBar.id = 'presence-bar';
+  presBar.style.cssText = 'display:none;align-items:center;gap:4px;padding:3px 20px 0;flex-shrink:0';
+  const typingBar = document.getElementById('typing-bar');
+  if (typingBar) typingBar.parentNode.insertBefore(presBar, typingBar);
+  // Add activity feed panel to home view
+  const homeView = document.getElementById('home-view');
+  if (homeView) {
+    const feedPanel = document.createElement('div');
+    feedPanel.className = 'panel';
+    feedPanel.innerHTML = `<div class="panel-hdr"><div class="panel-title"><div class="panel-title-dot" style="background:var(--blue)"></div>Team Activity</div><div class="panel-action" onclick="loadActivityFeed()">↻ Refresh</div></div><div id="activity-feed-list"><div style="font-size:12px;color:var(--tx4);text-align:center;padding:16px">Loading activity…</div></div>`;
+    homeView.appendChild(feedPanel);
+  }
+});
+</script>
+<style>
+/* ═══════════════════════════════════════════════════
+   RESIZABLE PANELS SYSTEM
+═══════════════════════════════════════════════════ */
+.resizer {
+  position:relative; flex-shrink:0;
+  background:transparent;
+  z-index:50; user-select:none;
+  display:flex; align-items:center; justify-content:center;
+  transition: background 150ms;
+}
+.resizer.horizontal {
+  width:5px; cursor:col-resize;
+}
+.resizer.vertical {
+  height:5px; cursor:row-resize; width:100%;
+}
+.resizer:hover, .resizer.dragging {
+  background:var(--gr);
+}
+.resizer.horizontal::after {
+  content:'';
+  position:absolute;
+  left:50%; transform:translateX(-50%);
+  top:30%; height:40%;
+  width:2px; border-radius:2px;
+  background:rgba(255,255,255,.15);
+  transition:background 150ms;
+}
+.resizer.horizontal:hover::after, .resizer.horizontal.dragging::after {
+  background:rgba(0,0,0,.4);
+}
+/* Collapse button on resizer */
+.resizer-collapse {
+  position:absolute;
+  width:18px; height:28px;
+  background:var(--c3); border:1px solid var(--c4);
+  border-radius:4px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:9px; color:var(--tx3);
+  opacity:0; transition:opacity 150ms;
+  z-index:51;
+}
+.resizer:hover .resizer-collapse { opacity:1; }
+.resizer-collapse:hover { background:var(--c4); color:var(--tx1); }
+/* Panel minimized state */
+.panel-minimized { overflow:hidden !important; }
+.sidebar.panel-minimized { width:48px !important; min-width:48px !important; }
+.sidebar.panel-minimized .sb-section-label,
+.sidebar.panel-minimized .sb-item-text,
+.sidebar.panel-minimized .sb-item-badge,
+.sidebar.panel-minimized .sb-section-hdr button,
+.sidebar.panel-minimized .sb-ai-card .sb-ai-name,
+.sidebar.panel-minimized .sb-ai-card .sb-ai-badge,
+.sidebar.panel-minimized .sb-footer-info,
+.sidebar.panel-minimized .sb-footer-logout,
+.sidebar.panel-minimized .sb-online-dot { display:none !important; }
+.sidebar.panel-minimized .sb-item { justify-content:center; padding:6px 0; }
+.sidebar.panel-minimized .sb-item-icon { width:20px; opacity:1; }
+.sidebar.panel-minimized .sb-ai-card { justify-content:center; padding:8px; }
+.sidebar.panel-minimized .sb-section-hdr { justify-content:center; padding:6px 0; }
+.sidebar.panel-minimized .sb-footer { justify-content:center; padding:10px 0; }
+.rpanel.panel-minimized { width:38px !important; min-width:38px !important; overflow:hidden; }
+.rpanel.panel-minimized .rp-tab { font-size:0; padding:14px 0; }
+.rpanel.panel-minimized .rp-tabs { flex-direction:column; align-items:center; }
+.rpanel.panel-minimized .rp-body { display:none; }
+/* Resize cursor override */
+body.col-resizing * { cursor:col-resize !important; user-select:none !important; }
+body.row-resizing * { cursor:row-resize !important; user-select:none !important; }
+/* Smooth transitions when not dragging */
+.sidebar:not(.panel-minimized), .rpanel:not(.panel-minimized) { transition:width 200ms cubic-bezier(.4,0,.2,1); }
+</style>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// RESIZABLE PANELS — Drag to resize sidebar, right panel, and AI panel
+// Like Android Studio / VS Code panel behavior
+// ═══════════════════════════════════════════════════════════════════════════
+
+const PANEL_STORAGE_KEY = 'dc_panel_sizes';
+
+function savePanelSizes(){
+  const sb = document.querySelector('.sidebar');
+  const rp = document.getElementById('rpanel');
+  const sizes = {
+    sb: sb?.offsetWidth,
+    rp: rp?.offsetWidth,
+  };
+  localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(sizes));
+}
+
+function restorePanelSizes(){
+  try {
+    const sizes = JSON.parse(localStorage.getItem(PANEL_STORAGE_KEY)||'{}');
+    const sb = document.querySelector('.sidebar');
+    const rp = document.getElementById('rpanel');
+    if (sb && sizes.sb && sizes.sb >= 48) sb.style.width = sizes.sb + 'px';
+    if (rp && sizes.rp && sizes.rp >= 38) rp.style.width = sizes.rp + 'px';
+  } catch{}
+}
+
+function makeResizable(resizerEl, targetEl, side='left', minSize=48, maxSize=480, onResize){
+  if (!resizerEl || !targetEl) return;
+  let startX, startW, dragging = false;
+  
+  resizerEl.addEventListener('mousedown', e => {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = targetEl.offsetWidth;
+    dragging = true;
+    resizerEl.classList.add('dragging');
+    document.body.classList.add('col-resizing');
+    
+    const onMove = e => {
+      if (!dragging) return;
+      const delta = side === 'left' ? e.clientX - startX : startX - e.clientX;
+      const newW = Math.max(minSize, Math.min(maxSize, startW + delta));
+      targetEl.style.width = newW + 'px';
+      targetEl.style.transition = 'none';
+      // Toggle minimized visual state
+      if (newW <= minSize + 20) targetEl.classList.add('panel-minimized');
+      else targetEl.classList.remove('panel-minimized');
+      if (onResize) onResize(newW);
+    };
+    const onUp = () => {
+      dragging = false;
+      resizerEl.classList.remove('dragging');
+      document.body.classList.remove('col-resizing');
+      targetEl.style.transition = '';
+      savePanelSizes();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function togglePanelCollapse(panelEl, resizerEl, minW, normalW){
+  if (!panelEl) return;
+  const isMin = panelEl.classList.contains('panel-minimized');
+  if (isMin) {
+    panelEl.style.width = normalW + 'px';
+    panelEl.classList.remove('panel-minimized');
+  } else {
+    panelEl.style.width = minW + 'px';
+    panelEl.classList.add('panel-minimized');
+  }
+  savePanelSizes();
+}
+
+// ── INJECT RESIZERS INTO THE DOM ──────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const shell = document.querySelector('.shell');
+  const sidebar = document.querySelector('.sidebar');
+  const main = document.querySelector('.main');
+  const rpanel = document.getElementById('rpanel');
+  if (!shell || !sidebar || !main || !rpanel) return;
+
+  // ── LEFT RESIZER (between sidebar and main) ──
+  const leftResizer = document.createElement('div');
+  leftResizer.className = 'resizer horizontal';
+  leftResizer.setAttribute('data-tip', 'Drag to resize · Click to collapse');
+  leftResizer.setAttribute('data-shortcut', '');
+  
+  // Collapse button
+  const leftCollapse = document.createElement('div');
+  leftCollapse.className = 'resizer-collapse';
+  leftCollapse.innerHTML = '◀';
+  leftCollapse.title = 'Collapse sidebar';
+  leftCollapse.onclick = e => {
+    e.stopPropagation();
+    const isMin = sidebar.classList.contains('panel-minimized');
+    togglePanelCollapse(sidebar, leftResizer, 48, 228);
+    leftCollapse.innerHTML = isMin ? '◀' : '▶';
+  };
+  leftResizer.appendChild(leftCollapse);
+  
+  // Insert between sidebar and main
+  shell.insertBefore(leftResizer, main);
+  makeResizable(leftResizer, sidebar, 'left', 48, 320, w => {
+    leftCollapse.innerHTML = w <= 70 ? '▶' : '◀';
+  });
+
+  // ── RIGHT RESIZER (between main and rpanel) ──
+  const rightResizer = document.createElement('div');
+  rightResizer.className = 'resizer horizontal';
+  rightResizer.setAttribute('data-tip', 'Drag to resize · Click to collapse');
+  
+  const rightCollapse = document.createElement('div');
+  rightCollapse.className = 'resizer-collapse';
+  rightCollapse.innerHTML = '▶';
+  rightCollapse.title = 'Collapse right panel';
+  rightCollapse.onclick = e => {
+    e.stopPropagation();
+    const isMin = rpanel.classList.contains('panel-minimized');
+    togglePanelCollapse(rpanel, rightResizer, 38, 280);
+    rightCollapse.innerHTML = isMin ? '▶' : '◀';
+  };
+  rightResizer.appendChild(rightCollapse);
+  
+  // Insert between main and rpanel
+  shell.insertBefore(rightResizer, rpanel);
+  makeResizable(rightResizer, rpanel, 'right', 38, 400, w => {
+    rightCollapse.innerHTML = w <= 60 ? '◀' : '▶';
+  });
+
+  // ── REPO VIEW — resizer between file tree and code view ──
+  // This is injected dynamically when repo view opens
+  patchRepoViewResizer();
+  
+  // ── AI PANEL — resizer on left edge ──
+  patchAIPanelResizer();
+
+  // Restore saved sizes
+  restorePanelSizes();
+  
+  // ── Double-click to snap to default size ──
+  leftResizer.addEventListener('dblclick', () => {
+    sidebar.style.width = '228px';
+    sidebar.classList.remove('panel-minimized');
+    leftCollapse.innerHTML = '◀';
+    savePanelSizes();
+  });
+  rightResizer.addEventListener('dblclick', () => {
+    rpanel.style.width = '280px';
+    rpanel.classList.remove('panel-minimized');
+    rightCollapse.innerHTML = '▶';
+    savePanelSizes();
+  });
+});
+
+function patchRepoViewResizer(){
+  // Called once on load - waits for repo view to show a tree
+  const observer = new MutationObserver(() => {
+    const repoView = document.getElementById('repo-view');
+    if (!repoView || repoView.classList.contains('hidden')) return;
+    const codeTab = document.getElementById('repo-tab-code');
+    if (!codeTab || codeTab._resized) return;
+    
+    const fileTreeWrap = codeTab.querySelector('[style*="width:240px"]');
+    if (!fileTreeWrap) return;
+    codeTab._resized = true;
+    
+    // Insert resizer after file tree
+    const repoResizer = document.createElement('div');
+    repoResizer.className = 'resizer horizontal';
+    repoResizer.setAttribute('data-tip', 'Drag to resize file tree');
+    fileTreeWrap.after(repoResizer);
+    makeResizable(repoResizer, fileTreeWrap, 'left', 140, 400);
+  });
+  observer.observe(document.body, { attributes:true, subtree:true, attributeFilter:['class','style'] });
+}
+
+function patchAIPanelResizer(){
+  const observer = new MutationObserver(() => {
+    const panel = document.querySelector('.ai-panel');
+    if (!panel || panel._resized) return;
+    panel._resized = true;
+    
+    // Add resize handle on the left edge of AI panel
+    const aiResizer = document.createElement('div');
+    aiResizer.className = 'resizer horizontal';
+    aiResizer.style.cssText = 'position:absolute;left:0;top:0;bottom:0;width:5px;z-index:100';
+    aiResizer.setAttribute('data-tip', 'Drag to resize AI panel');
+    panel.style.position = 'relative';
+    panel.prepend(aiResizer);
+    
+    // For AI panel, dragging left = expand, right = shrink
+    let startX, startW;
+    aiResizer.addEventListener('mousedown', e => {
+      e.preventDefault();
+      startX = e.clientX;
+      startW = panel.offsetWidth;
+      document.body.classList.add('col-resizing');
+      aiResizer.classList.add('dragging');
+      const onMove = e => {
+        const newW = Math.max(360, Math.min(800, startW + (startX - e.clientX)));
+        panel.style.width = newW + 'px';
+      };
+      const onUp = () => {
+        document.body.classList.remove('col-resizing');
+        aiResizer.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+  observer.observe(document.body, { childList:true, subtree:true });
+}
+
+// ── KEYBOARD SHORTCUTS FOR PANELS ─────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  // Ctrl+B or Cmd+B = toggle sidebar (like VS Code)
+  if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+    e.preventDefault();
+    const sb = document.querySelector('.sidebar');
+    if (!sb) return;
+    const isMin = sb.classList.contains('panel-minimized');
+    togglePanelCollapse(sb, null, 48, 228);
+    toast('i', isMin ? 'Sidebar expanded' : 'Sidebar collapsed', '⌘B to toggle');
+  }
+  // Ctrl+Shift+E = toggle right panel  
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'E') {
+    e.preventDefault();
+    const rp = document.getElementById('rpanel');
+    if (!rp) return;
+    togglePanelCollapse(rp, null, 38, 280);
+  }
+});
+</script>
