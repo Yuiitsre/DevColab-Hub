@@ -691,6 +691,143 @@ app.get('/api/repos/mine', authenticate, async (req,res) => {
   } catch(e) { fail(res, e.message); }
 });
 
+
+// ── GitHub Profile & Contribution routes ─────────────────
+app.get('/api/github/profile', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const [profile, events] = await Promise.all([
+      gh.getAuthUser(token),
+      fetch(`https://api.github.com/users/${req.user.github_username}/events/public?per_page=30`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' }
+      }).then(r=>r.json()).catch(()=>[]),
+    ]);
+    ok(res, { profile, events });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/all', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    // Fetch up to 100 repos (2 pages) including private
+    const [page1, page2] = await Promise.all([
+      gh.getUserRepos(token, 1),
+      gh.getUserRepos(token, 2).catch(()=>[]),
+    ]);
+    const all = [...(page1||[]), ...(page2||[])];
+    ok(res, all);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/languages', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/languages`, {
+      headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' }
+    }).then(r=>r.json());
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/stats', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const [contributors, commitActivity, codeFreq] = await Promise.all([
+      fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/stats/contributors?per_page=5`, {headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}}).then(r=>r.json()).catch(()=>[]),
+      fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/stats/commit_activity`, {headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}}).then(r=>r.json()).catch(()=>[]),
+      fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/stats/code_frequency`, {headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}}).then(r=>r.json()).catch(()=>[]),
+    ]);
+    ok(res, { contributors, commitActivity, codeFreq });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/issues', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const state = req.query.state || 'open';
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/issues?state=${state}&per_page=20`, {
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}
+    }).then(r=>r.json());
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/github/repos/:owner/:repo/issues', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const {title,body,labels} = req.body;
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/issues`, {
+      method:'POST',
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','Content-Type':'application/json','User-Agent':'DevCollab-Hub/2.0'},
+      body: JSON.stringify({title,body,labels}),
+    }).then(r=>r.json());
+    ok(res, data, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/releases', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/releases?per_page=10`, {
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}
+    }).then(r=>r.json());
+    ok(res, Array.isArray(data) ? data : []);
+  } catch(e) { fail(res, []); }
+});
+
+app.post('/api/github/repos/:owner/:repo/fork', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/forks`, {
+      method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'},body:'{}'
+    }).then(r=>r.json());
+    ok(res, data, 202);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/contributors', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/contributors?per_page=10`, {
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}
+    }).then(r=>r.json());
+    ok(res, Array.isArray(data)?data:[]);
+  } catch(e) { fail(res, []); }
+});
+
+app.patch('/api/github/repos/:owner/:repo', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const {description,homepage,has_issues,has_projects,has_wiki,private:priv} = req.body;
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}`, {
+      method:'PATCH',
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','Content-Type':'application/json','User-Agent':'DevCollab-Hub/2.0'},
+      body:JSON.stringify({description,homepage,has_issues,has_projects,has_wiki,private:priv}),
+    }).then(r=>r.json());
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/github/repos/:owner/:repo/star', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    await fetch(`https://api.github.com/user/starred/${req.params.owner}/${req.params.repo}`, {
+      method:'PUT',headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','Content-Length':'0','User-Agent':'DevCollab-Hub/2.0'}
+    });
+    ok(res, {starred:true});
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/readme', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/readme`, {
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}
+    }).then(r=>r.json());
+    const content = data.content ? Buffer.from(data.content,'base64').toString('utf8') : '';
+    ok(res, {content, name: data.name||'README.md'});
+  } catch(e) { ok(res, {content:'',name:'README.md'}); }
+});
 app.post('/api/workspaces/:wid/repos', authenticate, async (req,res) => {
   try {
     const { owner, name: repoName } = req.body;
