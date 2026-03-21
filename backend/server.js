@@ -131,6 +131,8 @@ io.on('connection', async (socket) => {
   } catch(e) {}
 
   socket.emit('connected', { user: safeUser(user) });
+  // Track last_active timestamp
+  await db.updateUser(userId, { last_active: new Date().toISOString() }).catch(()=>{});
 
   // ── SEND MESSAGE ──
   socket.on('msg:send', async ({ channelId, content, type='text', code, metadata }) => {
@@ -191,8 +193,21 @@ io.on('connection', async (socket) => {
   });
 
   // ── TYPING ──
-  socket.on('typing:start', ({ channelId }) => socket.to(`ch:${channelId}`).emit('typing:user', { userId, username:user.handle }));
-  socket.on('typing:stop',  ({ channelId }) => socket.to(`ch:${channelId}`).emit('typing:off',  { userId }));
+  socket.on('typing:start', ({ channelId }) => socket.to('ch:'+channelId).emit('typing:user', { userId, username:user.handle }));
+  socket.on('typing:stop',  ({ channelId }) => socket.to('ch:'+channelId).emit('typing:off',  { userId }));
+  // Task viewing presence
+  socket.on('task:viewing', ({ taskId }) => {
+    socket.join('task:'+taskId);
+    socket.to('task:'+taskId).emit('task:viewer:joined', { userId, handle:user.handle, avatar_color:user.avatar_color });
+  });
+  socket.on('task:left', ({ taskId }) => {
+    socket.leave('task:'+taskId);
+    socket.to('task:'+taskId).emit('task:viewer:left', { userId });
+  });
+  // Task working live indicator (who is actively typing/editing on a task)
+  socket.on('task:working', ({ taskId }) => {
+    socket.to('task:'+taskId).emit('task:worker:active', { userId, handle:user.handle, avatar_color:user.avatar_color, ts:Date.now() });
+  });
 
   // ── DM ──
   socket.on('dm:send', async ({ toUserId, content }) => {
@@ -1228,12 +1243,26 @@ app.get('/api/workspaces/:wid/activity', authenticate, async (req,res) => {
 // ── BURNDOWN DATA ─────────────────────────────────────────────────────────
 app.get('/api/workspaces/:wid/burndown', authenticate, async (req,res) => {
   try {
+    // Only owner/lead can see burndown
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',req.params.wid).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','APPROVE_PR')) return fail(res,'Permission denied',403);
     const { data } = await db.supabase()
       .from('tasks')
-      .select('id,created_at,status,updated_at,workspace_id')
+      .select('id,created_at,status,updated_at,priority,title,assigned_to')
       .eq('workspace_id', req.params.wid)
       .order('created_at');
-    ok(res, data||[]);
+    // Compute daily burndown for last 30 days
+    const tasks = data||[];
+    const days = [];
+    for (let i=29; i>=0; i--) {
+      const d = new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0);
+      const dEnd = new Date(d); dEnd.setHours(23,59,59,999);
+      const dStr = d.toISOString().split('T')[0];
+      const open = tasks.filter(t => new Date(t.created_at) <= dEnd && t.status!=='done').length;
+      const closed = tasks.filter(t => t.status==='done' && new Date(t.updated_at) <= dEnd && new Date(t.updated_at) >= d).length;
+      days.push({ date:dStr, open, closed, total:tasks.filter(t=>new Date(t.created_at)<=dEnd).length });
+    }
+    ok(res, { tasks, days });
   } catch(e) { fail(res, []); }
 });
 
@@ -1483,19 +1512,108 @@ app.post('/webhooks/github', express.raw({type:'application/json'}), async (req,
       .from('linked_repos').select('*').eq('github_repo_id', repoId).limit(1).single()
       .catch(() => ({ data: null }));
     if (repo) {
-      let msg = null;
-      if (event==='push') msg = `📤 **${payload.pusher?.name}** pushed ${payload.commits?.length||0} commit(s) to \`${payload.ref?.replace('refs/heads/','')}\``;
-      if (event==='pull_request') msg = `🔀 PR #${payload.number}: **${payload.pull_request?.title}** [${payload.action}] by @${payload.sender?.login}`;
-      if (event==='pull_request_review') msg = `${payload.review?.state==='approved'?'✅':'💬'} PR review by @${payload.sender?.login}: ${payload.review?.state}`;
-      if (msg) {
-        // post to github-feed channel
-        const { data:chans } = await db.channelsByWorkspace(repo.workspace_id);
-        const feed = chans?.find(c=>c.name==='github-feed');
-        if (feed) {
-          const m = { id:uuid(), channel_id:feed.id, user_id:null, content_encrypted:encrypt(msg), type:'system', created_at:new Date().toISOString(), deleted:false, edited:false };
-          await db.createMessage(m);
-          io.to(`ch:${feed.id}`).emit('msg:new', { ...m, content:msg });
+      const wid = repo.workspace_id;
+      const { data:chans } = await db.channelsByWorkspace(wid);
+      const feed = chans?.find(c => c.name==='github-feed');
+      
+      // Build rich card metadata
+      let cardContent = null, cardMeta = null;
+      const repoName = payload.repository?.full_name || '';
+      const repoUrl  = payload.repository?.html_url || '';
+      const sender   = payload.sender?.login || '';
+      const senderAv = payload.sender?.avatar_url || '';
+
+      if (event === 'push' && payload.commits?.length) {
+        const branch = (payload.ref||'').replace('refs/heads/','');
+        const commits = (payload.commits||[]).slice(0,5);
+        cardContent = `🚀 **${sender}** pushed ${payload.commits.length} commit${payload.commits.length!==1?'s':''} to \`${branch}\` in **${repoName}**`;
+        cardMeta = JSON.stringify({
+          type:'push', repo:repoName, repoUrl, branch,
+          sender, senderAv,
+          commits: commits.map(cm => ({ sha:cm.id?.slice(0,7), message:cm.message?.split('\n')[0]?.slice(0,80), url:cm.url })),
+          compareUrl: payload.compare,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (event === 'pull_request') {
+        const pr = payload.pull_request;
+        const icons = { opened:'🔀', closed: pr?.merged?'🎉':'✖️', reopened:'🔄', review_requested:'👀', synchronize:'📤' };
+        const verb = payload.action==='closed' && pr?.merged ? 'merged' : payload.action;
+        cardContent = `${icons[payload.action]||'🔀'} **${sender}** ${verb} PR #${pr?.number}: **${pr?.title}** — \`${pr?.head?.ref}\` → \`${pr?.base?.ref}\``;
+        cardMeta = JSON.stringify({
+          type:'pr', repo:repoName, repoUrl, sender, senderAv,
+          pr:{ number:pr?.number, title:pr?.title, url:pr?.html_url, state:pr?.state,
+               merged:pr?.merged, additions:pr?.additions, deletions:pr?.deletions,
+               head:pr?.head?.ref, base:pr?.base?.ref },
+          action: payload.action, timestamp: new Date().toISOString(),
+        });
+        if (payload.action==='closed' && pr?.merged)
+          io.to('ws:'+wid).emit('pr:merged', { prNumber:pr?.number, by:sender });
+        else if (payload.action==='opened')
+          io.to('ws:'+wid).emit('pr:created', { pr });
+      } else if (event === 'pull_request_review') {
+        const rv = payload.review;
+        const icons2 = { approved:'✅', changes_requested:'🔴', commented:'💬' };
+        cardContent = `${icons2[rv?.state]||'💬'} **${sender}** ${rv?.state?.replace('_',' ')} PR #${payload.pull_request?.number}: **${payload.pull_request?.title}**`;
+        cardMeta = JSON.stringify({
+          type:'review', repo:repoName, repoUrl, sender, senderAv,
+          review:{ state:rv?.state, body:rv?.body?.slice(0,150), url:rv?.html_url },
+          timestamp: new Date().toISOString(),
+        });
+      } else if (event === 'issues') {
+        if (['opened','closed','reopened'].includes(payload.action)) {
+          const iss = payload.issue;
+          const icons3 = { opened:'🐛', closed:'✅', reopened:'🔄' };
+          cardContent = `${icons3[payload.action]||'🐛'} **${sender}** ${payload.action} issue #${iss?.number}: **${iss?.title}**`;
+          cardMeta = JSON.stringify({
+            type:'issue', repo:repoName, repoUrl, sender, senderAv,
+            issue:{ number:iss?.number, title:iss?.title, url:iss?.html_url, state:iss?.state },
+            timestamp: new Date().toISOString(),
+          });
+          // Auto-label: map issue labels to priority
+          if (payload.action==='opened' && iss?.number) {
+            try {
+              const ghToken = process.env.GITHUB_TOKEN;
+              const [owner, rname] = repoName.split('/');
+              // Try to infer priority from title keywords
+              const title = (iss.title||'').toLowerCase();
+              const priority = title.includes('urgent')||title.includes('critical')||title.includes('hotfix') ? 'urgent' :
+                               title.includes('bug')||title.includes('fix')||title.includes('broken') ? 'medium' : 'normal';
+              const labelMap = { urgent:'priority: urgent', medium:'priority: medium', normal:'priority: normal' };
+              await fetch('https://api.github.com/repos/'+owner+'/'+rname+'/issues/'+iss.number+'/labels', {
+                method:'POST',
+                headers:{ Authorization:'Bearer '+ghToken, Accept:'application/vnd.github+json', 'Content-Type':'application/json', 'User-Agent':'DevCollab-Hub/2.0' },
+                body: JSON.stringify({ labels:[labelMap[priority]] }),
+              }).catch(()=>{});
+            } catch{}
+          }
         }
+      } else if (event === 'create' && payload.ref_type==='branch') {
+        cardContent = '🌿 **'+sender+'** created branch `'+payload.ref+'` in **'+repoName+'**';
+        cardMeta = JSON.stringify({ type:'branch', repo:repoName, repoUrl, sender, senderAv, branch:payload.ref, timestamp:new Date().toISOString() });
+      } else if (event === 'release' && payload.action==='published') {
+        const rel = payload.release;
+        cardContent = '🚀 **'+sender+'** published release **'+( rel?.name||rel?.tag_name)+'** in **'+repoName+'**';
+        cardMeta = JSON.stringify({ type:'release', repo:repoName, repoUrl, sender, senderAv, release:{ tag:rel?.tag_name, name:rel?.name, url:rel?.html_url, prerelease:rel?.prerelease }, timestamp:new Date().toISOString() });
+      } else if (event === 'star' && payload.action==='created') {
+        cardContent = '⭐ **'+sender+'** starred **'+repoName+'**';
+        cardMeta = JSON.stringify({ type:'star', repo:repoName, repoUrl, sender, senderAv, timestamp:new Date().toISOString() });
+      }
+
+      if (cardContent && feed) {
+        const m = {
+          id:uuid(), channel_id:feed.id, user_id:'system',
+          content_encrypted:encrypt(cardContent), type:'github_event',
+          metadata: cardMeta ? encrypt(cardMeta) : null,
+          created_at:new Date().toISOString(), deleted:false, edited:false,
+        };
+        await db.createMessage(m).catch(()=>{});
+        // Emit rich card via socket
+        const cardData = cardMeta ? JSON.parse(cardMeta) : {};
+        io.to('ch:'+feed.id).emit('msg:new', { 
+          ...m, userId:'system', content:cardContent, 
+          githubCard:cardData, ts:m.created_at 
+        });
+        io.to('ws:'+wid).emit('github:event', { type:cardData.type, repo:repoName, sender, timestamp:new Date().toISOString() });
       }
     }
     res.status(200).send('OK');
@@ -1520,6 +1638,30 @@ function decryptTask(t) {
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────
+// ── NUDGE CRON: alert members with stale tasks every hour ───────────────
+setInterval(async () => {
+  try {
+    const cutoff = new Date(Date.now() - 24*60*60*1000).toISOString();
+    const { data:staleTasks } = await db.supabase()
+      .from('tasks')
+      .select('*, user:users!tasks_assigned_to_fkey(id,handle,display_name)')
+      .in('status',['in_progress','not_started'])
+      .lt('updated_at', cutoff)
+      .not('assigned_to','is',null);
+    for (const task of staleTasks||[]) {
+      if (!task.assigned_to) continue;
+      const sockets = onlineUsers.get(task.assigned_to);
+      if (sockets?.size) {
+        // Only nudge if they're online — otherwise it's just noise
+        sockets.forEach(sid => io.to(sid).emit('notification:new', {
+          type:'nudge', title:'Task needs attention ⏰',
+          body:(task.title||'').slice(0,80)+' — no activity for 24h',
+        }));
+      }
+    }
+  } catch(e) { console.warn('[nudge cron]', e.message); }
+}, 60*60*1000); // every hour
+
 async function start() {
   const dbOk = await testConnection();
   if (!dbOk) {
