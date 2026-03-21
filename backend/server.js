@@ -575,6 +575,128 @@ app.delete('/api/teams/:tid/members/:uid', authenticate, async (req,res) => {
 });
 
 // ── PROJECTS ──────────────────────────────────────────────────────────────────
+
+// ── PROJECT DETAIL + DASHBOARD DATA ──────────────────────────────────────
+app.get('/api/projects/:id', authenticate, async (req,res) => {
+  try {
+    const { data:proj } = await db.projectById(req.params.id);
+    if (!proj) return fail(res,'Not found',404);
+    const name = proj.name ? tryDecrypt(proj.name) : 'Project';
+    ok(res, { ...proj, name });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/projects/:id/dashboard', authenticate, async (req,res) => {
+  try {
+    const { data:proj } = await db.projectById(req.params.id);
+    if (!proj) return fail(res,'Not found',404);
+    const name = proj.name ? tryDecrypt(proj.name) : 'Project';
+    // Get all tasks for this project
+    const { data:tasksRaw } = await db.tasksByProject(req.params.id);
+    const tasks = (tasksRaw||[]).map(decryptTask);
+    // Get project members
+    const { data:members } = await db.supabase()
+      .from('project_members')
+      .select('*, user:users(id,handle,display_name,avatar_url,avatar_color,role,status,last_active)')
+      .eq('project_id', req.params.id);
+    // Get linked repos
+    const { data:repos } = await db.supabase()
+      .from('linked_repos').select('*').eq('workspace_id', proj.workspace_id);
+    // Find project-specific repo (by github_repo field)
+    const projectRepo = repos?.find(r => r.full_name === proj.github_repo) || repos?.[0] || null;
+    // Task stats
+    const stats = {
+      total: tasks.length,
+      not_started: tasks.filter(t=>t.status==='not_started').length,
+      in_progress: tasks.filter(t=>t.status==='in_progress').length,
+      in_review: tasks.filter(t=>t.status==='in_review').length,
+      approved: tasks.filter(t=>t.status==='approved').length,
+      done: tasks.filter(t=>t.status==='done').length,
+      blocked: tasks.filter(t=>t.status==='blocked').length,
+      urgent: tasks.filter(t=>t.priority==='urgent'&&t.status!=='done').length,
+    };
+    const progress = tasks.length ? Math.round(tasks.filter(t=>t.status==='done'||t.status==='approved').length/tasks.length*100) : 0;
+    ok(res, { project:{...proj,name}, tasks, members:members||[], stats, progress, repo:projectRepo });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/projects/:id/members', authenticate, async (req,res) => {
+  try {
+    const { data } = await db.supabase()
+      .from('project_members')
+      .select('*, user:users(id,handle,display_name,avatar_url,avatar_color,role,status,last_active,github_username)')
+      .eq('project_id', req.params.id);
+    ok(res, (data||[]).map(m => {
+      const u = m.user||{};
+      try { if(u.display_name) u.display_name = tryDecrypt(u.display_name); } catch{}
+      return { ...m, user:safeUser(u) };
+    }));
+  } catch(e) { fail(res, e.message); }
+});
+
+app.delete('/api/projects/:id/members/:uid', authenticate, async (req,res) => {
+  try {
+    await db.supabase().from('project_members').delete().eq('project_id',req.params.id).eq('user_id',req.params.uid);
+    ok(res, { removed:true });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.patch('/api/projects/:id/tasks/:tid/status', authenticate, async (req,res) => {
+  try {
+    const { status } = req.body;
+    await db.updateTask(req.params.tid, { status, updated_at:new Date().toISOString() });
+    const { data:task } = await db.taskById(req.params.tid);
+    io.to('ws:'+(task?.workspace_id||'')).emit('task:updated', { task:decryptTask(task) });
+    ok(res, { status });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.delete('/api/projects/:id', authenticate, async (req,res) => {
+  try {
+    const { data:proj } = await db.projectById(req.params.id);
+    if (!proj) return fail(res,'Not found',404);
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',proj.workspace_id).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','CREATE_PROJECT')) return fail(res,'Permission denied',403);
+    await db.supabase().from('tasks').delete().eq('project_id',req.params.id);
+    await db.supabase().from('project_members').delete().eq('project_id',req.params.id);
+    await db.supabase().from('projects').delete().eq('id',req.params.id);
+    io.to('ws:'+proj.workspace_id).emit('project:deleted', { projectId:req.params.id });
+    ok(res, { deleted:true });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── CHANNEL MANAGEMENT ────────────────────────────────────────────────────
+app.patch('/api/channels/:id', authenticate, async (req,res) => {
+  try {
+    const { name, description, type } = req.body;
+    const updates = {};
+    if (name) updates.name = safeStr(name.toLowerCase().replace(/[^a-z0-9-]/g,'-'),50);
+    if (description !== undefined) updates.description = safeStr(description||'',300);
+    if (type) updates.type = type;
+    const { data, error } = await db.supabase().from('channels').update(updates).eq('id',req.params.id).select().single();
+    if (error) return fail(res, error.message);
+    io.to('ws:'+(data?.workspace_id||'')).emit('channel:updated', { channel:data });
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.delete('/api/channels/:id', authenticate, async (req,res) => {
+  try {
+    const { data:ch } = await db.supabase().from('channels').select('*').eq('id',req.params.id).single();
+    if (!ch) return fail(res,'Not found');
+    if (['general','github-feed','ai-help'].includes(ch.name)) return fail(res,'Cannot delete default channels');
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',ch.workspace_id).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','CREATE_CHANNEL')) return fail(res,'Permission denied',403);
+    await db.supabase().from('messages').delete().eq('channel_id',req.params.id);
+    await db.supabase().from('channel_members').delete().eq('channel_id',req.params.id);
+    await db.supabase().from('channels').delete().eq('id',req.params.id);
+    io.to('ws:'+ch.workspace_id).emit('channel:deleted', { channelId:req.params.id });
+    ok(res, { deleted:true });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── WORKSPACE PROJECTS WITH GITHUB MANDATORY ─────────────────────────────
+
 app.get('/api/workspaces/:wid/projects', authenticate, async (req,res) => {
   const { data } = await db.projectsByWorkspace(req.params.wid);
   ok(res, data||[]);
@@ -582,21 +704,49 @@ app.get('/api/workspaces/:wid/projects', authenticate, async (req,res) => {
 
 app.post('/api/workspaces/:wid/projects', authenticate, async (req,res) => {
   try {
-    const { name, description, color, deadline, teamId } = req.body;
+    const { name, description, color='#22c55e', deadline, isPrivate=false } = req.body;
     if (!name) return fail(res,'Name required');
+    // Check permission
+    const { data:member } = await db.supabase().from('workspace_members').select('role').eq('user_id',req.userId).eq('workspace_id',req.params.wid).single();
+    if (!hasPermission(member?.role||'viewer','CREATE_PROJECT')) return fail(res,'Permission denied',403);
+
+    // MANDATORY: Create GitHub repo
+    let ghRepo = null;
+    const token = tryDecrypt(req.user.github_access_token);
+    const repoSlug = name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,100);
+    try {
+      ghRepo = await gh.createRepo(repoSlug, description||('DevCollab project: '+name), isPrivate, token);
+    } catch(ghErr) {
+      // If repo already exists with same name, try to get it
+      try { ghRepo = await gh.getRepo(req.user.github_username, repoSlug, token); }
+      catch { return fail(res,'GitHub repo creation failed: '+ghErr.message); }
+    }
+
     const p = {
-      id:uuid(), workspace_id:req.params.wid, team_id:teamId||null,
-      name:safeStr(name,100), description:safeStr(description||'',1000),
-      color:color||'#39d353', deadline:deadline||null, status:'active',
-      created_by:req.userId, created_at:new Date().toISOString(), updated_at:new Date().toISOString(),
+      id:uuid(), workspace_id:req.params.wid,
+      name: encrypt(safeStr(name,100)),
+      description: description ? encrypt(safeStr(description,1000)) : null,
+      color, deadline:deadline||null, status:'active',
+      github_repo: ghRepo.full_name,
+      github_url: ghRepo.html_url,
+      created_by:req.userId,
+      created_at:new Date().toISOString(), updated_at:new Date().toISOString(),
     };
     const { data, error } = await db.createProject(p);
     if (error) return fail(res, error.message);
-    await db.addProjectMember(data.id, req.userId, 'manager');
-    // auto-create project channel (ignore collision - channel may already exist)
-    const chanName = `proj-${safeStr(name,20).toLowerCase().replace(/[^a-z0-9]/g,'-')}-${require('./services/crypto').randomHex(2)}`;
-    await db.createChannel({ id:uuid(), workspace_id:req.params.wid, name:chanName, description:`Project: ${name}`, type:'private', created_by:req.userId, archived:false, created_at:new Date().toISOString() }).catch(()=>{});
-    ok(res, data, 201);
+
+    // Link repo to workspace
+    await db.createRepo({ id:uuid(), workspace_id:req.params.wid, github_repo_id:String(ghRepo.id), full_name:ghRepo.full_name, description:ghRepo.description||'', private:ghRepo.private, linked_by:req.userId, linked_at:new Date().toISOString() }).catch(()=>{});
+
+    // Add creator as project owner
+    await db.addProjectMember(data.id, req.userId, 'owner');
+
+    // Create project-specific private channel with REAL project name
+    const chanName = 'proj-'+repoSlug.slice(0,25);
+    const newCh = await db.createChannel({ id:uuid(), workspace_id:req.params.wid, name:chanName, description:'Project: '+name, type:'private', created_by:req.userId, archived:false, created_at:new Date().toISOString() }).catch(()=>({data:null}));
+
+    io.to('ws:'+req.params.wid).emit('project:created', { project:{...data, name, github_repo:ghRepo.full_name, github_url:ghRepo.html_url}, repo:ghRepo });
+    ok(res, { ...data, name, github_repo:ghRepo.full_name, github_url:ghRepo.html_url }, 201);
   } catch(e) { fail(res, e.message); }
 });
 
