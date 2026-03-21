@@ -226,6 +226,70 @@ io.on('connection', async (socket) => {
     } catch(e) {}
   });
 
+
+  // ── CHANNEL VIEW PRESENCE (who's looking at a channel right now) ──
+  socket.on('channel:viewing', ({ channelId }) => {
+    // Leave all previous view rooms
+    const rooms = [...socket.rooms].filter(r => r.startsWith('view:'));
+    rooms.forEach(r => { socket.leave(r); socket.to(r).emit('channel:viewer:left', { userId, channelId: r.replace('view:','') }); });
+    socket.join(`view:${channelId}`);
+    socket.to(`view:${channelId}`).emit('channel:viewer:joined', { userId, user: safeUser(user), channelId });
+    socket.emit('channel:viewers', { channelId, viewers: [] }); // client will accumulate
+  });
+
+  // ── READ RECEIPTS ──
+  socket.on('msg:read', async ({ channelId, messageId }) => {
+    socket.to(`ch:${channelId}`).emit('msg:read:ack', { userId, messageId, channelId });
+  });
+
+  // ── THREAD REPLY ──
+  socket.on('thread:send', async ({ parentMessageId, content, code }) => {
+    try {
+      const { data:parent } = await db.messageById(parentMessageId);
+      if (!parent) return;
+      const enc = content ? encrypt(safeStr(content, 5000)) : null;
+      const msg = {
+        id: uuid(), channel_id: parent.channel_id, user_id: userId,
+        content_encrypted: enc, type: code ? 'code' : 'text',
+        code_lang: code?.lang||null, code_body: code?.body ? encrypt(code.body) : null,
+        thread_parent_id: parentMessageId,
+        created_at: new Date().toISOString(), deleted: false, edited: false,
+      };
+      const { data:saved } = await db.createMessage(msg);
+      const out = formatMsg(saved);
+      io.to(`ch:${parent.channel_id}`).emit('thread:new', { parentMessageId, reply: out });
+    } catch(e) { socket.emit('error', { message: e.message }); }
+  });
+
+  // ── PIN MESSAGE (via socket for instant update) ──
+  socket.on('msg:pin', async ({ messageId, channelId }) => {
+    try {
+      await db.pinMessage(channelId, messageId, userId);
+      io.to(`ch:${channelId}`).emit('msg:pinned', { messageId, channelId, pinnedBy: userId });
+    } catch(e) {}
+  });
+
+  socket.on('msg:unpin', async ({ messageId, channelId }) => {
+    try {
+      await db.supabase().from('message_pins').delete().eq('message_id', messageId).eq('channel_id', channelId);
+      io.to(`ch:${channelId}`).emit('msg:unpinned', { messageId, channelId });
+    } catch(e) {}
+  });
+
+  // ── TASK ASSIGN (with notification) ──
+  socket.on('task:assign', async ({ taskId, assigneeId }) => {
+    try {
+      await db.updateTask(taskId, { assigned_to: assigneeId });
+      const { data:task } = await db.taskById(taskId);
+      if (!task) return;
+      io.to(`ws:${task.workspace_id||''}`).emit('task:assigned', { task });
+      // notify assignee
+      await db.createNotif({ id:uuid(), user_id:assigneeId, type:'task_assigned', title:encrypt(`Task assigned to you`), body:encrypt(safeStr(task.title||'',100)), read:false, data:JSON.stringify({taskId}), created_at:new Date().toISOString() });
+      const assigneeSockets = onlineUsers.get(assigneeId);
+      if (assigneeSockets) assigneeSockets.forEach(sid => io.to(sid).emit('notification:new', { type:'task_assigned', title:'Task Assigned', body: task.title||'' }));
+    } catch(e) {}
+  });
+
   // ── DISCONNECT ──
   socket.on('disconnect', async () => {
     const sockets = onlineUsers.get(userId);
@@ -1031,6 +1095,198 @@ app.patch('/api/notifications/:id/read', authenticate, async (req,res) => {
   ok(res, { message:'Marked read' });
 });
 
+
+
+app.post('/api/messages/:id/thread', authenticate, async (req,res) => {
+  try {
+    const { content } = req.body;
+    const { data:parent } = await db.messageById(req.params.id);
+    if (!parent) return fail(res,'parent not found');
+    const enc = encrypt(safeStr(content,5000));
+    const msg = { id:uuid(), channel_id:parent.channel_id, user_id:req.userId, content_encrypted:enc, type:'text', thread_parent_id:req.params.id, created_at:new Date().toISOString(), deleted:false };
+    const { data:saved } = await db.createMessage(msg);
+    const out = formatMsg(saved);
+    io.to(`ch:${parent.channel_id}`).emit('thread:new', { parentMessageId:req.params.id, reply:out });
+    ok(res, out, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── THREADS ──────────────────────────────────────────────────────────────
+app.get('/api/messages/:id/thread', authenticate, async (req,res) => {
+  try {
+    const { data } = await db.supabase().from('messages')
+      .select('*,user:users(id,github_username,handle,display_name,avatar_url,avatar_color,role)')
+      .eq('thread_parent_id', req.params.id).order('created_at');
+    ok(res, (data||[]).map(formatMsg));
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── CODE SEARCH ───────────────────────────────────────────────────────────
+app.get('/api/github/search/code', authenticate, async (req,res) => {
+  try {
+    const { q, lang } = req.query;
+    if (!q) return fail(res, 'q required');
+    const token = tryDecrypt(req.user.github_access_token);
+    const qualifier = lang ? `+language:${lang}` : '';
+    const data = await fetch(
+      `https://api.github.com/search/code?q=${encodeURIComponent(q)}+user:${req.user.github_username}${qualifier}&per_page=20`,
+      { headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' } }
+    ).then(r=>r.json());
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── DIFF (between two commits or branches) ───────────────────────────────
+app.get('/api/repos/:id/diff', authenticate, async (req,res) => {
+  try {
+    const { base, head } = req.query;
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res, 'Repo not found');
+    const [owner, repoName] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const diff = await fetch(
+      `https://api.github.com/repos/${owner}/${repoName}/compare/${base||'HEAD~1'}...${head||'HEAD'}`,
+      { headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' } }
+    ).then(r=>r.json());
+    ok(res, diff);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── COMMIT DIFF (single commit) ──────────────────────────────────────────
+app.get('/api/repos/:id/commits/:sha/diff', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res, 'Repo not found');
+    const [owner, repoName] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const commit = await fetch(
+      `https://api.github.com/repos/${owner}/${repoName}/commits/${req.params.sha}`,
+      { headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' } }
+    ).then(r=>r.json());
+    ok(res, commit);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── GITHUB GRAPHQL (real contributions) ─────────────────────────────────
+app.get('/api/github/contributions', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const year = req.query.year || new Date().getFullYear();
+    const from = `${year}-01-01T00:00:00Z`;
+    const to   = `${year}-12-31T23:59:59Z`;
+    const query = `{
+      user(login: "${req.user.github_username}") {
+        contributionsCollection(from: "${from}", to: "${to}") {
+          totalCommitContributions
+          totalPullRequestContributions
+          totalIssueContributions
+          totalRepositoryContributions
+          contributionCalendar {
+            totalContributions
+            weeks {
+              contributionDays {
+                date
+                contributionCount
+                color
+              }
+            }
+          }
+        }
+        repositories(first: 1, orderBy: { field: UPDATED_AT, direction: DESC }) {
+          nodes { name }
+        }
+      }
+    }`;
+    const result = await fetch('https://api.github.com/graphql', {
+      method: 'POST',
+      headers: { Authorization:`Bearer ${token}`, 'Content-Type':'application/json', 'User-Agent':'DevCollab-Hub/2.0' },
+      body: JSON.stringify({ query }),
+    }).then(r=>r.json());
+    if (result.errors) return fail(res, result.errors[0]?.message || 'GraphQL error');
+    ok(res, result.data?.user?.contributionsCollection);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── ACTIVITY FEED ─────────────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/activity', authenticate, async (req,res) => {
+  try {
+    const limit = parseInt(req.query.limit)||30;
+    const { data } = await db.supabase()
+      .from('audit_log')
+      .select('*')
+      .eq('workspace_id', req.params.wid)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    ok(res, data||[]);
+  } catch(e) { fail(res, []); }
+});
+
+// ── BURNDOWN DATA ─────────────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/burndown', authenticate, async (req,res) => {
+  try {
+    const { data } = await db.supabase()
+      .from('tasks')
+      .select('id,created_at,status,updated_at,workspace_id')
+      .eq('workspace_id', req.params.wid)
+      .order('created_at');
+    ok(res, data||[]);
+  } catch(e) { fail(res, []); }
+});
+
+// ── PERSONAL STATS ────────────────────────────────────────────────────────
+app.get('/api/users/me/stats', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    // Get tasks completed this month
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+    const { data:tasks } = await db.supabase().from('tasks')
+      .select('id,status,updated_at').eq('assigned_to', req.userId).eq('status','done').gte('updated_at', monthStart.toISOString());
+    const tasksThisMonth = tasks?.length || 0;
+    // Get recent commit count via GitHub
+    let commitsThisWeek = 0;
+    try {
+      const weekAgo = new Date(Date.now() - 7*24*3600000).toISOString();
+      const events = await fetch(`https://api.github.com/users/${req.user.github_username}/events?per_page=100`, {
+        headers: { Authorization:`Bearer ${token}`, 'User-Agent':'DevCollab-Hub/2.0' }
+      }).then(r=>r.json());
+      commitsThisWeek = (Array.isArray(events) ? events : []).filter(e => e.type==='PushEvent' && new Date(e.created_at)>new Date(weekAgo))
+        .reduce((sum,e) => sum + (e.payload?.commits?.length||0), 0);
+    } catch {}
+    ok(res, { tasksThisMonth, commitsThisWeek });
+  } catch(e) { fail(res, { tasksThisMonth:0, commitsThisWeek:0 }); }
+});
+
+// ── INLINE PR COMMENT ─────────────────────────────────────────────────────
+app.post('/api/repos/:id/prs/:num/comments', authenticate, async (req,res) => {
+  try {
+    const { body, path, position, commit_id } = req.body;
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res,'not found');
+    const [owner, repoName] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const result = await fetch(`https://api.github.com/repos/${owner}/${repoName}/pulls/${req.params.num}/comments`, {
+      method: 'POST',
+      headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'Content-Type':'application/json', 'User-Agent':'DevCollab-Hub/2.0' },
+      body: JSON.stringify({ body, path, position, commit_id }),
+    }).then(r=>r.json());
+    ok(res, result, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── PR DIFF ───────────────────────────────────────────────────────────────
+app.get('/api/repos/:id/prs/:num/diff', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res,'not found');
+    const [owner, repoName] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const diff = await fetch(`https://api.github.com/repos/${owner}/${repoName}/pulls/${req.params.num}/files`, {
+      headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' }
+    }).then(r=>r.json());
+    ok(res, diff);
+  } catch(e) { fail(res, e.message); }
+});
+
 // ── SEARCH ────────────────────────────────────────────────────────────────────
 app.get('/api/search', authenticate, async (req,res) => {
   const q = (req.query.q||'').trim();
@@ -1043,6 +1299,23 @@ app.get('/api/search', authenticate, async (req,res) => {
 });
 
 // ── GITHUB WEBHOOK ────────────────────────────────────────────────────────────
+
+// ── GITHUB WEBHOOK (posts formatted cards to #github-feed) ───────────────
+async function postToGithubFeed(workspaceId, content, type='system') {
+  try {
+    const { data:channels } = await db.channelsByWorkspace(workspaceId);
+    const feedCh = channels?.find(c => c.name === 'github-feed');
+    if (!feedCh) return;
+    const msg = {
+      id: uuid(), channel_id: feedCh.id, user_id: 'system',
+      content_encrypted: encrypt(content), type,
+      created_at: new Date().toISOString(), deleted: false,
+    };
+    await db.createMessage(msg);
+    io.to(`ch:${feedCh.id}`).emit('msg:new', { ...msg, userId:'system', content, ts:msg.created_at });
+  } catch(e) { console.warn('[webhook feed]', e.message); }
+}
+
 app.post('/webhooks/github', express.raw({type:'application/json'}), async (req,res) => {
   try {
     const sig = req.headers['x-hub-signature-256'];
