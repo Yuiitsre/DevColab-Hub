@@ -165,11 +165,15 @@ io.on('connection', async (socket) => {
     try {
       const { data:msg } = await db.messageById(messageId);
       if (!msg) return;
-      if (msg.user_id !== userId) return socket.emit('error',{message:'Not your message'});
-      const receipt = require('./services/crypto').deletionReceipt(messageId, userId);
-      await db.softDeleteMessage(messageId, userId);
-      await db.audit({ id:uuid(), action:'message_deleted', actor_id:userId, resource_id:messageId, metadata:JSON.stringify(receipt), created_at:new Date().toISOString() });
-      io.to(`ch:${msg.channel_id}`).emit('msg:deleted', { messageId, receipt });
+      // Owner of workspace OR message author can delete
+      const { data:wsMember } = await db.supabase().from('workspace_members').select('role').eq('user_id',userId).single();
+      const isAdmin = ['owner','admin','manager'].includes(wsMember?.role||'');
+      if (msg.user_id !== userId && !isAdmin) return socket.emit('error',{message:'Not your message'});
+      // HARD DELETE — completely remove, no ghost
+      await db.supabase().from('message_reactions').delete().eq('message_id', messageId);
+      await db.supabase().from('message_pins').delete().eq('message_id', messageId);
+      await db.supabase().from('messages').delete().eq('id', messageId);
+      io.to(`ch:${msg.channel_id}`).emit('msg:deleted', { messageId, hard: true });
     } catch(e) { socket.emit('error',{message:e.message}); }
   });
 
@@ -1284,6 +1288,153 @@ app.get('/api/repos/:id/prs/:num/diff', authenticate, async (req,res) => {
       headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' }
     }).then(r=>r.json());
     ok(res, diff);
+  } catch(e) { fail(res, e.message); }
+});
+
+
+// ── ROLE MANAGEMENT ──────────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/my-role', authenticate, async (req,res) => {
+  try {
+    const { data } = await db.supabase().from('workspace_members')
+      .select('role').eq('workspace_id',req.params.wid).eq('user_id',req.userId).single();
+    ok(res, { role: data?.role || 'viewer', permissions: Object.entries(require('./config/constants').CAN).reduce((acc,[k,v])=>({...acc,[k]:v.includes(data?.role||'viewer')}),{}) });
+  } catch(e) { ok(res, { role:'viewer', permissions:{} }); }
+});
+
+app.patch('/api/workspaces/:wid/members/:uid/role', authenticate, async (req,res) => {
+  try {
+    const { role } = req.body;
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',req.params.wid).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','MANAGE_MEMBERS')) return fail(res,'Permission denied',403);
+    await db.supabase().from('workspace_members').update({role}).eq('workspace_id',req.params.wid).eq('user_id',req.params.uid);
+    io.to(`ws:${req.params.wid}`).emit('member:role_changed', { userId:req.params.uid, role, changedBy:req.userId });
+    ok(res, { role });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── OWNER DASHBOARD DATA ──────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/dashboard', authenticate, async (req,res) => {
+  try {
+    const [members, tasks, projects, channels] = await Promise.all([
+      db.workspaceMembers(req.params.wid).then(r=>r.data||[]),
+      db.supabase().from('tasks').select('*').eq('workspace_id',req.params.wid).then(r=>r.data||[]),
+      db.supabase().from('projects').select('*').eq('workspace_id',req.params.wid).then(r=>r.data||[]),
+      db.channelsByWorkspace(req.params.wid).then(r=>r.data||[]),
+    ]);
+    const now = Date.now();
+    const membersWithStatus = members.map(m => {
+      const u = m.user || {};
+      const isOnline = onlineUsers.has(u.id);
+      return { ...m, user:safeUser(u), online:isOnline };
+    });
+    const taskStats = {
+      total: tasks.length,
+      open: tasks.filter(t=>t.status!=='done').length,
+      inReview: tasks.filter(t=>t.status==='in_review').length,
+      done: tasks.filter(t=>t.status==='done').length,
+      blocked: tasks.filter(t=>t.status==='blocked').length,
+      urgent: tasks.filter(t=>t.priority==='urgent'&&t.status!=='done').length,
+    };
+    ok(res, { members:membersWithStatus, taskStats, projectCount:projects.length, channelCount:channels.length });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── AUTO BRANCH CREATION ON TASK START ───────────────────────────────────
+app.post('/api/tasks/:id/start', authenticate, async (req,res) => {
+  try {
+    const { data:task } = await db.taskById(req.params.id);
+    if (!task) return fail(res,'Task not found');
+    if (task.assigned_to !== req.userId) return fail(res,'Not assigned to you',403);
+    await db.updateTask(req.params.id, { status:'in_progress', started_at:new Date().toISOString() });
+    // Auto-create branch on the project repo
+    let branchName = null;
+    if (task.github_repo || task.workspace_id) {
+      try {
+        const token = tryDecrypt(req.user.github_access_token);
+        // Find linked repo
+        const { data:repos } = await db.supabase().from('linked_repos').select('*').eq('workspace_id',task.workspace_id).limit(1);
+        if (repos?.length) {
+          const [owner,repoName] = repos[0].full_name.split('/');
+          const slug = (task.title||'task').toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').slice(0,30);
+          branchName = `task-${req.params.id.slice(0,8)}-${slug}`;
+          const branches = await gh.getBranches(owner, repoName, token);
+          const sha = branches[0]?.commit?.sha || '';
+          if (sha) await gh.createBranch(owner, repoName, branchName, sha, token);
+        }
+      } catch(branchErr) { console.warn('[task:start] branch creation:', branchErr.message); }
+    }
+    await db.updateTask(req.params.id, { branch_name: branchName });
+    io.to(`ws:${task.workspace_id||''}`).emit('task:started', { taskId:req.params.id, userId:req.userId, branchName });
+    ok(res, { status:'in_progress', branchName });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── SUBMIT TASK FOR REVIEW (auto-opens GitHub PR) ─────────────────────────
+app.post('/api/tasks/:id/submit-review', authenticate, async (req,res) => {
+  try {
+    const { data:task } = await db.taskById(req.params.id);
+    if (!task) return fail(res,'Task not found');
+    if (task.assigned_to !== req.userId) return fail(res,'Not your task',403);
+    const { prTitle, prBody } = req.body;
+    let prData = null;
+    if (task.branch_name) {
+      try {
+        const token = tryDecrypt(req.user.github_access_token);
+        const { data:repos } = await db.supabase().from('linked_repos').select('*').eq('workspace_id',task.workspace_id).limit(1);
+        if (repos?.length) {
+          const [owner,repoName] = repos[0].full_name.split('/');
+          const repo = await gh.getRepo(owner, repoName, token);
+          prData = await gh.createPR(owner, repoName, prTitle||task.title, prBody||`Resolves task #${req.params.id}\n\n${task.description||''}`, task.branch_name, repo.default_branch||'main', token);
+        }
+      } catch(prErr) { console.warn('[task:submit] PR creation:', prErr.message); }
+    }
+    await db.updateTask(req.params.id, { status:'in_review', pr_url:prData?.html_url||null, pr_number:prData?.number||null });
+    // Notify leads/owner
+    const { data:leads } = await db.supabase().from('workspace_members').select('user_id').eq('workspace_id',task.workspace_id).in('role',['owner','admin','manager','lead']);
+    for (const lead of leads||[]) {
+      await db.createNotif({ id:uuid(), user_id:lead.user_id, type:'pr_review', title:encrypt(`PR ready for review`), body:encrypt(safeStr(task.title||'',100)), read:false, data:JSON.stringify({taskId:req.params.id, prUrl:prData?.html_url}), created_at:new Date().toISOString() });
+      const sockets = onlineUsers.get(lead.user_id);
+      if (sockets) sockets.forEach(sid => io.to(sid).emit('notification:new', { type:'pr_review', title:'PR Ready for Review', body:task.title||'' }));
+    }
+    io.to(`ws:${task.workspace_id||''}`).emit('task:submitted', { taskId:req.params.id, userId:req.userId, pr:prData });
+    ok(res, { status:'in_review', pr:prData });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── APPROVE/REJECT TASK (Lead/Owner only) ────────────────────────────────
+app.post('/api/tasks/:id/approve', authenticate, async (req,res) => {
+  try {
+    const { data:task } = await db.taskById(req.params.id);
+    if (!task) return fail(res,'not found');
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',task.workspace_id).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','APPROVE_PR')) return fail(res,'Permission denied',403);
+    await db.updateTask(req.params.id, { status:'approved', approved_by:req.userId, approved_at:new Date().toISOString() });
+    // Notify the assignee
+    if (task.assigned_to) {
+      await db.createNotif({ id:uuid(), user_id:task.assigned_to, type:'pr_approved', title:encrypt('Your work was approved!'), body:encrypt(safeStr(task.title||'',100)), read:false, data:JSON.stringify({taskId:req.params.id}), created_at:new Date().toISOString() });
+      const sockets = onlineUsers.get(task.assigned_to);
+      if (sockets) sockets.forEach(sid => io.to(sid).emit('notification:new', { type:'pr_approved', title:'Work Approved! ✓', body:task.title||'' }));
+    }
+    io.to(`ws:${task.workspace_id||''}`).emit('task:approved', { taskId:req.params.id, approvedBy:req.userId });
+    ok(res, { status:'approved' });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/tasks/:id/reject', authenticate, async (req,res) => {
+  try {
+    const { reason } = req.body;
+    const { data:task } = await db.taskById(req.params.id);
+    if (!task) return fail(res,'not found');
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',task.workspace_id).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','APPROVE_PR')) return fail(res,'Permission denied',403);
+    await db.updateTask(req.params.id, { status:'in_progress', rejection_reason:reason||'' });
+    if (task.assigned_to) {
+      await db.createNotif({ id:uuid(), user_id:task.assigned_to, type:'system', title:encrypt('Changes requested'), body:encrypt(safeStr(reason||task.title||'',100)), read:false, data:JSON.stringify({taskId:req.params.id,reason}), created_at:new Date().toISOString() });
+      const sockets = onlineUsers.get(task.assigned_to);
+      if (sockets) sockets.forEach(sid => io.to(sid).emit('notification:new', { type:'changes_requested', title:'Changes Requested', body:reason||'' }));
+    }
+    io.to(`ws:${task.workspace_id||''}`).emit('task:rejected', { taskId:req.params.id, rejectedBy:req.userId, reason });
+    ok(res, { status:'in_progress' });
   } catch(e) { fail(res, e.message); }
 });
 
