@@ -1398,6 +1398,17 @@ button:focus-visible { outline:2px solid var(--gr); outline-offset:2px; border-r
           </div>
         </div>
 
+        <!-- Projects -->
+        <div class="sb-section" id="sb-projects-section">
+          <div class="sb-section-hdr">
+            <span class="sb-section-label">Projects</span>
+            <button class="sb-add" onclick="openNewProject()" data-tip="New project (creates GitHub repo)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+          <div id="sb-projects-list"></div>
+        </div>
+
         <!-- Channels -->
         <div class="sb-section">
           <div class="sb-section-hdr">
@@ -1540,10 +1551,11 @@ button:focus-visible { outline:2px solid var(--gr); outline-offset:2px; border-r
               <div class="input-send" onclick="sendMsg()"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
             </div>
             <div class="input-fmtbar">
-              <div class="fmt-btn" onclick="wrap('**','**')"><strong>B</strong></div>
-              <div class="fmt-btn" onclick="wrap('_','_')"><em>I</em></div>
-              <div class="fmt-btn" onclick="wrap('`','`')">&lt;/&gt;</div>
-              <div class="fmt-btn" onclick="insertCode()">{}</div>
+              <div class="fmt-btn" onclick="wrapSelected('**','**')" data-tip="Bold selected text"><strong>B</strong></div>
+              <div class="fmt-btn" onclick="wrapSelected('_','_')" data-tip="Italic selected text"><em>I</em></div>
+              <div class="fmt-btn" onclick="wrapSelected('`','`')" data-tip="Inline code">&lt;/&gt;</div>
+              <div class="fmt-btn" onclick="insertCodeBlock()" data-tip="Insert code block">{}</div>
+              <div class="fmt-btn" onclick="wrapSelected('~~','~~')" data-tip="Strikethrough" style="text-decoration:line-through">S</div>
               <div class="input-hint">Enter to send · Shift+Enter new line · /ai for AI</div>
             </div>
           </div>
@@ -2349,13 +2361,20 @@ function initSocket(){
 // ════════════════════════════════════════════════════════════
 function renderSidebar(){
   // Channels
-  document.getElementById('sb-channels').innerHTML=S.channels.map(ch=>`
-    <div class="sb-item${ch.id===S.ch?' active':''}" onclick="switchChannel('${ch.id}')" data-ch="${ch.id}">
-      <div class="sb-item-bar"></div>
-      <div class="sb-item-icon" style="font-size:12px">${ch.type==='private'?'🔒':ch.type==='announcement'?'📢':'#'}</div>
-      <span class="sb-item-text">${esc(ch.name)}</span>
-      ${ch.unread?`<div class="sb-item-badge">${ch.unread}</div>`:''}
-    </div>`).join('');
+  document.getElementById('sb-channels').innerHTML=S.channels.map(ch=>{
+    const displayName = ch.description && ch.description.startsWith('Project: ')
+      ? ch.description.replace('Project: ','')
+      : ch.name;
+    const icon = ch.type==='private'?'🔒':ch.type==='announcement'?'📢':'#';
+    const chId = esc(ch.id);
+    const chJson = encodeURIComponent(JSON.stringify(ch));
+    return '<div class="sb-item'+(ch.id===S.ch?' active':'')+'" onclick="switchChannel(decodeChannel(this))" data-ch-id="'+chId+'" data-ch="'+chJson+'" oncontextmenu="showChannelCtxById(event,this)">'+
+      '<div class="sb-item-bar"></div>'+
+      '<div class="sb-item-icon" style="font-size:12px">'+icon+'</div>'+
+      '<span class="sb-item-text">'+esc(displayName)+'</span>'+
+      (ch.unread?'<div class="sb-item-badge">'+ch.unread+'</div>':'')+
+    '</div>';
+  }).join('');
   // DMs
   const others=S.users.filter(u=>u.id!==S.user?.id).slice(0,8);
   document.getElementById('sb-dms').innerHTML=others.map(u=>{
@@ -2406,6 +2425,10 @@ function renderMembers(){
 // ════════════════════════════════════════════════════════════
 // CHANNELS & CHAT
 // ════════════════════════════════════════════════════════════
+function decodeChannel(el){ return el.dataset.chId; }
+function showChannelCtxById(e,el){ 
+  try { const ch=JSON.parse(decodeURIComponent(el.dataset.ch)); showChannelCtx(e,ch); } catch{} 
+}
 function switchChannel(id){
   S.ch=id;const ch=S.channels.find(c=>c.id===id);if(!ch)return;
   ch.unread=0;
@@ -2413,7 +2436,7 @@ function switchChannel(id){
   document.getElementById('ch-desc').textContent=ch.description?'— '+ch.description:'';
   document.getElementById('ch-meta').textContent=`${S.users.length} members`;
   document.getElementById('msg-input').placeholder=`Message #${ch.name}...`;
-  document.querySelectorAll('[data-ch]').forEach(el=>el.classList.toggle('active',el.dataset.ch===id));
+  document.querySelectorAll('[data-ch-id]').forEach(el=>el.classList.toggle('active',el.dataset.chId===id));
   showView('chat');
   if(S.socket?.connected)S.socket.emit('channel:join',{channelId:id});
   else GET(`/channels/${id}/messages`).then(msgs=>{S.messages[id]=(msgs||[]);renderMessages();}).catch(()=>{});
@@ -2511,8 +2534,32 @@ function handleMsgKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sen
 function onMsgInput(el){autoGrow(el);if(!S.ch||!S.socket?.connected)return;S.socket.emit('typing:start',{channelId:S.ch});clearTimeout(S.typingTimer);S.typingTimer=setTimeout(stopTyping,2000);}
 function stopTyping(){if(S.ch&&S.socket?.connected)S.socket.emit('typing:stop',{channelId:S.ch});}
 function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,150)+'px';}
-function wrap(b,a){const ta=document.getElementById('msg-input');const s=ta.selectionStart,e=ta.selectionEnd;const sel=ta.value.slice(s,e)||'text';ta.value=ta.value.slice(0,s)+b+sel+a+ta.value.slice(e);ta.focus();}
-function insertCode(){const ta=document.getElementById('msg-input');ta.value+=(ta.value?'\n':'')+'```javascript\n// code\n```';ta.focus();autoGrow(ta);}
+function wrapSelected(before,after){
+  const ta=document.getElementById('msg-input');
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  const sel=ta.value.slice(s,e);
+  if(!sel){
+    // No selection - insert placeholder
+    const placeholder=before==='**'?'bold text':before==='_'?'italic text':before==='`'?'code':'text';
+    ta.value=ta.value.slice(0,s)+before+placeholder+after+ta.value.slice(e);
+    ta.setSelectionRange(s+before.length,s+before.length+placeholder.length);
+  } else {
+    // Wrap selection
+    ta.value=ta.value.slice(0,s)+before+sel+after+ta.value.slice(e);
+    ta.setSelectionRange(s+before.length,s+before.length+sel.length);
+  }
+  ta.focus();
+}
+function wrap(b,a){ wrapSelected(b,a); }
+function insertCodeBlock(){
+  const ta=document.getElementById('msg-input');
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  const sel=ta.value.slice(s,e);
+  const block='```javascript\n'+(sel||'// your code here')+'\n```';
+  ta.value=ta.value.slice(0,s)+block+ta.value.slice(e);
+  ta.focus();autoGrow(ta);
+}
+function insertCode(){ insertCodeBlock(); }
 function copyCode(btn){navigator.clipboard.writeText(btn.closest('.msg-code-block').querySelector('.code-body').textContent).then(()=>toast('s','Copied',''));}
 function forkCode(btn){const c=btn.closest('.msg-code-block').querySelector('.code-body').textContent;const ta=document.getElementById('msg-input');ta.value='\`\`\`javascript\n'+c+'\n```';ta.focus();}
 function reviewCode(btn){const c=btn.closest('.msg-code-block').querySelector('.code-body').textContent;openAI();setMode('review');setTimeout(()=>{document.getElementById('ai-input').value=c;},100);}
@@ -3802,8 +3849,8 @@ function getCmdCommands(){
     { icon:'🐙', name:'Add Repository',     sub:'Link a GitHub repo',         shortcut:'',       fn:openNewRepo },
     { icon:'🔍', name:'Code Search', sub:'Search across all your repos', shortcut:'', fn:openCodeSearch },
     { icon:'?',  name:'Keyboard Shortcuts', sub:'View all shortcuts',         shortcut:'?',      fn:openShortcuts },
-    ...(S.channels||[]).map(ch => ({ icon:'#', name:'#'+ch.name, sub:'Channel', shortcut:'', fn:()=>switchChannel(ch.id) })),
-    ...(S.users||[]).filter(u=>u.id!==S.user?.id).slice(0,5).map(u => ({ icon:'👤', name:(u.display_name||u.handle||''), sub:'@'+u.handle, shortcut:'', fn:()=>startDM(u.id) })),
+    ...((typeof S!=='undefined'&&S.channels)||[]).map(ch => ({ icon:'#', name:'#'+ch.name, sub:'Channel', shortcut:'', fn:()=>switchChannel(ch.id) })),
+    ...((typeof S!=='undefined'&&S.users)||[]).filter(u=>u.id!==S.user?.id).slice(0,5).map(u => ({ icon:'👤', name:(u.display_name||u.handle||''), sub:'@'+u.handle, shortcut:'', fn:()=>startDM(u.id) })),
   ];
   return cmds;
 }
@@ -4021,7 +4068,9 @@ async function sendThread(){
   loadThreadReplies(_threadParentId);
 }
 // Socket listener for new thread replies
-if (S.socket) {
+// Socket listeners registered after socket init (called from enterApp)
+function initFeaturePack2Sockets() {
+  if (!S.socket) return;
   S.socket.on('thread:new', ({ parentMessageId, reply }) => {
     if (parentMessageId === _threadParentId) loadThreadReplies(parentMessageId);
     // Add thread count badge to original message
@@ -5286,7 +5335,8 @@ window.renderTasks = function(){
 };
 
 // ── SOCKET: live task updates ─────────────────────────────────────────────
-if (S.socket) {
+function initRoleUISockets() {
+  if (!S.socket) return;
   S.socket.on('task:started', ({ taskId, userId, branchName }) => {
     const task = S.tasks.find(t=>t.id===taskId);
     if (task) { task.status='in_progress'; task.branch_name=branchName; }
@@ -5323,25 +5373,15 @@ if (S.socket) {
     }
   });
   // Hard delete - remove message element from DOM completely
-  S.socket.on('msg:deleted', ({ messageId, hard }) => {
-    if (hard) {
-      const el = document.querySelector('[data-mid="'+messageId+'"]');
-      if (el) el.remove();
-    } else {
-      // Soft delete fallback (shouldn't happen with new code)
-      const el = document.querySelector('[data-mid="'+messageId+'"]');
-      if (el) {
-        const txt = el.querySelector('.msg-text');
-        if (txt) txt.innerHTML = '<span style="color:var(--tx4);font-style:italic">[deleted]</span>';
-      }
-    }
-    // Remove from state
+  S.socket.on('msg:deleted', ({ messageId }) => {
+    // Complete removal - no trace left
+    document.querySelectorAll('[data-mid="'+messageId+'"]').forEach(el => el.remove());
     for (const msgs of Object.values(S.messages||{})) {
       const i = msgs.findIndex(m=>m.id===messageId);
       if (i>=0) msgs.splice(i,1);
     }
   });
-}
+} // end initFeaturePack2Sockets
 
 // ── REAL GITHUB CONTRIBUTION GRAPH (week columns + month labels) ──────────
 async function loadRealContribs(){
@@ -5504,10 +5544,22 @@ const _origEnterApp2 = window.enterApp;
 window.enterApp = function(){
   _origEnterApp2();
   setTimeout(() => {
+    // Init all deferred socket listeners
+    if (typeof initFeaturePack2Sockets === 'function') initFeaturePack2Sockets();
+    if (typeof initRoleUISockets === 'function') initRoleUISockets();
+    if (typeof initFeedSockets === 'function') initFeedSockets();
+    if (typeof initProjectSockets === 'function') initProjectSockets();
+    // Load data
     if (window.loadRealContribs) loadRealContribs();
     if (window.loadPersonalStats) loadPersonalStats();
     if (window.loadActivityFeed) loadActivityFeed();
-  }, 1500);
+    // Init state for projects
+    if (typeof S !== 'undefined') {
+      S.projects = S.projects || [];
+      S.currentProject = S.currentProject || null;
+      S.currentProjTab = S.currentProjTab || 'overview';
+    }
+  }, 800);
 };
 </script>
 <style>
@@ -5782,7 +5834,8 @@ function renderBurndownChart(days){
 // ── TASK WORKING PRESENCE (live "who's on this task right now") ───────────
 const _taskWorkers = {}; // taskId → Map<userId, {handle, color, ts}>
 
-if (S.socket) {
+function initFeedSockets() {
+  if (!S.socket) return;
   S.socket.on('task:worker:active', ({ userId, handle, avatar_color, ts }) => {
     if (!_taskWorkers[currentViewingTask]) _taskWorkers[currentViewingTask] = new Map();
     _taskWorkers[currentViewingTask].set(userId, { handle, avatar_color, ts });
@@ -5807,7 +5860,7 @@ if (S.socket) {
     toast(type==='nudge'?'a':type==='pr_approved'?'s':'i', title, body||'', type==='nudge'?6000:4000);
     document.getElementById('notif-dot').style.display = 'block';
   });
-}
+} // end initFeedSockets
 
 let currentViewingTask = null;
 function setViewingTask(taskId){
@@ -6042,4 +6095,803 @@ window.buildOwnerDashboard = async function(){
   await _prevBuildOwner();
   loadBurndownChart();
 };
+</script>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   PROJECT SYSTEM — Complete Styles
+═══════════════════════════════════════════════════════════ */
+
+/* Sidebar project items */
+.sb-proj-item {
+  display:flex;align-items:center;gap:8px;
+  padding:5px 8px;margin:1px 6px;
+  border-radius:var(--r6);cursor:pointer;font-size:12px;
+  color:var(--tx3);transition:all var(--t1);position:relative;
+}
+.sb-proj-item:hover { background:var(--c3);color:var(--tx2); }
+.sb-proj-item.active { background:var(--c3);color:var(--tx1); }
+.sb-proj-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.sb-proj-name { flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500; }
+.sb-proj-progress { font-size:9px;color:var(--tx4);flex-shrink:0; }
+
+/* Project tabs */
+.proj-tab {
+  padding:10px 16px;font-size:12px;font-weight:600;color:var(--tx3);
+  cursor:pointer;border-bottom:2px solid transparent;
+  transition:all var(--t2);white-space:nowrap;
+}
+.proj-tab:hover { color:var(--tx2); }
+.proj-tab.active { color:var(--tx1);border-bottom-color:var(--gr); }
+
+/* Kanban board */
+.kanban-col {
+  flex-shrink:0;width:260px;
+  background:var(--c1);border:1px solid var(--c4);
+  border-radius:var(--r12);display:flex;flex-direction:column;
+  max-height:calc(100vh - 200px);
+}
+.kanban-col-hdr {
+  padding:12px 14px;border-bottom:1px solid var(--c4);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.kanban-col-title {
+  font-size:12px;font-weight:700;display:flex;align-items:center;gap:7px;
+}
+.kanban-col-count {
+  font-size:10px;color:var(--tx4);background:var(--c3);
+  padding:1px 7px;border-radius:99px;font-weight:600;
+}
+.kanban-cards {
+  flex:1;overflow-y:auto;padding:8px;
+  display:flex;flex-direction:column;gap:6px;
+  min-height:60px;
+}
+.kanban-card {
+  background:var(--c0);border:1px solid var(--c4);border-radius:var(--r10);
+  padding:12px;cursor:grab;transition:all var(--t2);
+  user-select:none;
+}
+.kanban-card:hover { border-color:var(--c5);box-shadow:var(--sh1); }
+.kanban-card.dragging { opacity:.5;cursor:grabbing; }
+.kanban-card.drag-over { border-color:var(--gr);background:rgba(34,197,94,.04); }
+.kc-title { font-size:12px;font-weight:600;margin-bottom:8px;line-height:1.4; }
+.kc-meta { display:flex;align-items:center;gap:6px;flex-wrap:wrap; }
+.kc-prio { font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px; }
+.kc-prio-urgent { background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.15); }
+.kc-prio-medium { background:rgba(234,179,8,.1);color:var(--yellow);border:1px solid rgba(234,179,8,.15); }
+.kc-prio-normal { background:rgba(34,197,94,.08);color:var(--gr);border:1px solid rgba(34,197,94,.12); }
+.kc-assignee { display:flex;align-items:center;gap:4px;font-size:10px;color:var(--tx3); }
+.kc-av { width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#000; }
+.kc-deadline { font-size:10px; }
+.kc-branch { font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--blue);background:var(--blue-dim);padding:1px 5px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px; }
+.kanban-add-btn {
+  margin:8px;padding:7px;border-radius:var(--r8);
+  font-size:11px;color:var(--tx4);cursor:pointer;
+  border:1px dashed var(--c4);text-align:center;transition:all var(--t1);
+}
+.kanban-add-btn:hover { border-color:var(--c5);color:var(--tx2);background:var(--c2); }
+
+/* Project health mini cards */
+.proj-stat { background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);padding:14px;text-align:center; }
+.proj-stat-val { font-size:24px;font-weight:800;letter-spacing:-.5px;line-height:1; }
+.proj-stat-label { font-size:10px;color:var(--tx4);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.3px; }
+
+/* Timeline */
+.timeline-row { display:flex;align-items:center;gap:0;margin-bottom:6px;min-width:800px; }
+.tl-label { width:180px;flex-shrink:0;font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:10px;font-weight:500; }
+.tl-track { flex:1;position:relative;height:26px; }
+.tl-bar { position:absolute;height:18px;border-radius:99px;top:4px;min-width:10px;transition:width .5s var(--spring);display:flex;align-items:center;padding:0 7px; }
+.tl-bar-label { font-size:9px;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.tl-today { position:absolute;top:0;bottom:0;width:1.5px;background:var(--red);z-index:2; }
+.tl-month-labels { display:flex;padding-left:180px;margin-bottom:4px;font-size:9px;color:var(--tx4);min-width:800px; }
+.tl-month-lbl { flex:1;font-weight:600; }
+
+/* Project card in list */
+.proj-list-card {
+  background:var(--c1);border:1px solid var(--c4);border-radius:var(--r12);
+  padding:18px;margin-bottom:10px;cursor:pointer;transition:all var(--t2);
+  display:flex;gap:14px;align-items:flex-start;
+}
+.proj-list-card:hover { border-color:var(--c5);box-shadow:var(--sh2);transform:translateY(-1px); }
+.proj-list-color { width:4px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:40px; }
+.proj-list-main { flex:1;min-width:0; }
+.proj-list-name { font-size:15px;font-weight:700;letter-spacing:-.2px;margin-bottom:4px; }
+.proj-list-desc { font-size:12px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:10px; }
+.proj-list-meta { display:flex;align-items:center;gap:12px;font-size:11px;color:var(--tx3);flex-wrap:wrap; }
+.proj-list-progress-wrap { margin-top:10px; }
+.proj-list-progress-bar { height:4px;background:var(--c3);border-radius:99px;overflow:hidden;margin-top:4px; }
+.proj-list-progress-fill { height:100%;border-radius:99px;transition:width .6s var(--spring); }
+.proj-list-right { display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0; }
+
+/* Team member card in project */
+.proj-member-card {
+  background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);
+  padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+}
+.proj-member-card:hover { border-color:var(--c5); }
+
+/* New project modal custom date picker */
+.custom-date-input {
+  width:100%;padding:9px 12px;
+  background:var(--c0);border:1px solid var(--c4);border-radius:var(--r8);
+  color:var(--tx1);font-size:13px;font-family:inherit;
+  transition:all var(--t2);cursor:pointer;
+}
+.custom-date-input:focus { border-color:var(--gr);box-shadow:0 0 0 3px rgba(34,197,94,.1); }
+input[type="date"].custom-date-input::-webkit-calendar-picker-indicator {
+  filter:invert(.7) sepia(1) saturate(2) hue-rotate(80deg);
+  cursor:pointer;
+}
+
+/* Channel ctx menu extras */
+.ch-ctx-type { font-size:10px;color:var(--tx4);padding:4px 12px;border-top:1px solid rgba(255,255,255,.06);margin-top:2px; }
+</style>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPLETE PROJECT SYSTEM + FIXES
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── STATE (safe init - S may not exist yet at script parse time) ──────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof S !== 'undefined') {
+    S.projects = S.projects || [];
+    S.currentProject = S.currentProject || null;
+    S.currentProjTab = S.currentProjTab || 'overview';
+  }
+});
+
+// ── LOAD PROJECTS ──────────────────────────────────────────────────────────
+async function loadProjects(){
+  if (!S.ws?.id) return;
+  try {
+    const projs = await GET('/workspaces/'+S.ws.id+'/projects');
+    S.projects = (projs||[]).map(p => ({
+      ...p,
+      name: p.name && p.name.length < 80 ? p.name : (p.github_repo?.split('/')?.[1] || 'Project'),
+    }));
+    renderSidebarProjects();
+  } catch(e) { console.warn('[projects]', e); }
+}
+
+function renderSidebarProjects(){
+  const list = document.getElementById('sb-projects-list');
+  if (!list) return;
+  if (!S.projects.length) {
+    list.innerHTML = '<div style="padding:4px 14px;font-size:11px;color:var(--tx4)">No projects yet</div>';
+    return;
+  }
+  list.innerHTML = S.projects.map(p => {
+    const progress = p._progress || 0;
+    return '<div class="sb-proj-item'+(S.currentProject?.id===p.id?' active':'')+'" onclick="openProject(\''+p.id+'\')" data-pid="'+p.id+'">'+
+      '<div class="sb-proj-dot" style="background:'+esc(p.color||'#22c55e')+'"></div>'+
+      '<span class="sb-proj-name">'+esc(p.name)+'</span>'+
+      (progress?'<span class="sb-proj-progress">'+progress+'%</span>':'')+
+    '</div>';
+  }).join('');
+}
+
+// ── OPEN PROJECT PAGE ──────────────────────────────────────────────────────
+async function openProject(projectId){
+  const proj = S.projects.find(p => p.id === projectId);
+  if (!proj && projectId) {
+    // Try loading directly
+    try {
+      const p = await GET('/projects/'+projectId);
+      if (p) { S.projects.push(p); }
+    } catch{}
+  }
+  S.currentProject = S.projects.find(p => p.id === projectId) || null;
+  if (!S.currentProject) return;
+
+  // Switch to project view
+  ['home-view','chat-view','tasks-view','repo-view'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.add('hidden'); el.style.display=''; }
+  });
+  const pv = document.getElementById('project-view');
+  if (pv) { pv.classList.remove('hidden'); pv.style.display='flex'; }
+
+  // Update sidebar active state
+  document.querySelectorAll('.sb-proj-item').forEach(el => el.classList.toggle('active', el.dataset.pid === projectId));
+  ['sb-home','sb-tasks','sb-repos'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+
+  // Load project dashboard data
+  try {
+    const data = await GET('/projects/'+projectId+'/dashboard');
+    renderProjectHeader(data);
+    renderProjectOverview(data);
+    renderKanban(data.tasks||[], data.members||[]);
+    renderProjectTeam(data.members||[]);
+    renderProjectRepo(data.repo);
+    renderProjectTimeline(data.tasks||[]);
+    // Cache progress
+    const pIdx = S.projects.findIndex(p=>p.id===projectId);
+    if (pIdx>=0) S.projects[pIdx]._progress = data.progress||0;
+    renderSidebarProjects();
+  } catch(e) { toast('e','Error loading project',e.message); }
+}
+
+function renderProjectHeader(data){
+  const proj = data.project || {};
+  document.getElementById('proj-color-dot').style.background = proj.color||'#22c55e';
+  document.getElementById('proj-view-name').textContent = proj.name || 'Project';
+  document.getElementById('proj-view-desc').textContent = proj.description || '';
+  const ghLink = document.getElementById('proj-view-gh-link');
+  if (proj.github_url) { ghLink.href = proj.github_url; ghLink.style.display = 'inline-flex'; }
+  const status = document.getElementById('proj-view-status');
+  status.textContent = proj.status || 'active';
+  status.className = 'chip chip-'+(proj.status==='done'?'done':proj.status==='archived'?'blocked':'open');
+}
+
+function renderProjectOverview(data){
+  const stats = data.stats || {};
+  const prog = data.progress || 0;
+
+  // Health cards
+  const healthCards = document.getElementById('proj-health-cards');
+  if (healthCards) {
+    healthCards.innerHTML = [
+      { val:stats.total||0, label:'Total Tasks', color:'var(--tx3)' },
+      { val:stats.in_progress||0, label:'In Progress', color:'var(--blue)' },
+      { val:stats.in_review||0, label:'In Review', color:'var(--yellow)' },
+      { val:stats.done||0, label:'Done', color:'var(--gr)' },
+      { val:prog+'%', label:'Progress', color:prog>75?'var(--gr)':prog>40?'var(--yellow)':'var(--blue)' },
+    ].map(h => '<div class="proj-stat"><div class="proj-stat-val" style="color:'+h.color+'">'+h.val+'</div><div class="proj-stat-label">'+h.label+'</div></div>').join('');
+  }
+
+  // Recent activity - show recent tasks
+  const actList = document.getElementById('proj-activity-list');
+  if (actList) {
+    const recent = (data.tasks||[]).filter(t=>t.status!=='not_started').slice(0,5);
+    if (!recent.length) { actList.innerHTML = '<div style="font-size:12px;color:var(--tx4);padding:8px">No activity yet</div>'; }
+    else actList.innerHTML = recent.map(t => {
+      const u = (data.members||[]).find(m=>m.user?.id===t.assigned_to)?.user||{};
+      const initials = (u.display_name||u.handle||'?').slice(0,2).toUpperCase();
+      return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--c4)">'+
+        '<div style="width:22px;height:22px;border-radius:50%;background:'+(u.avatar_color||'#22c55e')+';display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;flex-shrink:0">'+initials+'</div>'+
+        '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title||'')+'</div>'+
+        '<div style="font-size:10px;color:var(--tx4)">'+esc(u.display_name||u.handle||'Unassigned')+' · '+esc(t.status?.replace(/_/g,' ')||'')+'</div></div>'+
+      '</div>';
+    }).join('');
+  }
+
+  // Open PRs
+  const prsList = document.getElementById('proj-prs-list');
+  if (prsList && data.repo) {
+    GET('/repos/'+data.repo.id+'/prs?state=open').then(prs => {
+      if (!(prs||[]).length) { prsList.innerHTML = '<div style="font-size:11px;color:var(--tx4);padding:8px">No open PRs</div>'; return; }
+      prsList.innerHTML = prs.slice(0,5).map(pr => '<div style="padding:8px 0;border-bottom:1px solid var(--c4)">'+
+        '<div style="font-size:12px;font-weight:600;color:var(--tx1);margin-bottom:3px">'+esc(pr.title||'')+'</div>'+
+        '<div style="font-size:10px;color:var(--tx3);display:flex;gap:8px">'+
+          '<span class="chip chip-open" style="font-size:9px">#'+pr.number+'</span>'+
+          '<span>by '+esc(pr.user?.login||'')+'</span>'+
+          '<a href="'+esc(pr.html_url||'')+'" target="_blank" style="color:var(--blue)">View ↗</a>'+
+        '</div></div>').join('');
+    }).catch(()=>{ prsList.innerHTML = '<div style="font-size:11px;color:var(--tx4)">Repo not linked</div>'; });
+  }
+}
+
+// ── KANBAN BOARD ──────────────────────────────────────────────────────────
+const KANBAN_COLS = [
+  { id:'not_started', label:'To Do',       color:'var(--tx4)', dot:'#52525b' },
+  { id:'in_progress', label:'In Progress', color:'var(--blue)', dot:'#3b82f6' },
+  { id:'in_review',   label:'In Review',   color:'var(--yellow)', dot:'#eab308' },
+  { id:'approved',    label:'Approved',    color:'var(--gr)', dot:'#22c55e' },
+  { id:'done',        label:'Done',        color:'var(--purple)', dot:'#a855f7' },
+];
+
+function renderKanban(tasks, members){
+  const board = document.getElementById('kanban-board');
+  if (!board) return;
+  board.innerHTML = '';
+
+  KANBAN_COLS.forEach(col => {
+    const colTasks = tasks.filter(t => t.status === col.id);
+    const colEl = document.createElement('div');
+    colEl.className = 'kanban-col';
+    colEl.dataset.status = col.id;
+
+    colEl.innerHTML = '<div class="kanban-col-hdr">'+
+      '<div class="kanban-col-title">'+
+        '<div style="width:8px;height:8px;border-radius:50%;background:'+col.dot+'"></div>'+
+        col.label+
+      '</div>'+
+      '<span class="kanban-col-count">'+colTasks.length+'</span>'+
+    '</div>'+
+    '<div class="kanban-cards" data-status="'+col.id+'" ondragover="kbDragOver(event)" ondrop="kbDrop(event)">'+
+      colTasks.map(t => buildKanbanCard(t, members)).join('')+
+      (S.myPermissions?.ASSIGN_TASKS||S.isOwner?'<div class="kanban-add-btn" onclick="openNewTaskInCol(\''+col.id+'\')">+ Add task</div>':'') +
+    '</div>';
+
+    board.appendChild(colEl);
+  });
+
+  // Setup drag
+  board.querySelectorAll('.kanban-card').forEach(card => {
+    card.draggable = true;
+    card.addEventListener('dragstart', e => { e.dataTransfer.setData('taskId', card.dataset.tid); card.classList.add('dragging'); });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  });
+}
+
+function buildKanbanCard(t, members){
+  const assignee = (members||[]).find(m => m.user?.id === t.assigned_to)?.user || null;
+  const initials = assignee ? (assignee.display_name||assignee.handle||'?').slice(0,2).toUpperCase() : null;
+  const dl = deadline(t.deadline);
+  const prioClass = 'kc-prio-'+(t.priority||'normal');
+  const mine = t.assigned_to === S.user?.id;
+
+  return '<div class="kanban-card" data-tid="'+esc(t.id)+'" data-status="'+esc(t.status)+'" onclick="openTaskDetail(\''+t.id+'\')" draggable="true" style="'+(mine?'border-left:2px solid var(--gr)':'')+'">'+
+    '<div class="kc-title">'+esc(t.title||'')+'</div>'+
+    '<div class="kc-meta">'+
+      '<span class="kc-prio '+prioClass+'">'+esc((t.priority||'normal').toUpperCase())+'</span>'+
+      (t.branch_name?'<span class="kc-branch">🌿 '+esc(t.branch_name)+'</span>':'')+
+      (assignee?'<span class="kc-assignee"><div class="kc-av" style="background:'+(assignee.avatar_color||'#22c55e')+'">'+initials+'</div>'+esc(assignee.display_name||assignee.handle||'')+'</span>':
+        '<span style="font-size:10px;color:var(--tx4)">Unassigned</span>')+
+      '<span class="kc-deadline '+dl.cls+'" style="margin-left:auto">'+dl.label+'</span>'+
+    '</div>'+
+    (t.rejection_reason?'<div style="font-size:10px;color:var(--red);margin-top:5px;background:var(--red-dim);padding:3px 7px;border-radius:4px">⚠ '+esc(t.rejection_reason)+'</div>':'')+
+    (mine&&t.status==='not_started'?'<div style="margin-top:7px"><button class="twc-btn twc-start" style="font-size:10px;padding:3px 10px" onclick="event.stopPropagation();startTask(\''+t.id+'\')">▶ Start</button></div>':'')+
+    (mine&&t.status==='in_progress'?'<div style="margin-top:7px"><button class="twc-btn twc-submit" style="font-size:10px;padding:3px 10px" onclick="event.stopPropagation();submitTaskReview(\''+t.id+'\')">⇄ Submit</button></div>':'')+
+    ((S.myPermissions?.APPROVE_PR||S.isOwner)&&t.status==='in_review'?'<div style="margin-top:7px;display:flex;gap:4px"><button class="twc-btn twc-approve" style="font-size:10px;padding:3px 8px" onclick="event.stopPropagation();approveTask(\''+t.id+'\')">✓</button><button class="twc-btn twc-reject" style="font-size:10px;padding:3px 8px" onclick="event.stopPropagation();rejectTask(\''+t.id+'\')">✕</button></div>':'')+
+  '</div>';
+}
+
+let _kbDragTask = null;
+function kbDragOver(e){ e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function kbDrop(e){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const taskId = e.dataTransfer.getData('taskId');
+  const newStatus = e.currentTarget.dataset.status;
+  if (!taskId || !newStatus) return;
+  // Update status
+  PATCH('/projects/'+S.currentProject?.id+'/tasks/'+taskId+'/status', { status:newStatus })
+    .then(() => {
+      const task = (S.currentProject?._tasks||[]).find(t=>t.id===taskId) || S.tasks.find(t=>t.id===taskId);
+      if (task) task.status = newStatus;
+      // Reload kanban
+      GET('/projects/'+S.currentProject?.id+'/dashboard').then(data => {
+        renderKanban(data.tasks||[], data.members||[]);
+        renderProjectOverview(data);
+      }).catch(()=>{});
+    })
+    .catch(e => toast('e','Error',e.message));
+}
+
+function openNewTaskInCol(status){
+  openNewTask();
+  setTimeout(() => {
+    const sel = document.getElementById('task-status-in');
+    if (sel) sel.value = status;
+  }, 100);
+}
+
+function openTaskDetail(taskId){
+  // Open in a mini modal with full task details
+  const task = S.tasks.find(t=>t.id===taskId) || S.currentProject?._tasks?.find(t=>t.id===taskId);
+  if (!task) return;
+  const mo = document.createElement('div');
+  mo.className = 'modal-ov';
+  mo.onclick = e => { if(e.target===mo) mo.remove(); };
+  const assignee = S.users.find(u=>u.id===task.assigned_to)||{};
+  const dl = deadline(task.deadline);
+  mo.innerHTML = '<div class="modal" style="width:500px"><div class="modal-hdr">'+
+    '<div class="modal-title">'+esc(task.title||'Task')+'</div>'+
+    '<div class="modal-close" onclick="this.closest(\'.modal-ov\').remove()">✕</div>'+
+  '</div><div class="modal-body">'+
+    '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">'+
+      '<span class="prio-chip prio-'+(task.priority||'normal')+'">'+(task.priority||'normal').toUpperCase()+'</span>'+
+      '<span class="chip chip-'+(task.status==='done'?'done':task.status==='in_review'?'review':task.status==='approved'?'done':'open')+'">'+esc((task.status||'').replace(/_/g,' '))+'</span>'+
+      '<span class="'+dl.cls+'" style="font-size:11px">📅 '+dl.label+'</span>'+
+    '</div>'+
+    (task.description?'<div style="font-size:12px;color:var(--tx2);line-height:1.7;margin-bottom:14px;padding:10px;background:var(--c0);border-radius:var(--r8)">'+esc(task.description)+'</div>':'')+
+    '<div style="font-size:12px;color:var(--tx3);display:flex;gap:12px;flex-wrap:wrap">'+
+      '<span>👤 '+(assignee.display_name||assignee.handle||'Unassigned')+'</span>'+
+      (task.branch_name?'<span class="kc-branch">🌿 '+esc(task.branch_name)+'</span>':'')+
+      (task.pr_url?'<a href="'+esc(task.pr_url)+'" target="_blank" style="color:var(--blue)">⇄ View PR ↗</a>':'')+
+    '</div>'+
+    (task.rejection_reason?'<div style="margin-top:10px;font-size:11px;color:var(--red);background:var(--red-dim);border:1px solid rgba(239,68,68,.2);border-radius:var(--r8);padding:8px">⚠ Changes requested: '+esc(task.rejection_reason)+'</div>':'')+
+  '</div><div class="modal-ftr">'+
+    (task.assigned_to===S.user?.id&&task.status==='not_started'?'<button class="btn btn-primary" onclick="startTask(\''+task.id+'\');this.closest(\'.modal-ov\').remove()">▶ Start Task</button>':'')+
+    (task.assigned_to===S.user?.id&&task.status==='in_progress'?'<button class="btn btn-primary" onclick="submitTaskReview(\''+task.id+'\');this.closest(\'.modal-ov\').remove()">⇄ Submit for Review</button>':'')+
+    ((S.myPermissions?.APPROVE_PR||S.isOwner)&&task.status==='in_review'?'<button class="btn btn-primary" onclick="approveTask(\''+task.id+'\');this.closest(\'.modal-ov\').remove()">✓ Approve</button><button class="btn btn-danger" onclick="rejectTask(\''+task.id+'\');this.closest(\'.modal-ov\').remove()">✕ Changes</button>':'')+
+    '<button class="btn btn-secondary" onclick="this.closest(\'.modal-ov\').remove()">Close</button>'+
+  '</div></div>';
+  document.body.appendChild(mo);
+}
+
+// ── PROJECT TEAM TAB ──────────────────────────────────────────────────────
+function renderProjectTeam(members){
+  const list = document.getElementById('proj-team-list');
+  if (!list) return;
+  list.innerHTML = (members||[]).map(m => {
+    const u = m.user||{};
+    const initials = (u.display_name||u.handle||'?').replace(/[^A-Za-z0-9 ]/g,'').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
+    const la = formatLastActive ? formatLastActive(u.last_active) : { label:'', cls:'' };
+    const isOnline = S.online[u.id];
+    return '<div class="proj-member-card">'+
+      '<div style="position:relative">'+
+        '<div class="tm-av" style="background:'+(u.avatar_color||'#22c55e')+'">'+initials+'</div>'+
+        (isOnline?'<div style="position:absolute;bottom:0;right:0;width:8px;height:8px;border-radius:50%;background:var(--gr);border:2px solid var(--c1)"></div>':'')+
+      '</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px;font-weight:600">'+esc(u.display_name||u.github_username||u.handle||'User')+'</div>'+
+        '<div style="font-size:11px;color:var(--tx3);display:flex;align-items:center;gap:8px;margin-top:2px">'+
+          '<span>@'+esc(u.handle||'')+'</span>'+
+          '<span class="role-pill '+(m.role||'developer')+'">'+esc(m.role||'developer')+'</span>'+
+          (la.label?'<span class="last-active '+la.cls+'">'+la.label+'</span>':'')+
+        '</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:6px">'+
+        '<button class="btn btn-secondary btn-sm" onclick="startDM(\''+u.id+'\')" data-tip="Send DM">💬</button>'+
+        (S.isOwner||S.myPermissions?.MANAGE_MEMBERS?'<button class="btn btn-danger btn-sm" onclick="removeProjectMember(\''+S.currentProject?.id+'\',\''+u.id+'\')" data-tip="Remove from project">✕</button>':'')+
+      '</div>'+
+    '</div>';
+  }).join('') || '<div style="font-size:12px;color:var(--tx4);padding:12px;text-align:center">No members yet</div>';
+}
+
+async function removeProjectMember(projId, userId){
+  if (!confirm('Remove this member from the project?')) return;
+  try {
+    await DEL('/projects/'+projId+'/members/'+userId);
+    toast('s','Member removed','');
+    openProject(projId);
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+function openAddProjectMember(){
+  openModal('invite-modal');
+}
+
+// ── PROJECT REPO TAB ──────────────────────────────────────────────────────
+function renderProjectRepo(repo){
+  const el = document.getElementById('proj-repo-content');
+  if (!el) return;
+  if (!repo) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🐙</div><div class="empty-title">No repository linked</div><div class="empty-desc">This project has no linked GitHub repo</div></div>';
+    return;
+  }
+  el.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'+
+    '<div class="panel"><div class="panel-hdr"><div class="panel-title"><div class="panel-title-dot"></div>'+esc(repo.full_name)+'</div>'+
+      '<a href="https://github.com/'+esc(repo.full_name)+'" target="_blank" class="panel-action">View on GitHub ↗</a>'+
+    '</div>'+
+    '<div id="proj-repo-commits-list"><div style="font-size:11px;color:var(--tx4)">Loading commits...</div></div></div>'+
+    '<div class="panel"><div class="panel-hdr"><div class="panel-title"><div class="panel-title-dot" style="background:var(--purple)"></div>Pull Requests</div></div>'+
+    '<div id="proj-repo-prs-list"><div style="font-size:11px;color:var(--tx4)">Loading PRs...</div></div></div>'+
+  '</div>';
+
+  // Load commits
+  GET('/repos/'+repo.id+'/commits').then(commits => {
+    const el2 = document.getElementById('proj-repo-commits-list');
+    if (!el2) return;
+    el2.innerHTML = (commits||[]).slice(0,8).map(c =>
+      '<div class="commit-row">'+
+        '<span class="commit-hash-sm">'+esc(c.sha?.slice(0,7)||'')+'</span>'+
+        '<span class="commit-msg-sm">'+esc(c.commit?.message?.split('\n')[0]||'')+'</span>'+
+        '<span class="commit-time">'+new Date(c.commit?.author?.date||Date.now()).toLocaleDateString()+'</span>'+
+      '</div>'
+    ).join('') || '<div style="font-size:11px;color:var(--tx4)">No commits</div>';
+  }).catch(()=>{});
+
+  // Load PRs
+  GET('/repos/'+repo.id+'/prs?state=all').then(prs => {
+    const el3 = document.getElementById('proj-repo-prs-list');
+    if (!el3) return;
+    el3.innerHTML = (prs||[]).slice(0,6).map(pr =>
+      '<div class="pr-card-sm"><div class="pr-title-sm">'+esc(pr.title||'')+'</div>'+
+        '<div class="pr-meta">'+
+          '<span class="pr-badge pr-'+(pr.state==='merged'?'merged':pr.state==='closed'?'closed':'open')+'">'+esc(pr.state||'')+'</span>'+
+          '<span class="pr-num">#'+pr.number+'</span>'+
+          '<a href="'+esc(pr.html_url||'')+'" target="_blank" style="font-size:10px;color:var(--blue);margin-left:auto">View ↗</a>'+
+        '</div></div>'
+    ).join('') || '<div style="font-size:11px;color:var(--tx4)">No PRs</div>';
+  }).catch(()=>{});
+}
+
+// ── TIMELINE TAB ──────────────────────────────────────────────────────────
+function renderProjectTimeline(tasks){
+  const el = document.getElementById('proj-timeline-content');
+  if (!el) return;
+  const tasksWithDl = tasks.filter(t => t.deadline).sort((a,b) => new Date(a.deadline)-new Date(b.deadline));
+  if (!tasksWithDl.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">No deadlines set</div><div class="empty-desc">Add deadlines to tasks to see them here</div></div>';
+    return;
+  }
+  const now = Date.now();
+  const dates = tasksWithDl.map(t => new Date(t.deadline).getTime());
+  const minD = Math.min(...dates, now);
+  const maxD = Math.max(...dates, now + 7*86400000);
+  const range = maxD - minD || 1;
+
+  // Month labels
+  const months = [];
+  const startDate = new Date(minD); startDate.setDate(1);
+  let cur = new Date(startDate);
+  while (cur.getTime() < maxD) {
+    months.push({ label: cur.toLocaleDateString([],{month:'short',year:'2-digit'}), pos: (cur.getTime()-minD)/range });
+    cur.setMonth(cur.getMonth()+1);
+  }
+
+  const MONTH_NAMES2 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthsHtml = '<div class="tl-month-labels">'+months.map(m =>
+    '<div class="tl-month-lbl" style="margin-left:'+(m.pos*100).toFixed(1)+'%">'+esc(m.label)+'</div>'
+  ).join('')+'</div>';
+
+  const STATUS_COLORS = { not_started:'#52525b', in_progress:'#3b82f6', in_review:'#eab308', approved:'#22c55e', done:'#a855f7', blocked:'#ef4444' };
+  const todayPos = ((now-minD)/range*100).toFixed(1);
+
+  const rowsHtml = tasksWithDl.map(t => {
+    const taskStart = new Date(t.created_at||now).getTime();
+    const taskEnd = new Date(t.deadline).getTime();
+    const startPct = Math.max(0, ((taskStart-minD)/range*100)).toFixed(1);
+    const widthPct = Math.max(1, ((taskEnd-taskStart)/range*100)).toFixed(1);
+    const color = STATUS_COLORS[t.status]||'#52525b';
+    return '<div class="timeline-row">'+
+      '<div class="tl-label" title="'+esc(t.title||'')+'">'+esc((t.title||'').slice(0,30))+'</div>'+
+      '<div class="tl-track">'+
+        '<div class="tl-today" style="left:'+todayPos+'%"></div>'+
+        '<div class="tl-bar" style="left:'+startPct+'%;width:'+widthPct+'%;background:'+color+'" title="'+esc(t.title||'')+'">'+
+          '<span class="tl-bar-label" style="color:'+(t.status==='blocked'?'#fff':'#000')+'">'+esc((t.title||'').slice(0,20))+'</span>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  el.innerHTML = monthsHtml + rowsHtml +
+    '<div style="font-size:10px;color:var(--tx3);display:flex;align-items:center;gap:8px;margin-top:12px;padding-left:180px;flex-wrap:wrap">'+
+      Object.entries(STATUS_COLORS).map(([s,c])=>'<span style="display:flex;align-items:center;gap:4px"><div style="width:10px;height:10px;border-radius:2px;background:'+c+'"></div>'+s.replace(/_/g,' ')+'</span>').join('')+
+    '</div>';
+}
+
+// ── SWITCH PROJECT TABS ──────────────────────────────────────────────────
+function switchProjTab(tab){
+  S.currentProjTab = tab;
+  ['overview','tasks','team','repo','timeline'].forEach(t => {
+    const panel = document.getElementById('proj-tab-'+t);
+    const tabEl = document.getElementById('ptab-'+t);
+    if (panel) panel.style.display = t===tab ? (t==='tasks'?'flex':t==='overview'||t==='team'||t==='repo'||t==='timeline'?'block':'flex') : 'none';
+    if (tabEl) tabEl.classList.toggle('active', t===tab);
+  });
+}
+
+// ── PROJECT EDIT MODAL ────────────────────────────────────────────────────
+function openEditProject(){
+  if (!S.currentProject) return;
+  const p = S.currentProject;
+  const mo = document.createElement('div');
+  mo.className = 'modal-ov';
+  mo.id = 'edit-proj-modal';
+  mo.onclick = e => { if(e.target===mo) mo.remove(); };
+  mo.innerHTML = '<div class="modal sm"><div class="modal-hdr">'+
+    '<div class="modal-title">Edit Project</div>'+
+    '<div class="modal-close" onclick="document.getElementById(\'edit-proj-modal\').remove()">✕</div>'+
+  '</div><div class="modal-body">'+
+    '<div class="field"><label class="field-label">Project Name</label>'+
+      '<input class="field-input" id="ep-name" value="'+esc(p.name||'')+'" type="text"></div>'+
+    '<div class="field"><label class="field-label">Description</label>'+
+      '<textarea class="field-input" id="ep-desc" rows="2">'+esc(p.description||'')+'</textarea></div>'+
+    '<div class="field-row">'+
+      '<div class="field"><label class="field-label">Status</label>'+
+        '<select class="field-select" id="ep-status">'+
+          ['active','on_hold','done','archived'].map(s=>'<option value="'+s+'"'+(p.status===s?' selected':'')+'>'+s+'</option>').join('')+
+        '</select></div>'+
+      '<div class="field"><label class="field-label">Deadline</label>'+
+        '<input class="custom-date-input" id="ep-deadline" type="date" value="'+(p.deadline?p.deadline.slice(0,10):'')+'"></div>'+
+    '</div>'+
+  '</div><div class="modal-ftr">'+
+    '<button class="btn btn-danger btn-sm" onclick="deleteProject(\''+p.id+'\')">🗑 Delete</button>'+
+    '<button class="btn btn-secondary" onclick="document.getElementById(\'edit-proj-modal\').remove()">Cancel</button>'+
+    '<button class="btn btn-primary" onclick="saveProjectEdit(\''+p.id+'\')">Save</button>'+
+  '</div></div>';
+  document.body.appendChild(mo);
+}
+
+async function saveProjectEdit(projId){
+  const name = safe(document.getElementById('ep-name')?.value||'',100);
+  const desc = safe(document.getElementById('ep-desc')?.value||'',1000);
+  const status = document.getElementById('ep-status')?.value||'active';
+  const deadline2 = document.getElementById('ep-deadline')?.value||'';
+  try {
+    await PATCH('/projects/'+projId, { name, description:desc, status, deadline:deadline2||null });
+    const idx = S.projects.findIndex(p=>p.id===projId);
+    if (idx>=0) S.projects[idx] = { ...S.projects[idx], name, description:desc, status, deadline:deadline2||null };
+    S.currentProject = { ...S.currentProject, name, description:desc, status };
+    document.getElementById('proj-view-name').textContent = name;
+    document.getElementById('proj-view-desc').textContent = desc;
+    document.getElementById('edit-proj-modal')?.remove();
+    renderSidebarProjects();
+    toast('s','Project updated','');
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+async function deleteProject(projId){
+  if (!confirm('Delete this project? This will remove all tasks. The GitHub repo will remain.')) return;
+  try {
+    await DEL('/projects/'+projId);
+    S.projects = S.projects.filter(p=>p.id!==projId);
+    S.currentProject = null;
+    renderSidebarProjects();
+    showHome();
+    toast('s','Project deleted','');
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+// ── UPDATED createProject (mandatory GitHub repo, clean name) ─────────────
+window.createProject = async function(){
+  const name = safe(document.getElementById('proj-name-in')?.value||'',100).trim();
+  const desc = safe(document.getElementById('proj-desc-in')?.value||'',1000);
+  const color = document.getElementById('proj-color-in')?.value||'#22c55e';
+  const dl = document.getElementById('proj-dl-in')?.value||'';
+  const isPrivate = _projRepoVis === 'private';
+  if (!name) { toast('e','Error','Project name required'); return; }
+  const btn = document.querySelector('#proj-modal .btn-primary');
+  if (btn) { btn.textContent='Creating repo on GitHub…'; btn.disabled=true; }
+  try {
+    const result = await POST('/workspaces/'+S.ws.id+'/projects', {
+      name, description:desc, color, deadline:dl||null, isPrivate
+    });
+    closeModal('proj-modal');
+    // Add to local state
+    S.projects.push({ ...result, name });
+    renderSidebarProjects();
+    // Open the new project
+    openProject(result.id);
+    toast('s','Project created! 🚀', '🐙 '+result.github_url);
+    if (btn) { btn.textContent='Create Project'; btn.disabled=false; }
+  } catch(e) {
+    toast('e','GitHub Error', e.message);
+    if (btn) { btn.textContent='Create Project'; btn.disabled=false; }
+  }
+};
+
+// ── CHANNEL CONTEXT MENU ─────────────────────────────────────────────────
+function showChannelCtx(e, ch){
+  e.preventDefault();
+  const isDefault = ['general','github-feed','ai-help'].includes(ch.name);
+  const canManage = S.myPermissions?.CREATE_CHANNEL || S.isOwner;
+  const items = [
+    { label:esc(ch.description||'#'+ch.name), disabled:true },
+    { sep:true },
+    { label:'💬 Switch to channel', fn:()=>switchChannel(ch.id) },
+    { label:'🔗 Copy link', fn:()=>{ navigator.clipboard.writeText(window.location.origin+'?ch='+ch.id); toast('s','Copied',''); } },
+    ...(canManage&&!isDefault?[
+      { sep:true },
+      { label:'✏ Rename', fn:()=>{
+          const n = prompt('New channel name:', ch.name);
+          if (n) PATCH('/channels/'+ch.id,{name:n}).then(()=>{loadWorkspace();toast('s','Renamed','');}).catch(e=>toast('e','Error',e.message));
+      }},
+      { label:ch.type==='public'?'🔒 Make Private':'🌐 Make Public', fn:()=>{
+          PATCH('/channels/'+ch.id,{type:ch.type==='public'?'private':'public'}).then(()=>{loadWorkspace();toast('s','Updated','');}).catch(e=>toast('e','Error',e.message));
+      }},
+      { label:'🗑 Delete channel', danger:true, fn:()=>{
+          if (confirm('Delete #'+ch.name+'? All messages will be lost.'))
+            DEL('/channels/'+ch.id).then(()=>{loadWorkspace();toast('s','Deleted','');}).catch(e=>toast('e','Error',e.message));
+      }},
+    ]:[]),
+  ];
+  buildCtx(e, items);
+}
+
+// ── MEMBER CLICK CONTEXT (rich popup) ─────────────────────────────────────
+function showMemberCtx(e, userId){
+  e.preventDefault();
+  e.stopPropagation();
+  const u = S.users.find(x=>x.id===userId)||{};
+  const isMe = userId === S.user?.id;
+  const initials = (u.display_name||u.handle||'?').replace(/[^A-Za-z0-9 ]/g,'').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
+  const items = [
+    { label: esc((u.display_name||u.github_username||u.handle||'User'))+' · @'+esc(u.handle||''), disabled:true },
+    { sep:true },
+    ...(!isMe?[
+      { label:'💬 Send DM', fn:()=>startDM(userId) },
+      { label:'📋 Assign Task', fn:()=>{ openNewTask(); setTimeout(()=>{ const el=document.getElementById('task-assign-in'); if(el) el.value='@'+(u.handle||''); },100); } },
+      { label:'📎 Mention in chat', fn:()=>{ const ta=document.getElementById('msg-input'); if(ta){ta.value+='@'+(u.handle||u.display_name||'user')+' ';ta.focus();} } },
+    ]:[]),
+    { label:'👤 View Profile', fn:()=>{ if(isMe) openProfile(); } },
+    { label:'📋 Copy @handle', fn:()=>{ navigator.clipboard.writeText('@'+(u.handle||'')).then(()=>toast('s','Copied','')); } },
+    ...(canChangeRole()&&!isMe?[
+      { sep:true },
+      { label:'🔑 Change Role', fn:()=>{
+          const newRole = prompt('New role (owner/admin/lead/senior/developer/junior/viewer):', u.role||'developer');
+          if (newRole) changeRole(userId, newRole);
+      }},
+    ]:[]),
+  ];
+  buildCtx(e, items);
+}
+
+// Patch renderMembers to add click handlers
+const __prevRenderMembers = window.renderMembers;
+window.renderMembers = function(){
+  __prevRenderMembers && __prevRenderMembers();
+  document.querySelectorAll('#rp-members-list .mem-item').forEach((item, i) => {
+    const u = S.users[i];
+    if (!u) return;
+    item.style.cursor = 'pointer';
+    item.onclick = e => showMemberCtx(e, u.id);
+    item.oncontextmenu = e => showMemberCtx(e, u.id);
+    item.setAttribute('data-tip', 'Click for options');
+  });
+};
+
+// ── CLEAN UP HOME DASHBOARD (remove projects, show personal only) ─────────
+const __prevBuildContrib = window.buildContribGraph;
+window.buildContribGraph = function(){
+  __prevBuildContrib && __prevBuildContrib();
+};
+
+// ── DEL helper ────────────────────────────────────────────────────────────
+// DEL already declared in main script
+
+// ── SOCKET: project events ────────────────────────────────────────────────
+function initProjectSockets() {
+  if (!S.socket) return;
+  S.socket.on('project:created', ({ project }) => {
+    if (!S.projects.find(p=>p.id===project?.id)) {
+      S.projects.push(project);
+      renderSidebarProjects();
+    }
+  });
+  S.socket.on('project:deleted', ({ projectId }) => {
+    S.projects = S.projects.filter(p=>p.id!==projectId);
+    renderSidebarProjects();
+    if (S.currentProject?.id===projectId) showHome();
+  });
+  S.socket.on('channel:updated', ({ channel }) => {
+    const idx = S.channels.findIndex(c=>c.id===channel.id);
+    if (idx>=0) S.channels[idx] = { ...S.channels[idx], ...channel };
+    renderSidebar();
+  });
+  S.socket.on('channel:deleted', ({ channelId }) => {
+    S.channels = S.channels.filter(c=>c.id!==channelId);
+    renderSidebar();
+    if (S.ch===channelId && S.channels.length) switchChannel(S.channels[0].id);
+  });
+} // end initProjectSockets
+
+// ── HOOK: load projects after workspace loads ─────────────────────────────
+const __prevLoadWS = window.loadWorkspace;
+window.loadWorkspace = async function(){
+  await __prevLoadWS();
+  await loadProjects();
+};
+
+// ── NEW PROJECT MODAL: clean date picker + remove GH toggle (mandatory) ────
+document.addEventListener('DOMContentLoaded', () => {
+  // Style the date input
+  const dlInput = document.getElementById('proj-dl-in');
+  if (dlInput) dlInput.className = 'custom-date-input';
+  // Remove the GitHub toggle from modal if it exists (GitHub is now mandatory)
+  const ghToggleWrap = document.getElementById('proj-gh-toggle')?.closest('div[style*="border"]');
+  if (ghToggleWrap) {
+    ghToggleWrap.innerHTML = '<div style="display:flex;align-items:center;gap:8px;padding:8px 0">'+
+      '<div style="font-size:16px">🐙</div>'+
+      '<div><div style="font-size:12px;font-weight:700;color:var(--gr)">GitHub Repository will be created</div>'+
+      '<div style="font-size:11px;color:var(--tx3);margin-top:1px">A real GitHub repo will be created under your account automatically</div></div>'+
+      '<div style="margin-left:auto;font-size:10px;color:var(--gr);font-weight:600">Always ON</div>'+
+    '</div>';
+  }
+  // Add visibility toggle back cleanly
+  const projDlField = document.getElementById('proj-dl-in')?.closest('.field-row');
+  if (projDlField) {
+    const visField = document.createElement('div');
+    visField.className = 'field';
+    visField.innerHTML = '<label class="field-label">Visibility</label>'+
+      '<div class="filter-pill" style="margin:0">'+
+        '<div class="filter-pill-btn on" id="proj-pub-btn2" onclick="setRepoVis(\'public\',this)">🌐 Public</div>'+
+        '<div class="filter-pill-btn" id="proj-priv-btn2" onclick="setRepoVis(\'private\',this)">🔒 Private</div>'+
+      '</div>';
+    projDlField.insertBefore(visField, projDlField.firstChild);
+  }
+  // Fix the showView function to include project view
+  const __prevShowView = window.showView;
+  window.showView = function(view){
+    if (view === 'project') return; // handled by openProject
+    __prevShowView(view);
+    const pv = document.getElementById('project-view');
+    if (pv) { pv.classList.add('hidden'); }
+  };
+});
 </script>
