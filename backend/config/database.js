@@ -15,8 +15,12 @@ function getDB() {
 async function testConnection() {
   try {
     const { error } = await getDB().from('users').select('id').limit(1);
-    if (error) { console.error('DB connection failed:', error.message); return false; }
-    console.log('✓ Database connected');
+    if (error) {
+      console.error('DB connection failed:', error.message);
+      console.error('DB error code:', error.code);
+      return false;
+    }
+    console.log('✅ Database connected');
     return true;
   } catch(e) { console.error('DB error:', e.message); return false; }
 }
