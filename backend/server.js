@@ -840,7 +840,7 @@ app.post('/api/ai/chat', authenticate, aiLimiter, async (req,res) => {
       ...history.map(h => ({ role:h.role, parts:[{text:h.text}] })),
       { role:'user', parts:[{text:message}] },
     ];
-    const result = await gemini.geminiChat(msgs, mode==='deep'||mode==='review'?'pro':'flash');
+    const result = await gemini.geminiChat(msgs, mode==='pro'||mode==='review'?'pro':mode==='deep'?'flash':'lite');
     ok(res, result);
   } catch(e) { fail(res, e.message); }
 });
@@ -850,8 +850,8 @@ app.post('/api/ai/review', authenticate, aiLimiter, async (req,res) => {
     const { code, language='javascript', context='' } = req.body;
     if (!code) return fail(res,'Code required');
     const prompt = `Perform a comprehensive code review of this ${language} code:\n\`\`\`${language}\n${code}\n\`\`\`\n${context}\n\nReview:\n1. **Bugs & Logic Errors**\n2. **Security Issues** (injection, XSS, auth flaws)\n3. **Performance** bottlenecks\n4. **Code Quality** and readability\n5. **Best Practices**\n6. **Improved Version** — full rewrite with all fixes`;
-    const { reply, usage } = await gemini.geminiChat([{role:'user',parts:[{text:prompt}]}], 'pro');
-    ok(res, { review:reply, usage });
+    const { reply, usage, model } = await gemini.geminiChat([{role:'user',parts:[{text:prompt}]}], 'flash');
+    ok(res, { review:reply, usage, model });
   } catch(e) { fail(res, e.message); }
 });
 
@@ -859,8 +859,8 @@ app.post('/api/ai/fix', authenticate, aiLimiter, async (req,res) => {
   try {
     const { code, error:errMsg, language='javascript' } = req.body;
     const prompt = `Fix this ${language} code${errMsg?` that produces: "${errMsg}"`:''}:\n\`\`\`${language}\n${code}\n\`\`\`\n\n1. Root cause of the bug\n2. Fixed code (complete)\n3. How to prevent this`;
-    const { reply, usage } = await gemini.geminiChat([{role:'user',parts:[{text:prompt}]}], 'pro');
-    ok(res, { fix:reply, usage });
+    const { reply, usage, model } = await gemini.geminiChat([{role:'user',parts:[{text:prompt}]}], 'flash');
+    ok(res, { fix:reply, usage, model });
   } catch(e) { fail(res, e.message); }
 });
 
@@ -868,8 +868,8 @@ app.post('/api/ai/explain', authenticate, aiLimiter, async (req,res) => {
   try {
     const { code, language='' } = req.body;
     const prompt = `Explain this ${language} code clearly for developers of all levels:\n\`\`\`${language}\n${code}\n\`\`\`\n\nCover: what it does, how it works line by line, and important patterns used.`;
-    const { reply } = await gemini.geminiChat([{role:'user',parts:[{text:prompt}]}], 'flash');
-    ok(res, { explanation:reply });
+    const { reply, model } = await gemini.geminiChat([{role:'user',parts:[{text:prompt}]}], 'lite');
+    ok(res, { explanation:reply, model });
   } catch(e) { fail(res, e.message); }
 });
 
