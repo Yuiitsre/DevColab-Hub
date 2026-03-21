@@ -1090,17 +1090,10 @@ input,textarea,select{font-family:inherit}
 
 // ════════════════════════════════════════════════════════════
 // CONFIG
-// PRODUCTION: set window.__BACKEND_URL__ via a <script> tag injected
-// by your deployment, OR set it as a Vercel env var and replace
-// the placeholder below at build/deploy time.
-// e.g. add to vercel.json: { "env": { "BACKEND_URL": "https://devcolab-backend.onrender.com" } }
-// and add a Vercel rewrite or just hardcode your Render URL below.
-// ════════════════════════════════════════════════════════════
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-// ↓↓ REPLACE THIS with your Render backend URL when deploying to Vercel ↓↓
-const BACKEND_URL = window.__BACKEND_URL__ || 'https://devcolab-backend.onrender.com';
-const API    = IS_LOCAL ? 'http://localhost:4000/api' : `${BACKEND_URL}/api`;
-const WS_URL = IS_LOCAL ? 'http://localhost:4000'     : BACKEND_URL;
+const BACKEND_URL = IS_LOCAL ? 'http://localhost:4000' : 'https://devcolab-backend.onrender.com';
+const API    = `${BACKEND_URL}/api`;
+const WS_URL = BACKEND_URL;
 const AV_COLORS = ['#39d353','#58a6ff','#d2a8ff','#f78166','#e3b341','#3fb950','#1f6feb','#a371f7','#ffa657','#ff7b72','#79c0ff','#ffa198'];
 
 // ════════════════════════════════════════════════════════════
