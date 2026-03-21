@@ -38,7 +38,28 @@ const server = http.createServer(app);
 
 // ── Security ─────────────────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy:false, crossOriginEmbedderPolicy:false }));
-app.use(cors({ origin: [FRONTEND_URL,'http://localhost:3000','http://127.0.0.1:5500'], credentials:true, methods:['GET','POST','PUT','PATCH','DELETE','OPTIONS'] }));
+// ── CORS allowed origins ──────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  FRONTEND_URL,
+  'https://devcolab.dev',
+  'https://www.devcolab.dev',
+  'http://localhost:3000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+].filter(Boolean);
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // allow requests with no origin (curl, Render health checks, redirects)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    // allow any vercel.app preview URL for this project
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    callback(new Error('Not allowed by CORS: ' + origin));
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+}));
 app.use(compression());
 app.use(express.json({ limit:'10mb' }));
 app.use(express.urlencoded({ extended:true }));
@@ -64,7 +85,10 @@ function safeUser(u) {
 
 // Socket.io
 const io = new Server(server, {
-  cors: { origin: NODE_ENV === 'production' ? FRONTEND_URL : '*', methods:['GET','POST'] },
+  cors: {
+    origin: NODE_ENV === 'production' ? ALLOWED_ORIGINS : '*',
+    methods: ['GET','POST'],
+  },
   pingTimeout:60000, pingInterval:25000,
 });
 
