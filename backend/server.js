@@ -450,7 +450,14 @@ app.post('/api/workspaces/:id/invite', authenticate, async (req,res) => {
 
 app.get('/api/workspaces/:id/members', authenticate, async (req,res) => {
   const { data } = await db.workspaceMembers(req.params.id);
-  ok(res, (data||[]).map(m => ({ ...m, user:safeUser(m.user) })));
+  const members = (data||[]).map(m => {
+    const user = safeUser(m.user);
+    if (user) {
+      try { user.display_name = user.display_name ? decrypt(user.display_name) : user.github_username; } catch { user.display_name = user.github_username; }
+    }
+    return { ...m, user };
+  });
+  ok(res, members);
 });
 
 // ── TEAMS ─────────────────────────────────────────────────────────────────────
