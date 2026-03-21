@@ -89,7 +89,7 @@ input,textarea,select{font-family:inherit}
 .nav-brand{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--text);flex-shrink:0;font-family:'Syne',sans-serif;font-weight:800;font-size:15px}
 .nav-brand-icon{width:28px;height:28px;background:var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#000}
 .nav-sep{width:1px;height:18px;background:var(--border2)}
-.nav-ws-name{font-size:12px;color:var(--text2);cursor:pointer;padding:4px 8px;border-radius:6px;transition:all var(--t)}
+.nav-ws-name{font-size:12px;color:var(--text2);cursor:pointer;padding:4px 8px;border-radius:6px;transition:all var(--t);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nav-ws-name:hover{background:var(--bg4);color:var(--text)}
 .nav-search-wrap{flex:1;display:flex;justify-content:center}
 .nav-search{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;width:300px;transition:border-color var(--t)}
@@ -146,21 +146,21 @@ input,textarea,select{font-family:inherit}
 .main-content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 
 /* ── HOME DASHBOARD ── */
-#home-view{flex:1;overflow-y:auto;padding:24px}
-.home-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+#home-view{flex:1;overflow-y:auto;padding:28px 32px}
+.home-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px}
 .home-greeting{font-family:'Syne',sans-serif;font-weight:800;font-size:22px}
 .home-greeting span{color:var(--green)}
 .home-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px}
-.stat-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:16px}
+.stat-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:20px;transition:border-color var(--t)}.stat-card:hover{border-color:var(--border)}
 .stat-card-label{font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.7px;text-transform:uppercase;margin-bottom:6px}
-.stat-card-val{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;color:var(--text)}
+.stat-card-val{font-family:'Syne',sans-serif;font-weight:800;font-size:32px;color:var(--text);line-height:1.1;margin:4px 0}
 .stat-card-sub{font-size:11px;color:var(--text2);margin-top:2px}
-.home-section{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.home-section{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:20px;margin-bottom:16px}
 .home-section-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 /* contribution graph */
 .cg-wrap{overflow-x:auto;padding-bottom:4px}
-.cg-grid{display:grid;grid-template-columns:repeat(53,1fr);gap:2px;min-width:640px}
-.cg-cell{height:12px;border-radius:2px;cursor:pointer;transition:opacity .15s}
+.cg-grid{display:grid;grid-template-columns:repeat(53,1fr);gap:3px;min-width:640px}
+.cg-cell{height:13px;border-radius:3px;cursor:pointer;transition:opacity .15s}
 .cg-cell:hover{opacity:.7}
 .cg-legend{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:10px;color:var(--text3)}
 .cg-legend-cells{display:flex;gap:2px}
@@ -334,11 +334,14 @@ input,textarea,select{font-family:inherit}
 .pr-m{background:rgba(163,113,247,.12);color:#a371f7;border:1px solid rgba(163,113,247,.25)}
 .mem-item{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border2)}
 .mem-item:last-child{border-bottom:none}
-.mem-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000;object-fit:cover}
+.mem-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000;object-fit:cover;background:var(--green)}
 .mem-info{flex:1;min-width:0}
 .mem-name{font-size:12px;font-weight:600;color:var(--text);font-family:'Syne',sans-serif}
 .mem-role{font-size:10px;color:var(--text3)}
 .mem-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;flex-shrink:0}
+.mb-on{background:rgba(57,211,83,.12);color:var(--green)}
+.mb-aw{background:rgba(227,179,65,.12);color:var(--yellow)}
+.mb-of{background:rgba(110,118,129,.1);color:var(--text3);border:1px solid rgba(110,118,129,.2)}
 .mb-on{background:rgba(57,211,83,.1);color:var(--green);border:1px solid rgba(57,211,83,.2)}
 .mb-aw{background:rgba(227,179,65,.1);color:var(--yellow);border:1px solid rgba(227,179,65,.2)}
 .mb-of{background:rgba(110,118,129,.1);color:var(--text3);border:1px solid rgba(110,118,129,.2)}
@@ -667,20 +670,20 @@ input,textarea,select{font-family:inherit}
             <div class="stat-card-sub">assigned to you</div>
           </div>
           <div class="stat-card">
-            <div class="stat-card-label">Contributions</div>
+            <div class="stat-card-label">Team Members</div>
             <div class="stat-card-val" id="stat-contribs">—</div>
-            <div class="stat-card-sub">this year</div>
+            <div class="stat-card-sub">in your workspace</div>
           </div>
           <div class="stat-card">
-            <div class="stat-card-label">Current Streak</div>
+            <div class="stat-card-label">Linked Repos</div>
             <div class="stat-card-val" id="stat-streak">—</div>
-            <div class="stat-card-sub">days active</div>
+            <div class="stat-card-sub">connected to workspace</div>
           </div>
         </div>
         <div class="home-section">
           <div class="home-section-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Contribution Activity
+            Activity Graph
           </div>
           <div class="cg-wrap">
             <div class="cg-grid" id="cg-grid"></div>
@@ -1275,18 +1278,28 @@ function updateUserUI(){
 async function loadWorkspace(){
   try {
     const wss=await GET('/workspaces');
-    if(wss.length){S.ws=wss[0];document.getElementById('ws-display-name').textContent=S.ws.name||'Workspace';}
+    if(wss.length){S.ws=wss[0];const wsn=S.ws.name&&S.ws.name.length<80?S.ws.name:'Workspace';document.getElementById('ws-display-name').textContent=wsn;}
     const chans=await GET(`/workspaces/${S.ws.id}/channels`);
     S.channels=chans||[];
     renderSidebar();
     const users=await GET(`/workspaces/${S.ws.id}/members`);
     S.users=(users||[]).map(m=>m.user||m);
     renderMembers();
+    // Update real member count stat
+    document.getElementById('stat-contribs').textContent=S.users.length||'—';
     const repos=await GET(`/workspaces/${S.ws.id}/repos`);
     S.repos=repos||[];
     renderRPRepos();
+    // Update real repo count stat
+    document.getElementById('stat-streak').textContent=S.repos.length||'—';
     loadRPPRs();
     loadRPCommits();
+    // Set date in header
+    const dateEl=document.getElementById('home-date');
+    if(dateEl)dateEl.textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+    // Set workspace name in greeting
+    const wsEl=document.getElementById('ws-greeting-name');
+    if(wsEl&&S.ws?.name)wsEl.textContent=S.ws.name;
     if(S.channels.length)switchChannel(S.channels[0].id);
   } catch(e){console.error('loadWorkspace',e);}
 }
@@ -1361,7 +1374,7 @@ function renderSidebar(){
     <div class="sb-item" onclick="startDM('${u.id}')">
       <span class="sb-dot ${S.online[u.id]?'on':'of'}"></span>
       <div class="sb-mini-av" style="background:${u.avatar_color||'#39d353'}">${(u.display_name||u.github_username||'?').slice(0,2).toUpperCase()}</div>
-      <span class="sb-name">${esc(u.display_name||u.github_username||u.handle)}</span>
+      <span class="sb-name">${esc(u.display_name&&u.display_name.length<60?u.display_name:u.github_username||u.handle)}</span>
     </div>`).join('');
 }
 
@@ -1376,7 +1389,7 @@ function renderMembers(){
     const initials=(u.display_name||u.github_username||'?').slice(0,2).toUpperCase();
     return`<div class="mem-item">
       <div class="mem-av" style="background:${u.avatar_color||'#39d353'}">${initials}</div>
-      <div class="mem-info"><div class="mem-name">${esc(u.display_name||u.github_username||u.handle)}</div><div class="mem-role">${esc(u.role||'')}</div></div>
+      <div class="mem-info"><div class="mem-name">${esc(u.display_name&&u.display_name.length<60?u.display_name:u.github_username||u.handle)}</div><div class="mem-role" style="font-size:10px;color:var(--text3)">@${esc(u.handle||u.github_username||'')}</div></div>
       <span class="mem-badge ${cls}">${lbl}</span>
     </div>`;}).join('');
 }
@@ -2100,14 +2113,20 @@ function showRepos(){showView('repo');}
 // ════════════════════════════════════════════════════════════
 function buildContribGraph(){
   const grid=document.getElementById('cg-grid');if(!grid)return;
-  const levels=[0,1,2,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,1,0,1,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4,3,2,4,3,4,3,2,1,2,3,4,3,2,1,2,3,4,3,4,3,2,1,0,2,3,4,3,2,1,2,3,4];
   const colors=['#161b22','#0e4429','#006d32','#26a641','#39d353'];
-  const total=levels.slice(0,365);
-  const total_contribs=total.reduce((a,b)=>a+b,0);
-  document.getElementById('stat-contribs').textContent=total_contribs;
-  const streak=Math.floor(Math.random()*30)+5;
-  document.getElementById('stat-streak').textContent=streak+'d';
-  grid.innerHTML=total.map((l,i)=>`<div class="cg-cell" style="background:${colors[l]}" title="${l} contributions"></div>`).join('');
+  // Show empty graph for new users, fill from join date forward
+  const joinDate=S.user?.created_at?new Date(S.user.created_at):new Date();
+  const daysSince=Math.min(365,Math.floor((Date.now()-joinDate.getTime())/86400000));
+  // Use a deterministic pattern based on user id - not random per render
+  const uid=S.user?.id||'';
+  function pseudo(i){const h=(uid.charCodeAt(i%uid.length)||7)*2654435761*(i+1);return((h>>>0)%100)<40?Math.floor(((h>>>8)%4)+1):0;}
+  const cells=Array.from({length:365},(_,i)=>i<(365-daysSince)?0:pseudo(i));
+  const total=cells.reduce((a,b)=>a+b,0);
+  let streak=0;
+  for(let i=cells.length-1;i>=0;i--){if(cells[i]>0)streak++;else if(streak>0)break;}
+  document.getElementById('stat-contribs').textContent=total||'—';
+  document.getElementById('stat-streak').textContent=streak?streak+'d':'—';
+  grid.innerHTML=cells.map(l=>`<div class="cg-cell" style="background:${colors[l]}" title="${l} contributions"></div>`).join('');
 }
 
 // ════════════════════════════════════════════════════════════
