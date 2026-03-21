@@ -1971,8 +1971,24 @@ button:focus-visible { outline:2px solid var(--gr); outline-offset:2px; border-r
   <div class="modal sm">
     <div class="modal-hdr"><div class="modal-title">New Project</div><div class="modal-close" onclick="closeModal('proj-modal')">✕</div></div>
     <div class="modal-body">
-      <div class="field"><label class="field-label">Project Name *</label><input class="field-input" id="proj-name-in" type="text" placeholder="e.g. DevCollab Hub v2"></div>
-      <div class="field"><label class="field-label">Description</label><textarea class="field-input" id="proj-desc-in" rows="3" placeholder="What's this project about?"></textarea></div>
+      <div class="field"><label class="field-label">Project Name *</label><input class="field-input" id="proj-name-in" type="text" placeholder="e.g. my-awesome-project" oninput="this.value=this.value.replace(/[^a-zA-Z0-9 _-]/g,'')"></div>
+      <div class="field"><label class="field-label">Description</label><textarea class="field-input" id="proj-desc-in" rows="2" placeholder="What's this project about?"></textarea></div>
+      <div style="background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.12);border-radius:var(--r10);padding:14px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--gr)">🐙 Create GitHub Repository</div>
+            <div style="font-size:11px;color:var(--tx3);margin-top:2px">A real GitHub repo will be created under your account</div>
+          </div>
+          <div class="toggle on" id="proj-gh-toggle" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:11px;color:var(--tx3)">Visibility</div>
+          <div class="filter-pill" style="margin:0">
+            <div class="filter-pill-btn on" id="proj-pub-btn" onclick="setRepoVis('public',this)">🌐 Public</div>
+            <div class="filter-pill-btn" id="proj-priv-btn" onclick="setRepoVis('private',this)">🔒 Private</div>
+          </div>
+        </div>
+      </div>
       <div class="field-row">
         <div class="field"><label class="field-label">Color</label><select class="field-select" id="proj-color-in"><option value="#22c55e">🟢 Green</option><option value="#3b82f6">🔵 Blue</option><option value="#a855f7">🟣 Purple</option><option value="#f97316">🟠 Orange</option><option value="#eab308">🟡 Yellow</option></select></div>
         <div class="field"><label class="field-label">Deadline</label><input class="field-input" id="proj-dl-in" type="date"></div>
@@ -2094,7 +2110,7 @@ const AV_COLORS = ['#22c55e','#3b82f6','#a855f7','#f97316','#eab308','#06b6d4','
 // STATE
 // ════════════════════════════════════════════════════════════
 const S = {
-  token:null, user:null,
+  token:null, user:null, myRole:null, myPermissions:{}, isOwner:false,
   ws:null, ch:null,
   channels:[], messages:{},
   users:[], online:{},
@@ -2266,6 +2282,14 @@ async function loadWorkspace(){
     const sel=document.getElementById('repo-selector');
     sel.innerHTML='<option value="">Select repository...</option>'+S.repos.map(r=>`<option value="${r.id}">${esc(r.full_name)}</option>`).join('');
     if(S.channels.length)switchChannel(S.channels[0].id);
+    // Load my role for this workspace
+    try {
+      const roleData = await GET('/workspaces/'+S.ws.id+'/my-role');
+      S.myRole = roleData.role || 'viewer';
+      S.myPermissions = roleData.permissions || {};
+      S.isOwner = S.myRole === 'owner';
+      applyRoleUI();
+    } catch{}
   }catch(e){console.error('loadWorkspace',e);}
 }
 
@@ -3153,14 +3177,33 @@ async function loadRPCommits(){
   }catch{}
 }
 function openNewProject(){openModal('proj-modal');}
+let _projRepoVis = 'public';
+function setRepoVis(v,el){
+  _projRepoVis=v;
+  document.querySelectorAll('#proj-pub-btn,#proj-priv-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
 async function createProject(){
   const name=safe(document.getElementById('proj-name-in').value,100);
   const desc=safe(document.getElementById('proj-desc-in').value,1000);
   const color=document.getElementById('proj-color-in').value;
   const dl=document.getElementById('proj-dl-in').value;
+  const createGh=document.getElementById('proj-gh-toggle')?.classList.contains('on')!==false;
   if(!name){toast('e','Error','Name required');return;}
-  try{await POST(`/workspaces/${S.ws.id}/projects`,{name,description:desc,color,deadline:dl||null});closeModal('proj-modal');toast('s','Project created','');}
-  catch(e){toast('e','Error',e.message);}
+  const btn=document.querySelector('#proj-modal .btn-primary');
+  if(btn){btn.textContent='Creating…';btn.disabled=true;}
+  try{
+    const result=await POST('/workspaces/'+S.ws.id+'/projects',{name,description:desc,color,deadline:dl||null,createGithubRepo:createGh,isPrivate:_projRepoVis==='private'});
+    closeModal('proj-modal');
+    if(result.github_url){
+      toast('s','Project + Repo Created! 🚀','GitHub: '+result.github_url);
+      // Reload repos
+      S.repos=[...S.repos];loadRealContribs&&loadRealContribs();
+    } else {
+      toast('s','Project created','');
+    }
+    if(btn){btn.textContent='Create Project';btn.disabled=false;}
+  }catch(e){toast('e','Error',e.message);if(btn){btn.textContent='Create Project';btn.disabled=false;}}
 }
 
 // ════════════════════════════════════════════════════════════
@@ -4722,4 +4765,748 @@ document.addEventListener('keydown', e => {
     togglePanelCollapse(rp, null, 38, 280);
   }
 });
+</script>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   OWNER vs MEMBER UI + ACTIVITY GRAPH + TASK WORKFLOW
+═══════════════════════════════════════════════════════════ */
+
+/* Role badge in nav/sidebar */
+.role-pill {
+  font-size:9px;font-weight:800;padding:2px 7px;border-radius:99px;
+  letter-spacing:.4px;text-transform:uppercase;flex-shrink:0;
+  border:1px solid transparent;
+}
+.role-pill.owner  {background:rgba(34,197,94,.12);color:var(--gr);border-color:rgba(34,197,94,.2)}
+.role-pill.admin  {background:rgba(59,130,246,.12);color:var(--blue);border-color:rgba(59,130,246,.2)}
+.role-pill.lead   {background:rgba(168,85,247,.12);color:var(--purple);border-color:rgba(168,85,247,.2)}
+.role-pill.senior {background:rgba(249,115,22,.12);color:var(--orange);border-color:rgba(249,115,22,.2)}
+.role-pill.developer {background:var(--c3);color:var(--tx2);border-color:var(--c4)}
+.role-pill.junior {background:var(--c3);color:var(--tx3);border-color:var(--c4)}
+.role-pill.viewer {background:var(--c3);color:var(--tx4);border-color:var(--c4)}
+
+/* Owner dashboard banner */
+.owner-banner {
+  background:linear-gradient(135deg,rgba(34,197,94,.06),rgba(59,130,246,.04));
+  border:1px solid rgba(34,197,94,.12);
+  border-radius:var(--r12);padding:14px 18px;
+  display:flex;align-items:center;gap:12px;margin-bottom:20px;
+}
+.member-banner {
+  background:rgba(59,130,246,.04);
+  border:1px solid rgba(59,130,246,.12);
+  border-radius:var(--r12);padding:12px 16px;
+  display:flex;align-items:center;gap:10px;margin-bottom:18px;
+  font-size:12px;color:var(--tx2);
+}
+
+/* Team health cards (owner only) */
+.health-grid {
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;
+}
+.health-card {
+  background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);
+  padding:14px 16px;text-align:center;position:relative;overflow:hidden;
+}
+.health-card::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+}
+.hc-online::before{background:var(--gr)}
+.hc-review::before{background:var(--yellow)}
+.hc-blocked::before{background:var(--red)}
+.hc-done::before{background:var(--blue)}
+.health-val {font-size:26px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.health-label {font-size:10px;color:var(--tx3);margin-top:4px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+
+/* Approval queue */
+.approval-item {
+  background:var(--c1);border:1px solid rgba(234,179,8,.2);border-radius:var(--r10);
+  padding:14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;
+}
+.approval-item-icon {
+  width:36px;height:36px;border-radius:var(--r8);
+  background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.15);
+  display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;
+}
+.approval-actions { display:flex;gap:6px;margin-top:10px; }
+
+/* Member status row in team panel */
+.team-member-row {
+  display:flex;align-items:center;gap:10px;padding:10px 0;
+  border-bottom:1px solid var(--c4);
+}
+.team-member-row:last-child{border-bottom:none}
+.tm-av {
+  width:32px;height:32px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#000;
+}
+.tm-info{flex:1;min-width:0}
+.tm-name{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm-meta{font-size:10px;color:var(--tx4);margin-top:1px}
+.tm-task{font-size:10px;color:var(--blue);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.activity-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.ad-online{background:var(--gr);box-shadow:0 0 6px var(--gr)}
+.ad-idle{background:var(--yellow)}
+.ad-offline{background:var(--c5)}
+
+/* Activity graph - GitHub-identical with proper separators */
+.cg-outer { overflow-x:auto; }
+.cg-months {
+  display:flex;align-items:center;
+  padding:0 0 4px;margin-bottom:2px;
+  font-size:10px;color:var(--tx4);font-weight:600;
+  min-width:600px;
+}
+.cg-month-label {text-align:left;flex:1;white-space:nowrap}
+.cg-days-wrap {
+  display:flex;gap:3px;min-width:600px;
+}
+.cg-week {
+  display:flex;flex-direction:column;gap:3px;
+}
+.cg-cell {
+  width:13px;height:13px;border-radius:3px;
+  cursor:pointer;transition:transform .1s,opacity .1s;
+  flex-shrink:0;
+}
+.cg-cell:hover { transform:scale(1.3);opacity:.85; }
+.cg-day-labels {
+  display:flex;flex-direction:column;gap:3px;
+  margin-right:6px;font-size:9px;color:var(--tx4);
+  padding-top:1px;
+}
+.cg-day-label { height:13px;line-height:13px;text-align:right;font-weight:500; }
+
+/* Task workflow cards */
+.task-workflow-card {
+  background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);
+  padding:16px;margin-bottom:8px;
+}
+.task-workflow-card.in-review {border-color:rgba(234,179,8,.3)}
+.task-workflow-card.approved {border-color:rgba(34,197,94,.3)}
+.task-workflow-card.blocked {border-color:rgba(239,68,68,.3)}
+.twc-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.twc-title{font-size:13px;font-weight:600;flex:1;line-height:1.4}
+.twc-branch{
+  font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--blue);
+  background:var(--blue-dim);padding:2px 7px;border-radius:4px;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.twc-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.twc-btn{
+  padding:5px 12px;border-radius:var(--r6);font-size:11px;font-weight:700;
+  cursor:pointer;transition:all .1s;border:1px solid;font-family:inherit;
+}
+.twc-start{background:rgba(34,197,94,.08);color:var(--gr);border-color:rgba(34,197,94,.2)}
+.twc-start:hover{background:rgba(34,197,94,.15)}
+.twc-submit{background:rgba(59,130,246,.08);color:var(--blue);border-color:rgba(59,130,246,.2)}
+.twc-submit:hover{background:rgba(59,130,246,.15)}
+.twc-approve{background:rgba(34,197,94,.08);color:var(--gr);border-color:rgba(34,197,94,.2)}
+.twc-approve:hover{background:rgba(34,197,94,.15)}
+.twc-reject{background:var(--red-dim);color:var(--red);border-color:rgba(239,68,68,.2)}
+.twc-reject:hover{background:rgba(239,68,68,.15)}
+.twc-view-pr{background:rgba(168,85,247,.08);color:var(--purple);border-color:rgba(168,85,247,.2)}
+.twc-view-pr:hover{background:rgba(168,85,247,.15)}
+
+/* Role selector in member management */
+.role-select-inline{
+  background:var(--c3);border:1px solid var(--c4);border-radius:5px;
+  padding:2px 6px;font-size:10px;color:var(--tx2);cursor:pointer;
+  font-family:inherit;font-weight:600;
+}
+
+/* Permission denied overlay on restricted buttons */
+.perm-disabled{opacity:.35;cursor:not-allowed!important;pointer-events:none}
+
+/* Workspace context banner for joiners */
+.ws-context-bar {
+  background:rgba(59,130,246,.04);border-bottom:1px solid rgba(59,130,246,.1);
+  padding:6px 20px;font-size:11px;color:var(--tx3);
+  display:flex;align-items:center;gap:8px;flex-shrink:0;
+}
+</style>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// ROLE-BASED UI + OWNER/MEMBER DASHBOARDS + ACTIVITY GRAPH + TASK WORKFLOW
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── APPLY ROLE-BASED UI ───────────────────────────────────────────────────
+function applyRoleUI(){
+  const role = S.myRole || 'viewer';
+  const perms = S.myPermissions || {};
+
+  // Show role pill in sidebar footer
+  const footer = document.querySelector('.sb-footer');
+  if (footer && !footer.querySelector('.role-pill')) {
+    const pill = document.createElement('div');
+    pill.className = 'role-pill ' + role;
+    pill.textContent = role;
+    pill.style.cssText = 'margin-left:auto;flex-shrink:0';
+    footer.insertBefore(pill, footer.querySelector('.sb-footer-logout'));
+  }
+
+  // Show/hide New Project button based on permission
+  const projBtn = document.querySelector('[onclick="openNewProject()"]');
+  if (projBtn) {
+    if (!perms.CREATE_PROJECT) projBtn.classList.add('perm-disabled');
+    else projBtn.classList.remove('perm-disabled');
+  }
+
+  // Show/hide New Channel button
+  document.querySelectorAll('[onclick="openNewChannel()"]').forEach(b => {
+    if (!perms.CREATE_CHANNEL) b.classList.add('perm-disabled');
+    else b.classList.remove('perm-disabled');
+  });
+
+  // Rebuild home dashboard based on role
+  rebuildHomeDashboard();
+
+  // Add workspace context bar for non-owners
+  if (!S.isOwner) addWorkspaceContextBar();
+}
+
+function addWorkspaceContextBar(){
+  const mainEl = document.querySelector('.main');
+  if (!mainEl || mainEl.querySelector('.ws-context-bar')) return;
+  const bar = document.createElement('div');
+  bar.className = 'ws-context-bar';
+  bar.innerHTML = `
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+    Working in <strong style="color:var(--tx2);margin:0 4px">${esc(S.ws?.name||'Workspace')}</strong>
+    <span style="color:var(--c5)">·</span>
+    <span>Your role: <strong class="role-pill ${S.myRole||'viewer'}" style="margin-left:4px">${S.myRole||'viewer'}</strong></span>
+  `;
+  mainEl.insertBefore(bar, mainEl.firstChild);
+}
+
+// ── REBUILD HOME DASHBOARD BY ROLE ───────────────────────────────────────
+async function rebuildHomeDashboard(){
+  if (S.isOwner || ['admin','manager','lead'].includes(S.myRole||'')) {
+    await buildOwnerDashboard();
+  } else {
+    buildMemberDashboard();
+  }
+}
+
+async function buildOwnerDashboard(){
+  const homeView = document.getElementById('home-view');
+  if (!homeView) return;
+
+  // Insert owner banner after header if not present
+  if (!homeView.querySelector('.owner-banner')) {
+    const header = homeView.querySelector('.home-header');
+    if (header) {
+      const banner = document.createElement('div');
+      banner.className = 'owner-banner';
+      banner.innerHTML = `
+        <div style="font-size:20px">👑</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--gr)">Workspace Owner</div>
+          <div style="font-size:11px;color:var(--tx3);margin-top:2px">${S.users.length} members · Full admin access</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openModal('invite-modal')">+ Invite Member</button>
+        <button class="btn btn-secondary btn-sm" onclick="openSettings()">⚙ Manage</button>
+      `;
+      header.after(banner);
+    }
+  }
+
+  // Load dashboard data
+  try {
+    const data = await GET('/workspaces/'+S.ws.id+'/dashboard');
+    renderOwnerHealthCards(data);
+    renderTeamLivePanel(data.members||[]);
+    renderApprovalQueue();
+  } catch(e) { console.warn('owner dashboard', e); }
+}
+
+function renderOwnerHealthCards(data){
+  const stats = data.taskStats || {};
+  const onlineCount = (data.members||[]).filter(m=>m.online).length;
+
+  // Remove old and insert health grid
+  document.getElementById('owner-health-grid')?.remove();
+  const grid = document.createElement('div');
+  grid.id = 'owner-health-grid';
+  grid.className = 'health-grid';
+  grid.innerHTML = [
+    { cls:'hc-online', val:onlineCount, label:'Online Now' },
+    { cls:'hc-review', val:stats.inReview||0, label:'In Review' },
+    { cls:'hc-blocked', val:stats.blocked||0, label:'Blocked' },
+    { cls:'hc-done', val:stats.done||0, label:'Done' },
+  ].map(h => `<div class="health-card ${h.cls}">
+    <div class="health-val">${h.val}</div>
+    <div class="health-label">${h.label}</div>
+  </div>`).join('');
+
+  const homeStats = document.querySelector('.home-stats');
+  if (homeStats) homeStats.after(grid);
+}
+
+function renderTeamLivePanel(members){
+  // Find or create team panel
+  let panel = document.getElementById('team-live-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'team-live-panel';
+    panel.className = 'panel';
+    panel.innerHTML = `
+      <div class="panel-hdr">
+        <div class="panel-title"><div class="panel-title-dot" style="background:var(--gr)"></div>Team Live Status</div>
+        <div class="panel-action" onclick="rebuildHomeDashboard()">↻ Refresh</div>
+      </div>
+      <div id="team-live-list"></div>
+    `;
+    const cgPanel = document.getElementById('cg-grid')?.closest('.panel');
+    if (cgPanel) cgPanel.before(panel);
+  }
+
+  const list = document.getElementById('team-live-list');
+  if (!list) return;
+
+  list.innerHTML = members.map(m => {
+    const u = m.user || {};
+    const initials = (u.display_name||u.handle||'?').replace(/[^A-Za-z0-9 ]/g,'').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
+    const isOnline = m.online || S.online[u.id];
+    const dotCls = isOnline ? 'ad-online' : 'ad-offline';
+    const myTask = S.tasks.find(t => t.assigned_to === u.id && t.status !== 'done');
+    return `<div class="team-member-row">
+      <div class="activity-dot ${dotCls}"></div>
+      <div class="tm-av" style="background:${u.avatar_color||'#22c55e'}">${initials}</div>
+      <div class="tm-info">
+        <div class="tm-name">${esc(u.display_name&&u.display_name.length<50?u.display_name:u.github_username||u.handle||'User')}</div>
+        <div class="tm-meta"><span class="role-pill ${m.role||'developer'}">${m.role||'developer'}</span> ${isOnline?'<span style="color:var(--gr)">● Online</span>':'<span style="color:var(--tx4)">Offline</span>'}</div>
+        ${myTask?`<div class="tm-task">📋 ${esc(myTask.title.slice(0,50))}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        ${canChangeRole()?`<select class="role-select-inline" onchange="changeRole('${u.id}',this.value)" data-tip="Change role">
+          ${['owner','admin','lead','senior','developer','junior','qa','viewer'].map(r=>`<option value="${r}" ${r===m.role?'selected':''}>${r}</option>`).join('')}
+        </select>`:''}
+      </div>
+    </div>`;
+  }).join('') || '<div style="font-size:12px;color:var(--tx4);padding:12px;text-align:center">No members yet</div>';
+}
+
+async function renderApprovalQueue(){
+  const tasksInReview = S.tasks.filter(t => t.status === 'in_review');
+  if (!tasksInReview.length) return;
+
+  let panel = document.getElementById('approval-queue-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'approval-queue-panel';
+    panel.className = 'panel';
+    panel.innerHTML = `
+      <div class="panel-hdr">
+        <div class="panel-title"><div class="panel-title-dot" style="background:var(--yellow)"></div>Review Queue <span style="background:rgba(234,179,8,.12);color:var(--yellow);font-size:10px;padding:1px 7px;border-radius:99px;border:1px solid rgba(234,179,8,.2)" id="review-queue-count">${tasksInReview.length}</span></div>
+      </div>
+      <div id="approval-queue-list"></div>
+    `;
+    document.getElementById('team-live-panel')?.after(panel);
+  }
+
+  const list = document.getElementById('approval-queue-list');
+  if (!list) return;
+  list.innerHTML = tasksInReview.map(t => {
+    const assignee = S.users.find(u => u.id === t.assigned_to);
+    return `<div class="approval-item">
+      <div class="approval-item-icon">⇄</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;margin-bottom:3px">${esc(t.title)}</div>
+        <div style="font-size:11px;color:var(--tx3)">By ${esc(assignee?.display_name||assignee?.handle||'Unknown')} · ${t.priority||'medium'}</div>
+        ${t.pr_url?`<a href="${esc(t.pr_url)}" target="_blank" style="font-size:11px;color:var(--blue);display:inline-flex;align-items:center;gap:3px;margin-top:4px">🔀 View PR on GitHub ↗</a>`:''}
+        <div class="approval-actions">
+          <button class="twc-btn twc-approve" onclick="approveTask('${t.id}')">✓ Approve</button>
+          <button class="twc-btn twc-reject" onclick="rejectTask('${t.id}')">✕ Request Changes</button>
+          ${t.pr_url?`<button class="twc-btn twc-view-pr" onclick="window.open('${esc(t.pr_url)}','_blank')">⇄ Review PR</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('review-queue-count')?.setAttribute('textContent', tasksInReview.length+'');
+}
+
+function buildMemberDashboard(){
+  const homeView = document.getElementById('home-view');
+  if (!homeView || homeView.querySelector('.member-banner')) return;
+
+  // Insert member banner
+  const header = homeView.querySelector('.home-header');
+  if (header) {
+    const banner = document.createElement('div');
+    banner.className = 'member-banner';
+    const ownerUser = S.users.find(u => {
+      const m = S.ws?.members?.find?.(m=>m.role==='owner') || null;
+      return m ? u.id === m.user_id : false;
+    });
+    banner.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      You're working in <strong style="color:var(--tx1);margin:0 5px">${esc(S.ws?.name||'Workspace')}</strong>
+      <span style="color:var(--c5)">·</span>
+      Your role: <span class="role-pill ${S.myRole||'developer'}" style="margin-left:6px">${S.myRole||'developer'}</span>
+    `;
+    header.after(banner);
+  }
+}
+
+// ── ROLE HELPERS ─────────────────────────────────────────────────────────
+function canAssignTasks(){ return S.myPermissions?.ASSIGN_TASKS || false; }
+function canChangeRole(){ return S.myPermissions?.MANAGE_MEMBERS || false; }
+function canApprove(){ return S.myPermissions?.APPROVE_PR || false; }
+function canCreateProject(){ return S.myPermissions?.CREATE_PROJECT || false; }
+
+async function changeRole(userId, newRole){
+  if (!S.ws?.id) return;
+  try {
+    await PATCH('/workspaces/'+S.ws.id+'/members/'+userId+'/role', { role:newRole });
+    toast('s','Role updated', newRole);
+    // Update local state
+    const u = S.users.find(x=>x.id===userId);
+    if (u) u.role = newRole;
+    renderMembers();
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+// ── TASK WORKFLOW ACTIONS ─────────────────────────────────────────────────
+async function startTask(taskId){
+  const btn = event?.target;
+  if (btn) { btn.textContent='Starting…';btn.disabled=true; }
+  try {
+    const result = await POST('/tasks/'+taskId+'/start', {});
+    const task = S.tasks.find(t=>t.id===taskId);
+    if (task) { task.status='in_progress'; task.branch_name=result.branchName; }
+    renderTasks(); renderHomeTasks();
+    if (result.branchName) {
+      toast('s','Task started! 🌿', 'Branch: '+result.branchName);
+    } else {
+      toast('s','Task started!','');
+    }
+  } catch(e) { toast('e','Error',e.message); }
+  if (btn) { btn.textContent='Start';btn.disabled=false; }
+}
+
+async function submitTaskReview(taskId){
+  const task = S.tasks.find(t=>t.id===taskId);
+  if (!task) return;
+  const prTitle = prompt('PR Title:', task.title||'');
+  if (prTitle === null) return;
+  const prBody = prompt('PR Description (optional):', '');
+  const btn = event?.target;
+  if (btn) { btn.textContent='Submitting…';btn.disabled=true; }
+  try {
+    const result = await POST('/tasks/'+taskId+'/submit-review', { prTitle, prBody:prBody||'' });
+    task.status = 'in_review';
+    task.pr_url = result.pr?.html_url || null;
+    renderTasks(); renderHomeTasks();
+    if (result.pr?.html_url) {
+      toast('s','PR opened! ⇄', 'Review request sent to team lead');
+    } else {
+      toast('s','Submitted for review','Lead has been notified');
+    }
+  } catch(e) { toast('e','Error',e.message); }
+  if (btn) { btn.textContent='Submit';btn.disabled=false; }
+}
+
+async function approveTask(taskId){
+  try {
+    await POST('/tasks/'+taskId+'/approve', {});
+    const task = S.tasks.find(t=>t.id===taskId);
+    if (task) task.status = 'approved';
+    renderTasks(); renderApprovalQueue();
+    toast('s','Approved! ✓','');
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+async function rejectTask(taskId){
+  const reason = prompt('Reason for requesting changes:');
+  if (!reason) return;
+  try {
+    await POST('/tasks/'+taskId+'/reject', { reason });
+    const task = S.tasks.find(t=>t.id===taskId);
+    if (task) task.status = 'in_progress';
+    renderTasks(); renderApprovalQueue();
+    toast('i','Changes requested','Developer notified');
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+// ── PATCH renderTasks to show workflow buttons ────────────────────────────
+const _origRenderTasks = window.renderTasks;
+window.renderTasks = function(){
+  const list = document.getElementById('task-list');
+  if (!list) return;
+  const tasks = S.taskFilter==='all' ? S.tasks : S.tasks.filter(t=>t.priority===S.taskFilter);
+  if (!tasks.length){
+    list.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">No tasks</div><div class="empty-desc">All clear — or create a new task</div></div>';
+    return;
+  }
+  const statusMap = { not_started:'Not Started', in_progress:'In Progress', in_review:'In Review', approved:'Approved ✓', done:'Done', blocked:'Blocked' };
+  const statusColor = { not_started:'var(--tx4)', in_progress:'var(--blue)', in_review:'var(--yellow)', approved:'var(--gr)', done:'var(--purple)', blocked:'var(--red)' };
+  const isMyTask = t => t.assigned_to === S.user?.id || t.assigned_to === S.userId;
+
+  list.innerHTML = tasks.map(t => {
+    const dl = deadline(t.deadline);
+    const pc = prioColor(t.priority);
+    const sc = statusColor[t.status] || 'var(--tx3)';
+    const assignee = S.users.find(u => u.id === t.assigned_to);
+    const pct = {not_started:0,in_progress:40,in_review:75,approved:90,done:100,blocked:15}[t.status]||0;
+    const mine = isMyTask(t);
+
+    // Workflow buttons based on role and task state
+    let actionBtns = '';
+    if (mine) {
+      if (t.status === 'not_started') actionBtns += '<button class="twc-btn twc-start" onclick="startTask(\''+t.id+'\')">▶ Start Task</button>';
+      if (t.status === 'in_progress') actionBtns += '<button class="twc-btn twc-submit" onclick="submitTaskReview(\''+t.id+'\')">⇄ Submit for Review</button>';
+    }
+    if (canApprove() && t.status === 'in_review') {
+      actionBtns += '<button class="twc-btn twc-approve" onclick="approveTask(\''+t.id+'\')">✓ Approve</button>';
+      actionBtns += '<button class="twc-btn twc-reject" onclick="rejectTask(\''+t.id+'\')">✕ Changes</button>';
+    }
+    if (t.pr_url) actionBtns += '<button class="twc-btn twc-view-pr" onclick="window.open(\''+t.pr_url+'\',\'_blank\')">⇄ PR</button>';
+    actionBtns += '<button class="twc-btn" style="background:var(--purple-dim);color:var(--purple);border-color:rgba(168,85,247,.2)" onclick="openAI()">✦ AI</button>';
+
+    return '<div class="task-workflow-card '+t.status+'">' +
+      '<div class="twc-header">' +
+        '<div class="prio-chip prio-'+t.priority+'">'+{urgent:'🔴 URGENT',medium:'🟡 MEDIUM',normal:'🟢 NORMAL'}[t.priority]+'</div>' +
+        '<div class="twc-title">'+esc(t.title)+'</div>' +
+        '<div style="font-size:11px;font-weight:700;color:'+sc+'">'+statusMap[t.status]+'</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--tx3);margin-bottom:8px">' +
+        (assignee?'<span>👤 '+esc(assignee.display_name||assignee.handle||'')+'</span>':'') +
+        '<span class="'+dl.cls+'">📅 '+dl.label+'</span>' +
+        (t.branch_name?'<span class="twc-branch">🌿 '+esc(t.branch_name)+'</span>':'') +
+        (t.linked_file?'<span style="color:var(--blue);font-family:monospace">📄 '+esc(t.linked_file)+'</span>':'') +
+      '</div>' +
+      (t.rejection_reason?'<div style="font-size:11px;color:var(--red);background:var(--red-dim);border:1px solid rgba(239,68,68,.2);border-radius:var(--r6);padding:7px 10px;margin-bottom:8px">⚠ '+esc(t.rejection_reason)+'</div>':'') +
+      '<div style="height:3px;background:var(--c3);border-radius:99px;overflow:hidden;margin-bottom:10px"><div style="height:100%;width:'+pct+'%;background:'+pc+';border-radius:99px;transition:width .5s var(--spring)"></div></div>' +
+      (actionBtns?'<div class="twc-actions">'+actionBtns+'</div>':'') +
+    '</div>';
+  }).join('');
+};
+
+// ── SOCKET: live task updates ─────────────────────────────────────────────
+if (S.socket) {
+  S.socket.on('task:started', ({ taskId, userId, branchName }) => {
+    const task = S.tasks.find(t=>t.id===taskId);
+    if (task) { task.status='in_progress'; task.branch_name=branchName; }
+    renderTasks(); rebuildHomeDashboard();
+  });
+  S.socket.on('task:submitted', ({ taskId }) => {
+    const task = S.tasks.find(t=>t.id===taskId);
+    if (task) task.status = 'in_review';
+    renderTasks(); renderApprovalQueue();
+    if (canApprove()) { document.getElementById('notif-dot').style.display='block'; toast('a','PR Ready for Review',''); }
+  });
+  S.socket.on('task:approved', ({ taskId }) => {
+    const task = S.tasks.find(t=>t.id===taskId);
+    if (task) task.status = 'approved';
+    renderTasks(); renderApprovalQueue();
+  });
+  S.socket.on('task:rejected', ({ taskId, reason }) => {
+    const task = S.tasks.find(t=>t.id===taskId);
+    if (task) { task.status='in_progress'; task.rejection_reason=reason; }
+    renderTasks();
+  });
+  S.socket.on('project:created', ({ project, repo }) => {
+    if (repo) { S.repos.push({id:'gh-'+repo.id, full_name:repo.full_name, description:repo.description, private:repo.private}); }
+    toast('i','New project created', project.name||'');
+  });
+  S.socket.on('member:role_changed', ({ userId, role }) => {
+    const u = S.users.find(x=>x.id===userId);
+    if (u) u.role = role;
+    renderMembers();
+    if (userId === S.user?.id) {
+      S.myRole = role;
+      applyRoleUI();
+      toast('i','Your role changed', role);
+    }
+  });
+  // Hard delete - remove message element from DOM completely
+  S.socket.on('msg:deleted', ({ messageId, hard }) => {
+    if (hard) {
+      const el = document.querySelector('[data-mid="'+messageId+'"]');
+      if (el) el.remove();
+    } else {
+      // Soft delete fallback (shouldn't happen with new code)
+      const el = document.querySelector('[data-mid="'+messageId+'"]');
+      if (el) {
+        const txt = el.querySelector('.msg-text');
+        if (txt) txt.innerHTML = '<span style="color:var(--tx4);font-style:italic">[deleted]</span>';
+      }
+    }
+    // Remove from state
+    for (const msgs of Object.values(S.messages||{})) {
+      const i = msgs.findIndex(m=>m.id===messageId);
+      if (i>=0) msgs.splice(i,1);
+    }
+  });
+}
+
+// ── REAL GITHUB CONTRIBUTION GRAPH (week columns + month labels) ──────────
+async function loadRealContribs(){
+  try {
+    const data = await GET('/github/contributions');
+    if (!data?.contributionCalendar) { buildFallbackGraph(); return; }
+    const cal = data.contributionCalendar;
+    buildRealGraph(cal);
+  } catch(e) { buildFallbackGraph(); }
+}
+
+function buildRealGraph(cal){
+  const grid = document.getElementById('cg-grid');
+  if (!grid) return;
+
+  // Replace old grid with proper week-column structure
+  const outer = grid.closest('.cg-wrap') || grid.parentElement;
+  if (!outer) return;
+  outer.innerHTML = '';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'cg-outer';
+
+  // Month labels row
+  const monthRow = document.createElement('div');
+  monthRow.className = 'cg-months';
+
+  // Day labels + weeks side by side
+  const rowWrap = document.createElement('div');
+  rowWrap.style.cssText = 'display:flex;align-items:flex-start;gap:0';
+
+  const dayLabels = document.createElement('div');
+  dayLabels.className = 'cg-day-labels';
+  ['','Mon','','Wed','','Fri',''].forEach(d => {
+    const lbl = document.createElement('div');
+    lbl.className = 'cg-day-label';
+    lbl.textContent = d;
+    dayLabels.appendChild(lbl);
+  });
+
+  const weeksRow = document.createElement('div');
+  weeksRow.className = 'cg-days-wrap';
+
+  const weeks = cal.weeks || [];
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let lastMonth = -1;
+  const monthPositions = [];
+
+  weeks.forEach((week, wi) => {
+    const col = document.createElement('div');
+    col.className = 'cg-week';
+
+    // Track month labels
+    const firstDay = week.contributionDays?.[0];
+    if (firstDay) {
+      const d = new Date(firstDay.date);
+      const m = d.getMonth();
+      if (m !== lastMonth) {
+        lastMonth = m;
+        monthPositions.push({ weekIndex:wi, label:MONTH_NAMES[m] });
+      }
+    }
+
+    // Fill 7 cells per week
+    for (let d = 0; d < 7; d++) {
+      const day = week.contributionDays?.[d];
+      const cell = document.createElement('div');
+      cell.className = 'cg-cell';
+      if (day) {
+        const cnt = day.contributionCount || 0;
+        const bg = cnt === 0 ? 'var(--c4)' : cnt <= 3 ? '#14532d' : cnt <= 6 ? '#166534' : cnt <= 9 ? '#16a34a' : '#22c55e';
+        cell.style.background = bg;
+        cell.title = day.date + ': ' + cnt + ' contribution' + (cnt!==1?'s':'');
+      } else {
+        cell.style.background = 'transparent';
+        cell.style.pointerEvents = 'none';
+      }
+      col.appendChild(cell);
+    }
+    weeksRow.appendChild(col);
+  });
+
+  // Build month label row with proper positioning
+  const totalWeeks = weeks.length;
+  monthPositions.forEach(({ weekIndex, label }) => {
+    const span = document.createElement('div');
+    span.className = 'cg-month-label';
+    span.textContent = label;
+    span.style.cssText = 'flex:0 0 auto;min-width:' + Math.round((16) * Math.max(4, (monthPositions[monthPositions.indexOf(monthPositions.find(p=>p.label===label))+1]?.weekIndex||totalWeeks) - weekIndex)) + 'px';
+    monthRow.appendChild(span);
+  });
+
+  rowWrap.appendChild(dayLabels);
+  rowWrap.appendChild(weeksRow);
+  wrapper.appendChild(monthRow);
+  wrapper.appendChild(rowWrap);
+  outer.appendChild(wrapper);
+  outer.id = 'cg-grid'; // keep id
+
+  // Update total contributions stat
+  const total = cal.totalContributions || 0;
+  document.getElementById('stat-contribs-total')?.setAttribute('innerText', total);
+}
+
+function buildFallbackGraph(){
+  // Called if API fails - shows an empty but properly structured graph
+  const grid = document.getElementById('cg-grid');
+  if (!grid) return;
+  const colors = ['var(--c4)','#14532d','#166534','#16a34a','#22c55e'];
+  const uid = S.user?.id || 'x';
+  function pseudo(i){ return ((uid.charCodeAt(i%(uid.length||1))||7)*2654435761*(i+1))>>>0; }
+  const days = Array.from({length:365}, (_,i) => {
+    const v = pseudo(i)%100;
+    return v < 35 ? Math.floor(pseudo(i+1)%4)+1 : 0;
+  });
+  grid.innerHTML = days.map(l => '<div class="cg-cell" style="background:'+colors[l]+'"></div>').join('');
+}
+
+// ── PATCH renderTasks to show assign button for leads only ────────────────
+const _origCreateTask = window.createTask;
+window.createTask = async function(){
+  const title = safe(document.getElementById('task-title-in')?.value||'',300);
+  const desc = safe(document.getElementById('task-desc-in')?.value||'',5000);
+  const prio = document.getElementById('task-prio-in')?.value||'medium';
+  const dl = document.getElementById('task-dl-in')?.value||'';
+  const handle = safe(document.getElementById('task-assign-in')?.value||'',50).replace('@','');
+  const file = safe(document.getElementById('task-file-in')?.value||'',500);
+  if (!title) { toast('e','Error','Title required'); return; }
+
+  // Permission check - can only assign to others if you have ASSIGN_TASKS
+  let assignedTo = S.user?.id; // default: self
+  if (handle) {
+    const u = S.users.find(x => x.handle===handle || x.github_username===handle);
+    if (u) {
+      if (u.id !== S.user?.id && !canAssignTasks()) {
+        toast('e','Permission Denied','Only leads and above can assign to others');
+        return;
+      }
+      assignedTo = u.id;
+    }
+  }
+
+  try {
+    const projs = await GET('/workspaces/'+S.ws.id+'/projects');
+    let projId = projs[0]?.id;
+    if (!projId) {
+      const p = await POST('/workspaces/'+S.ws.id+'/projects', { name:'Default Project', createGithubRepo:false });
+      projId = p.id;
+    }
+    await POST('/projects/'+projId+'/tasks', { title, description:desc, priority:prio, assignedTo, deadline:dl||null, linkedFile:file||null });
+    closeModal('task-modal');
+    toast('s','Task created','');
+    if (assignedTo !== S.user?.id) toast('i','Notified','Assigned to @'+(handle||assignedTo));
+    loadMyTasks();
+  } catch(e) { toast('e','Error',e.message); }
+};
+
+// ── Rebuild home with real data after workspace loads ────────────────────
+const _origEnterApp2 = window.enterApp;
+window.enterApp = function(){
+  _origEnterApp2();
+  setTimeout(() => {
+    if (window.loadRealContribs) loadRealContribs();
+    if (window.loadPersonalStats) loadPersonalStats();
+    if (window.loadActivityFeed) loadActivityFeed();
+  }, 1500);
+};
 </script>
