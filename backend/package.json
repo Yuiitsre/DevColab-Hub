@@ -1,0 +1,26 @@
+{
+  "name": "devcollab-hub-backend",
+  "version": "2.0.0",
+  "description": "DevCollab Hub — Enterprise Engineering Operations Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "generate-keys": "node -e \"const c=require('crypto');console.log('ENCRYPTION_KEY='+c.randomBytes(32).toString('hex'));console.log('JWT_SECRET='+c.randomBytes(64).toString('hex'));console.log('WEBHOOK_SECRET='+c.randomBytes(32).toString('hex'));\""
+  },
+  "engines": { "node": ">=18.0.0" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "node-fetch": "^2.7.0",
+    "socket.io": "^4.6.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
