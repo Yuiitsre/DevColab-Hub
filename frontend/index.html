@@ -1066,6 +1066,49 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
 .empty-title{font-size:15px;font-weight:600;color:var(--tx2)}
 .empty-desc{font-size:12px;color:var(--tx4);line-height:1.6;max-width:280px}
 
+/* Repo tabs */
+.repo-tab{padding:12px 14px;font-size:12px;font-weight:600;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;transition:all var(--t2);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.repo-tab:hover{color:var(--tx2)}
+.repo-tab.active{color:var(--tx1);border-bottom-color:var(--gr)}
+/* Repo filter pills */
+.repo-filter-btn{padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;color:var(--tx4);background:transparent;border:1px solid transparent;cursor:pointer;transition:all var(--t1)}
+.repo-filter-btn.on{background:var(--c3);color:var(--tx1);border-color:var(--c4)}
+.repo-filter-btn:hover:not(.on){color:var(--tx2)}
+/* Repo list items */
+.repo-list-item{padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--c4);transition:background var(--t1)}
+.repo-list-item:hover{background:var(--c2)}
+.repo-list-item.active{background:var(--c3)}
+.repo-list-name{font-size:12px;font-weight:600;color:var(--tx1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
+.repo-list-desc{font-size:10px;color:var(--tx4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:5px}
+.repo-list-meta{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--tx4)}
+.lang-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+/* Issue/PR items */
+.gh-item{background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);padding:14px;margin-bottom:8px;transition:all var(--t2)}
+.gh-item:hover{border-color:var(--c5)}
+.gh-item-title{font-size:13px;font-weight:600;margin-bottom:6px;line-height:1.4}
+.gh-item-title a{color:var(--tx1);cursor:pointer}
+.gh-item-title a:hover{color:var(--blue)}
+.gh-item-meta{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--tx3);flex-wrap:wrap}
+.commit-full-item{background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start}
+.commit-full-sha{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue);background:var(--blue-dim);padding:2px 8px;border-radius:5px;flex-shrink:0;cursor:pointer}
+.commit-full-sha:hover{text-decoration:underline}
+.commit-full-msg{font-size:13px;font-weight:500;color:var(--tx1);margin-bottom:4px;line-height:1.4}
+.commit-full-meta{font-size:11px;color:var(--tx3)}
+/* Stat mini card */
+.stat-mini{background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);padding:14px;text-align:center}
+.stat-mini-val{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.stat-mini-label{font-size:10px;color:var(--tx4);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+/* Lang bar */
+.lang-bar{height:8px;border-radius:99px;overflow:hidden;display:flex;margin-bottom:8px}
+.lang-seg{height:100%;transition:flex var(--t3)}
+/* Release card */
+.release-card{background:var(--c1);border:1px solid var(--c4);border-radius:var(--r12);padding:18px;margin-bottom:10px}
+.release-tag{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gr);font-weight:600;margin-bottom:4px}
+.release-name{font-size:15px;font-weight:700;margin-bottom:8px}
+.release-body{font-size:12px;color:var(--tx3);line-height:1.7;white-space:pre-wrap;max-height:200px;overflow-y:auto}
+/* New issue modal */
+#issue-modal .modal{width:520px}
+
 /* Animations */
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -1417,45 +1460,173 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
         <div id="task-list"></div>
       </div>
 
-      <!-- REPOS -->
+      <!-- REPOS - Full GitHub Dashboard -->
       <div id="repo-view" class="hidden" style="flex:1;display:flex;overflow:hidden">
+        <!-- Left: Repo List -->
         <div class="repo-sb">
           <div class="repo-sb-hdr">
             <div class="repo-sb-title">Repositories</div>
-            <button class="btn btn-icon btn-sm" onclick="openNewRepo()">
+            <button class="btn btn-icon btn-sm" onclick="openNewRepo()" title="New repo">
               <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
           </div>
-          <select class="repo-selector" id="repo-selector" onchange="loadRepo(this.value)">
-            <option value="">Select repository...</option>
-          </select>
-          <select class="branch-sel" id="branch-sel" onchange="loadBranch(this.value)">
-            <option value="">Select branch...</option>
-          </select>
-          <div class="file-tree" id="file-tree"></div>
-        </div>
-        <div class="repo-main">
-          <div class="repo-file-hdr">
-            <div class="repo-breadcrumb" id="repo-breadcrumb">Select a repository</div>
-            <div class="repo-file-acts">
-              <button class="btn btn-secondary btn-sm" onclick="openBranchModal()">+ Branch</button>
-              <button class="btn btn-secondary btn-sm" onclick="openCommitModal()">Push</button>
-              <button class="btn btn-primary btn-sm" onclick="openPRModal()">Open PR</button>
+          <!-- search -->
+          <div style="padding:8px 10px">
+            <div style="display:flex;align-items:center;gap:6px;background:var(--c0);border:1px solid var(--c4);border-radius:var(--r6);padding:6px 10px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input id="repo-search-in" style="flex:1;font-size:11px;color:var(--tx1);background:transparent;outline:none" placeholder="Find a repository..." oninput="filterRepoList(this.value)">
             </div>
           </div>
-          <div class="file-view">
-            <div id="file-content" class="file-content hidden"></div>
-            <div id="repo-empty" class="empty">
+          <!-- filter pills -->
+          <div style="display:flex;gap:4px;padding:0 10px 8px">
+            <button class="repo-filter-btn on" onclick="setRepoFilter('all',this)">All</button>
+            <button class="repo-filter-btn" onclick="setRepoFilter('public',this)">Public</button>
+            <button class="repo-filter-btn" onclick="setRepoFilter('private',this)">Private</button>
+          </div>
+          <div class="file-tree" id="repo-list-panel" style="flex:1;overflow-y:auto"></div>
+          <div style="padding:8px 10px;border-top:1px solid var(--c4)">
+            <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center" onclick="loadAllMyRepos()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Center: Repo Content (overview or code) -->
+        <div class="repo-main" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+          <!-- Sub-nav tabs -->
+          <div id="repo-view-tabs" style="display:flex;align-items:center;gap:0;border-bottom:1px solid var(--c4);background:var(--c1);padding:0 16px;flex-shrink:0">
+            <div class="repo-tab active" id="rtab-overview" onclick="switchRepoTab('overview')">Overview</div>
+            <div class="repo-tab" id="rtab-code" onclick="switchRepoTab('code')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              Code
+            </div>
+            <div class="repo-tab" id="rtab-commits" onclick="switchRepoTab('commits')">Commits</div>
+            <div class="repo-tab" id="rtab-prs" onclick="switchRepoTab('prs')">Pull Requests</div>
+            <div class="repo-tab" id="rtab-issues" onclick="switchRepoTab('issues')">Issues</div>
+            <div class="repo-tab" id="rtab-releases" onclick="switchRepoTab('releases')">Releases</div>
+            <div style="margin-left:auto;display:flex;gap:6px;padding:8px 0">
+              <button class="btn btn-secondary btn-sm" onclick="openBranchModal()" id="repo-branch-btn" style="display:none">+ Branch</button>
+              <button class="btn btn-secondary btn-sm" onclick="openCommitModal()" id="repo-push-btn" style="display:none">↑ Push</button>
+              <button class="btn btn-primary btn-sm" onclick="openPRModal()" id="repo-pr-btn" style="display:none">⇄ PR</button>
+            </div>
+          </div>
+
+          <!-- Tab: Overview -->
+          <div id="repo-tab-overview" style="flex:1;overflow-y:auto;padding:20px 24px">
+            <div id="repo-no-selection" class="empty">
               <div class="empty-icon">🐙</div>
-              <div class="empty-title">No file selected</div>
-              <div class="empty-desc">Browse the file tree to open and edit code</div>
+              <div class="empty-title">Select a repository</div>
+              <div class="empty-desc">Choose from your GitHub repos on the left — public and private</div>
+            </div>
+            <div id="repo-overview-content" style="display:none">
+              <!-- Header card -->
+              <div style="background:var(--c1);border:1px solid var(--c4);border-radius:var(--r12);padding:20px;margin-bottom:16px">
+                <div style="display:flex;align-items:flex-start;gap:14px">
+                  <div id="repo-ov-icon" style="width:44px;height:44px;border-radius:var(--r10);background:var(--c3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📦</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                      <div id="repo-ov-name" style="font-size:18px;font-weight:700;letter-spacing:-.3px"></div>
+                      <div id="repo-ov-vis" class="chip" style="font-size:10px"></div>
+                    </div>
+                    <div id="repo-ov-desc" style="font-size:13px;color:var(--tx3);margin-bottom:12px;line-height:1.5"></div>
+                    <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--tx3)" id="repo-ov-meta"></div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0">
+                    <button class="btn btn-secondary btn-sm" onclick="starCurrentRepo()" id="star-btn">☆ Star</button>
+                    <button class="btn btn-secondary btn-sm" onclick="forkCurrentRepo()">⑂ Fork</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openRepoSettings()">⚙ Settings</button>
+                  </div>
+                </div>
+              </div>
+              <!-- Stats row -->
+              <div id="repo-ov-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+              <!-- Languages + Contributors row -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+                <div style="background:var(--c1);border:1px solid var(--c4);border-radius:var(--r12);padding:16px">
+                  <div style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px">Languages</div>
+                  <div id="repo-ov-langs"></div>
+                </div>
+                <div style="background:var(--c1);border:1px solid var(--c4);border-radius:var(--r12);padding:16px">
+                  <div style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px">Contributors</div>
+                  <div id="repo-ov-contributors"></div>
+                </div>
+              </div>
+              <!-- README -->
+              <div id="repo-ov-readme" style="background:var(--c1);border:1px solid var(--c4);border-radius:var(--r12);padding:20px">
+                <div style="font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+                  <span>📄</span> README
+                </div>
+                <div id="repo-ov-readme-content" style="font-size:12px;color:var(--tx2);line-height:1.8;font-family:'JetBrains Mono',monospace;white-space:pre-wrap;max-height:400px;overflow-y:auto"></div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="repo-right">
-          <div class="commit-panel-hdr">Recent Commits</div>
-          <div class="commit-list" id="commit-list">
-            <div class="empty" style="padding:24px"><div class="empty-desc">Select a repo</div></div>
+
+          <!-- Tab: Code browser -->
+          <div id="repo-tab-code" style="flex:1;display:none;overflow:hidden">
+            <div style="display:flex;height:100%">
+              <!-- File tree -->
+              <div style="width:240px;flex-shrink:0;border-right:1px solid var(--c4);display:flex;flex-direction:column;background:var(--c1)">
+                <div style="padding:8px 10px;border-bottom:1px solid var(--c4);display:flex;align-items:center;gap:6px">
+                  <select class="branch-sel" id="branch-sel" onchange="loadBranch(this.value)" style="flex:1;margin:0;width:auto"></select>
+                </div>
+                <div class="file-tree" id="file-tree" style="flex:1;overflow-y:auto"></div>
+              </div>
+              <!-- Code view -->
+              <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+                <div class="repo-file-hdr">
+                  <div class="repo-breadcrumb" id="repo-breadcrumb">Select a file</div>
+                  <div class="repo-file-acts">
+                    <button class="btn btn-secondary btn-sm" onclick="openCommitModal()">↑ Edit & Push</button>
+                    <button class="btn btn-secondary btn-sm" onclick="copyFileContent()">Copy</button>
+                    <button class="btn btn-secondary btn-sm ai" onclick="reviewCurrentFile()" style="color:var(--purple)">✦ AI Review</button>
+                  </div>
+                </div>
+                <div class="file-view">
+                  <div id="file-content" class="file-content hidden"></div>
+                  <div id="repo-empty" class="empty">
+                    <div class="empty-icon">📄</div>
+                    <div class="empty-title">No file selected</div>
+                    <div class="empty-desc">Browse the file tree to view code</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Commits -->
+          <div id="repo-tab-commits" style="flex:1;display:none;overflow-y:auto;padding:16px 20px">
+            <div id="commits-tab-list"></div>
+          </div>
+
+          <!-- Tab: Pull Requests -->
+          <div id="repo-tab-prs" style="flex:1;display:none;overflow-y:auto;padding:16px 20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div class="filter-pill" id="pr-state-filter">
+                <div class="filter-pill-btn on" onclick="setPRFilter('open',this)">Open</div>
+                <div class="filter-pill-btn" onclick="setPRFilter('closed',this)">Closed</div>
+                <div class="filter-pill-btn" onclick="setPRFilter('all',this)">All</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="openPRModal()">+ Open PR</button>
+            </div>
+            <div id="prs-tab-list"></div>
+          </div>
+
+          <!-- Tab: Issues -->
+          <div id="repo-tab-issues" style="flex:1;display:none;overflow-y:auto;padding:16px 20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div class="filter-pill" id="issue-state-filter">
+                <div class="filter-pill-btn on" onclick="setIssueFilter('open',this)">Open</div>
+                <div class="filter-pill-btn" onclick="setIssueFilter('closed',this)">Closed</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="openNewIssue()">+ New Issue</button>
+            </div>
+            <div id="issues-tab-list"></div>
+          </div>
+
+          <!-- Tab: Releases -->
+          <div id="repo-tab-releases" style="flex:1;display:none;overflow-y:auto;padding:16px 20px">
+            <div id="releases-tab-list"></div>
           </div>
         </div>
       </div>
@@ -1759,6 +1930,35 @@ code,pre,.mono{font-family:'JetBrains Mono',monospace}
       </div>
     </div>
     <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('invite-modal')">Cancel</button><button class="btn btn-primary" onclick="sendInvite()">Send Invite</button></div>
+  </div>
+</div>
+
+<!-- New Issue -->
+<div id="issue-modal" class="modal-ov hidden" onclick="if(event.target===this)closeModal('issue-modal')">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title">New Issue</div><div class="modal-close" onclick="closeModal('issue-modal')">✕</div></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">Title *</label><input class="field-input" id="issue-title-in" type="text" placeholder="What's the issue?"></div>
+      <div class="field"><label class="field-label">Description</label><textarea class="field-input" id="issue-body-in" rows="5" placeholder="Describe the issue, steps to reproduce, expected behavior..."></textarea></div>
+      <div class="field"><label class="field-label">Labels</label><input class="field-input" id="issue-labels-in" type="text" placeholder="bug, enhancement, help wanted (comma separated)"></div>
+    </div>
+    <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('issue-modal')">Cancel</button><button class="btn btn-primary" onclick="createIssue()">Submit Issue</button></div>
+  </div>
+</div>
+
+<!-- Repo Settings -->
+<div id="repo-settings-modal" class="modal-ov hidden" onclick="if(event.target===this)closeModal('repo-settings-modal')">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title">Repository Settings</div><div class="modal-close" onclick="closeModal('repo-settings-modal')">✕</div></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">Description</label><input class="field-input" id="rs-desc-in" type="text" placeholder="Short description"></div>
+      <div class="field"><label class="field-label">Homepage URL</label><input class="field-input" id="rs-homepage-in" type="url" placeholder="https://example.com"></div>
+      <div style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.1);border-radius:var(--r8);padding:12px;margin-top:8px">
+        <div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:4px">Danger Zone</div>
+        <div style="font-size:11px;color:var(--tx4)">Repository settings changes apply directly to GitHub.</div>
+      </div>
+    </div>
+    <div class="modal-ftr"><button class="btn btn-secondary" onclick="closeModal('repo-settings-modal')">Cancel</button><button class="btn btn-primary" onclick="saveRepoSettings()">Save Settings</button></div>
   </div>
 </div>
 
@@ -2331,106 +2531,442 @@ function deadline(dl){
 function openFileInRepo(path){showRepos();toast('i','File',`Navigate to: ${path}`);}
 
 // ════════════════════════════════════════════════════════════
-// REPOS
+// REPOS — Full GitHub Dashboard
 // ════════════════════════════════════════════════════════════
+S.allMyRepos = [];   // all github repos (public+private)
+S.currentGhRepo = null; // current github repo object
+S.repoFilter = 'all';
+S.repoSearch = '';
+S.currentRepoTab = 'overview';
+S.prFilter = 'open';
+S.issueFilter = 'open';
+
+const LANG_COLORS = {
+  JavaScript:'#f1e05a',TypeScript:'#2b7489',Python:'#3572A5',Java:'#b07219',
+  'C++':'#f34b7d','C#':'#178600',Go:'#00ADD8',Rust:'#dea584',PHP:'#4F5D95',
+  Ruby:'#701516',Swift:'#ffac45',Kotlin:'#F18E33',HTML:'#e34c26',CSS:'#563d7c',
+  Shell:'#89e051',Vue:'#41b883',Dart:'#00B4AB',Scala:'#c22d40',Other:'#8b949e',
+};
+function langColor(lang){return LANG_COLORS[lang]||LANG_COLORS.Other;}
+
 async function showRepos(){
   showView('repo');
-  const sel=document.getElementById('repo-selector');
-  sel.innerHTML='<option value="">Select repository...</option>'+S.repos.map(r=>`<option value="${r.id}">${esc(r.full_name)}</option>`).join('');
-  if(S.repos.length){sel.value=S.repos[0].id;loadRepo(S.repos[0].id);}
+  if(!S.allMyRepos.length)await loadAllMyRepos();
+  else renderRepoList();
 }
-async function loadRepo(repoId){
-  if(!repoId){S.currentRepo=null;return;}
-  S.currentRepo=S.repos.find(r=>r.id===repoId);if(!S.currentRepo)return;
-  document.getElementById('repo-breadcrumb').textContent=S.currentRepo.full_name;
+
+async function loadAllMyRepos(){
+  const panel=document.getElementById('repo-list-panel');
+  if(panel)panel.innerHTML='<div style="padding:20px;text-align:center;font-size:11px;color:var(--tx4)">Loading repositories...</div>';
   try{
-    const branches=await GET(`/repos/${repoId}/branches`);
+    const repos=await GET('/github/repos/all');
+    S.allMyRepos=repos||[];
+    renderRepoList();
+    document.getElementById('stat-repos').textContent=S.allMyRepos.length;
+    // Auto-select first repo
+    if(S.allMyRepos.length)selectGhRepo(S.allMyRepos[0]);
+  }catch(e){
+    if(panel)panel.innerHTML=`<div style="padding:16px;font-size:11px;color:var(--red)">${esc(e.message)}</div>`;
+  }
+}
+
+function renderRepoList(){
+  const panel=document.getElementById('repo-list-panel');if(!panel)return;
+  let repos=S.allMyRepos;
+  if(S.repoFilter==='public')repos=repos.filter(r=>!r.private);
+  if(S.repoFilter==='private')repos=repos.filter(r=>r.private);
+  if(S.repoSearch)repos=repos.filter(r=>r.name.toLowerCase().includes(S.repoSearch)||r.description?.toLowerCase().includes(S.repoSearch));
+  if(!repos.length){panel.innerHTML='<div style="padding:16px;font-size:11px;color:var(--tx4);text-align:center">No repositories found</div>';return;}
+  panel.innerHTML=repos.map(r=>`<div class="repo-list-item${S.currentGhRepo?.id===r.id?' active':''}" onclick="selectGhRepo_${r.id}()">
+    <div class="repo-list-name">${esc(r.name)}</div>
+    ${r.description?`<div class="repo-list-desc">${esc(r.description)}</div>`:''}
+    <div class="repo-list-meta">
+      ${r.language?`<div class="lang-dot" style="background:${langColor(r.language)}"></div><span>${esc(r.language)}</span>`:''}
+      ${r.private?'<span>🔒 Private</span>':'<span>🌐 Public</span>'}
+      <span>⭐ ${r.stargazers_count||0}</span>
+      <span>⑂ ${r.forks_count||0}</span>
+    </div>
+  </div>`).join('');
+  // bind click handlers (avoid inline eval for security)
+  repos.forEach(r=>{window[`selectGhRepo_${r.id}`]=()=>selectGhRepo(r);});
+}
+
+function setRepoFilter(f,el){
+  S.repoFilter=f;
+  document.querySelectorAll('.repo-filter-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');renderRepoList();
+}
+function filterRepoList(q){S.repoSearch=q.toLowerCase();renderRepoList();}
+
+async function selectGhRepo(repo){
+  S.currentGhRepo=repo;
+  S.currentBranch=repo.default_branch||'main';
+  S.currentFile=null;S.currentFileSha=null;
+  renderRepoList();
+  // Show repo action buttons
+  ['repo-branch-btn','repo-push-btn','repo-pr-btn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
+  // Switch to overview
+  switchRepoTab('overview');
+  loadRepoOverview(repo);
+}
+
+function switchRepoTab(tab){
+  S.currentRepoTab=tab;
+  ['overview','code','commits','prs','issues','releases'].forEach(t=>{
+    const panel=document.getElementById('repo-tab-'+t);
+    const tabEl=document.getElementById('rtab-'+t);
+    if(panel)panel.style.display=t===tab?'flex':'none';
+    if(panel&&t==='overview')panel.style.display=t===tab?'block':'none';
+    if(panel&&['commits','prs','issues','releases'].includes(t))panel.style.display=t===tab?'block':'none';
+    if(tabEl)tabEl.classList.toggle('active',t===tab);
+  });
+  if(!S.currentGhRepo)return;
+  const [owner,repoName]=S.currentGhRepo.full_name.split('/');
+  if(tab==='code'&&!S.currentFile){loadTree('');}
+  if(tab==='commits'){loadCommitsTab();}
+  if(tab==='prs'){loadPRsTab(S.prFilter);}
+  if(tab==='issues'){loadIssuesTab(S.issueFilter);}
+  if(tab==='releases'){loadReleasesTab();}
+}
+
+async function loadRepoOverview(repo){
+  document.getElementById('repo-no-selection').style.display='none';
+  document.getElementById('repo-overview-content').style.display='block';
+  const [owner,repoName]=repo.full_name.split('/');
+  // Header
+  document.getElementById('repo-ov-name').textContent=repo.full_name;
+  const vis=document.getElementById('repo-ov-vis');
+  vis.textContent=repo.private?'Private':'Public';
+  vis.className='chip '+(repo.private?'chip-blocked':'chip-open');
+  document.getElementById('repo-ov-desc').textContent=repo.description||'No description provided.';
+  // Meta row
+  document.getElementById('repo-ov-meta').innerHTML=[
+    `<span>⭐ ${repo.stargazers_count||0} stars</span>`,
+    `<span>⑂ ${repo.forks_count||0} forks</span>`,
+    `<span>👁 ${repo.watchers_count||0} watchers</span>`,
+    `<span>🐛 ${repo.open_issues_count||0} issues</span>`,
+    repo.homepage?`<a href="${esc(repo.homepage)}" target="_blank" style="color:var(--blue)">🔗 Homepage</a>`:'',
+    `<span>📅 Updated ${new Date(repo.updated_at).toLocaleDateString()}</span>`,
+    repo.license?`<span>📜 ${esc(repo.license.spdx_id||repo.license.name)}</span>`:'',
+  ].filter(Boolean).join('<span style="color:var(--c5)">·</span>');
+  // Stats
+  document.getElementById('repo-ov-stats').innerHTML=[
+    {val:repo.stargazers_count||0,label:'Stars'},
+    {val:repo.forks_count||0,label:'Forks'},
+    {val:repo.open_issues_count||0,label:'Issues'},
+    {val:repo.watchers_count||0,label:'Watchers'},
+  ].map(s=>`<div class="stat-mini"><div class="stat-mini-val">${s.val}</div><div class="stat-mini-label">${s.label}</div></div>`).join('');
+  // Load langs + contributors + readme in parallel
+  try{
+    const [langs,contributors,readme]=await Promise.all([
+      GET(`/github/repos/${owner}/${repoName}/languages`).catch(()=>({})),
+      GET(`/github/repos/${owner}/${repoName}/contributors`).catch(()=>[]),
+      GET(`/github/repos/${owner}/${repoName}/readme`).catch(()=>({content:''})),
+    ]);
+    // Language bar
+    const total=Object.values(langs).reduce((a,b)=>a+b,0)||1;
+    const langEl=document.getElementById('repo-ov-langs');
+    const langEntries=Object.entries(langs).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    if(langEntries.length){
+      langEl.innerHTML=`<div class="lang-bar">${langEntries.map(([l,v])=>`<div class="lang-seg" style="flex:${v/total};background:${langColor(l)};min-width:3px" title="${l} ${Math.round(v/total*100)}%"></div>`).join('')}</div>`+
+        langEntries.map(([l,v])=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tx2);margin-bottom:4px"><div style="width:8px;height:8px;border-radius:50%;background:${langColor(l)};flex-shrink:0"></div>${esc(l)}<span style="color:var(--tx4)">${Math.round(v/total*100)}%</span></div>`).join('');
+    }else{langEl.innerHTML='<div style="font-size:11px;color:var(--tx4)">No language data</div>';}
+    // Contributors
+    const contribEl=document.getElementById('repo-ov-contributors');
+    contribEl.innerHTML=(Array.isArray(contributors)?contributors.slice(0,5):[]).map(ct=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <img src="${esc(ct.avatar_url)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ct.login)}</div>
+        </div>
+        <div style="font-size:10px;color:var(--tx4)">${ct.contributions} commits</div>
+      </div>`).join('')||'<div style="font-size:11px;color:var(--tx4)">No data</div>';
+    // README
+    const readmeEl=document.getElementById('repo-ov-readme-content');
+    readmeEl.textContent=readme.content||'No README found.';
+  }catch(e){console.warn('overview extras',e);}
+  // Load branches for code tab
+  try{
+    const branches=await GET(`/repos/${await getOrLinkRepo(repo)}/branches`);
     const bs=document.getElementById('branch-sel');
-    bs.innerHTML=branches.map(b=>`<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
-    S.currentBranch=branches[0]?.name||'main';
-    loadTree('');loadRepoCommits(repoId);
-  }catch(e){toast('e','Error',e.message);}
+    if(bs){bs.innerHTML=branches.map(b=>`<option value="${esc(b.name)}"${b.name===S.currentBranch?' selected':''}>${esc(b.name)}</option>`).join('');}
+    S.currentBranch=branches.find(b=>b.name===repo.default_branch)?.name||branches[0]?.name||'main';
+  }catch{}
 }
-async function loadTree(path=''){
-  if(!S.currentRepo)return;
+
+// Get or create a linked repo record in our DB (needed for tree/file/commit APIs)
+async function getOrLinkRepo(ghRepo){
+  const existing=S.repos.find(r=>r.github_repo_id===String(ghRepo.id)||r.full_name===ghRepo.full_name);
+  if(existing)return existing.id;
+  // Link it
+  const [owner,name]=ghRepo.full_name.split('/');
   try{
-    const items=await GET(`/repos/${S.currentRepo.id}/tree?path=${encodeURIComponent(path)}&ref=${S.currentBranch}`);
+    const linked=await POST(`/workspaces/${S.ws.id}/repos`,{owner,name});
+    S.repos.push(linked);document.getElementById('stat-repos').textContent=S.repos.length;
+    return linked.id;
+  }catch{return null;}
+}
+
+async function loadTree(path=''){
+  if(!S.currentGhRepo)return;
+  const repoId=await getOrLinkRepo(S.currentGhRepo);if(!repoId)return;
+  try{
+    const items=await GET(`/repos/${repoId}/tree?path=${encodeURIComponent(path)}&ref=${S.currentBranch}`);
     const tree=document.getElementById('file-tree');
     const sorted=Array.isArray(items)?[...items].sort((a,b)=>a.type.localeCompare(b.type)||a.name.localeCompare(b.name)):[];
-    tree.innerHTML=sorted.map(it=>`<div class="file-item${it.type==='dir'?'':''}" onclick="${it.type==='dir'?`loadTree('${esc(it.path)}')`:`loadFile('${esc(it.path)}')`}">
-      <div class="file-icon">${it.type==='dir'?'📁':'📄'}</div>
+    const backPart=path?`<div class="file-item" onclick="loadTree('${esc(path.split('/').slice(0,-1).join('/'))}')" style="color:var(--blue)"><div class="file-icon">←</div><span>..</span></div>`:'';
+    tree.innerHTML=backPart+sorted.map(it=>`<div class="file-item${it.type!=='dir'&&S.currentFile===it.path?' active':''}" onclick="${it.type==='dir'?`loadTree('${esc(it.path)}')`:`loadFile('${esc(it.path)}')`}">
+      <div class="file-icon" style="font-size:13px">${it.type==='dir'?'📁':getFileIcon(it.name)}</div>
       <span>${esc(it.name)}</span>
     </div>`).join('');
   }catch(e){toast('e','Error loading files',e.message);}
 }
+
+function getFileIcon(name){
+  const ext=name.split('.').pop().toLowerCase();
+  const map={js:'🟨',ts:'🔷',jsx:'⚛️',tsx:'⚛️',py:'🐍',go:'🐹',rs:'🦀',java:'☕',kt:'🎯',swift:'🍎',rb:'💎',php:'🐘',html:'🌐',css:'🎨',json:'📋',md:'📝',yml:'⚙️',yaml:'⚙️',env:'🔑',sh:'💻',sql:'🗄️',png:'🖼️',jpg:'🖼️',svg:'🖼️',pdf:'📕',zip:'📦',lock:'🔒',gitignore:'👁️'};
+  return map[ext]||'📄';
+}
+
 async function loadFile(path){
-  if(!S.currentRepo)return;
+  if(!S.currentGhRepo)return;
+  const repoId=await getOrLinkRepo(S.currentGhRepo);if(!repoId)return;
   try{
-    const file=await GET(`/repos/${S.currentRepo.id}/file?path=${encodeURIComponent(path)}&ref=${S.currentBranch}`);
+    const file=await GET(`/repos/${repoId}/file?path=${encodeURIComponent(path)}&ref=${S.currentBranch}`);
     S.currentFile=path;S.currentFileSha=file.sha;
-    document.getElementById('repo-breadcrumb').textContent=`${S.currentRepo.full_name} / ${path}`;
+    document.getElementById('repo-breadcrumb').textContent=`${S.currentGhRepo.full_name} / ${path}`;
     document.getElementById('repo-empty').classList.add('hidden');
     const fc=document.getElementById('file-content');fc.classList.remove('hidden');
     const lines=(file.decoded_content||'').split('\n');
     fc.innerHTML=lines.map((l,i)=>`<span class="line-num">${i+1}</span>${esc(l)}\n`).join('');
-    document.querySelectorAll('.file-item').forEach(el=>el.classList.toggle('active',el.textContent.trim().endsWith(path.split('/').pop())));
+    document.querySelectorAll('#file-tree .file-item').forEach(el=>{
+      el.classList.toggle('active',el.querySelector('span')?.textContent===path.split('/').pop());
+    });
+    document.getElementById('commit-path-in').value=path;
+    document.getElementById('commit-content-in').value=file.decoded_content||'';
+    document.getElementById('commit-branch-in').value=S.currentBranch;
   }catch(e){toast('e','Error',e.message);}
 }
 function loadBranch(b){S.currentBranch=b;loadTree('');}
-async function loadRepoCommits(repoId){
+function copyFileContent(){
+  const fc=document.getElementById('file-content');
+  if(fc)navigator.clipboard.writeText(fc.innerText||'').then(()=>toast('s','Copied',''));
+}
+function reviewCurrentFile(){
+  const fc=document.getElementById('file-content');
+  if(!fc||!S.currentFile){toast('e','Select a file first','');return;}
+  openAI();setMode('review');
+  setTimeout(()=>{document.getElementById('ai-input').value=`Review this ${S.currentFile}:\n\`\`\`\n${fc.innerText.slice(0,3000)}\n\`\`\``;},100);
+}
+
+async function loadCommitsTab(){
+  const el=document.getElementById('commits-tab-list');if(!el||!S.currentGhRepo)return;
+  el.innerHTML='<div style="font-size:11px;color:var(--tx4);padding:12px">Loading commits...</div>';
+  const repoId=await getOrLinkRepo(S.currentGhRepo);if(!repoId){el.innerHTML='';return;}
   try{
     const commits=await GET(`/repos/${repoId}/commits`);
-    const list=document.getElementById('commit-list');
-    list.innerHTML=(commits||[]).slice(0,15).map(c=>`<div class="commit-item">
-      <div class="commit-sha">${c.sha?.slice(0,7)}</div>
-      <div class="commit-msg">${esc(c.commit?.message?.split('\n')[0]||'')}</div>
-      <div class="commit-meta">${esc(c.commit?.author?.name||'')} · ${new Date(c.commit?.author?.date||Date.now()).toLocaleDateString()}</div>
-    </div>`).join('');
-  }catch{}
+    el.innerHTML=(commits||[]).map(c=>`<div class="commit-full-item">
+      <div style="flex:1;min-width:0">
+        <div class="commit-full-msg">${esc(c.commit?.message?.split('\n')[0]||'')}</div>
+        <div class="commit-full-meta">
+          <img src="${c.author?.avatar_url||''}" style="width:16px;height:16px;border-radius:50%;vertical-align:middle;margin-right:4px" onerror="this.style.display='none'">
+          ${esc(c.commit?.author?.name||'')} · ${new Date(c.commit?.author?.date||Date.now()).toLocaleString()}
+        </div>
+      </div>
+      <div>
+        <div class="commit-full-sha" onclick="navigator.clipboard.writeText('${c.sha}').then(()=>toast('s','Copied SHA',''))" title="Copy SHA">${c.sha?.slice(0,7)}</div>
+      </div>
+    </div>`).join('')||'<div class="empty"><div class="empty-desc">No commits</div></div>';
+  }catch(e){el.innerHTML=`<div style="color:var(--red);font-size:11px;padding:12px">${esc(e.message)}</div>`;}
 }
-function openBranchModal(){openModal('branch-modal');}
-async function createBranch(){
-  if(!S.currentRepo){toast('e','No repo','Select a repository first');return;}
-  const name=safe(document.getElementById('branch-name-in').value,100);
-  if(!name){toast('e','Error','Branch name required');return;}
+
+async function loadPRsTab(state='open'){
+  const el=document.getElementById('prs-tab-list');if(!el||!S.currentGhRepo)return;
+  el.innerHTML='<div style="font-size:11px;color:var(--tx4);padding:12px">Loading pull requests...</div>';
+  const repoId=await getOrLinkRepo(S.currentGhRepo);if(!repoId){el.innerHTML='';return;}
   try{
-    const branches=await GET(`/repos/${S.currentRepo.id}/branches`);
-    const sha=branches[0]?.commit?.sha||'';
-    await POST(`/repos/${S.currentRepo.id}/branches`,{branchName:name,fromSha:sha});
-    closeModal('branch-modal');toast('s','Branch created',name);loadRepo(S.currentRepo.id);
+    const prs=await GET(`/repos/${repoId}/prs?state=${state}`);
+    if(!(prs||[]).length){el.innerHTML='<div class="empty"><div class="empty-icon">⇄</div><div class="empty-title">No pull requests</div><div class="empty-desc">There are no '+state+' pull requests</div></div>';return;}
+    el.innerHTML=prs.map(pr=>`<div class="gh-item">
+      <div class="gh-item-title">
+        <span class="pr-badge ${pr.state==='merged'?'pr-merged':pr.state==='closed'?'pr-closed':'pr-open'}">${pr.state}</span>
+        <a style="margin-left:8px" onclick="window.open('${esc(pr.html_url)}','_blank')">${esc(pr.title)}</a>
+      </div>
+      <div class="gh-item-meta">
+        <span>#${pr.number}</span>
+        <span>by <strong>${esc(pr.user?.login||'')}</strong></span>
+        <span>${new Date(pr.created_at).toLocaleDateString()}</span>
+        ${pr.head?.ref?`<span style="font-family:monospace;font-size:10px;color:var(--blue)">${esc(pr.head.ref)} → ${esc(pr.base?.ref||'main')}</span>`:''}
+        <span>💬 ${pr.comments||0}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="btn btn-secondary btn-sm" onclick="window.open('${esc(pr.html_url)}','_blank')">View on GitHub ↗</button>
+        ${pr.state==='open'?`<button class="btn btn-primary btn-sm" onclick="mergePR_${pr.number}()">Merge PR</button>`:''}
+      </div>
+    </div>`).join('');
+    prs.filter(p=>p.state==='open').forEach(pr=>{window[`mergePR_${pr.number}`]=async()=>{
+      if(!confirm(`Merge PR #${pr.number}?`))return;
+      const repoId2=await getOrLinkRepo(S.currentGhRepo);
+      if(!repoId2)return;
+      POST(`/repos/${repoId2}/prs/${pr.number}/merge`,{mergeMethod:'merge'}).then(()=>{toast('s','PR Merged!',`#${pr.number}`);loadPRsTab(S.prFilter);}).catch(e=>toast('e','Error',e.message));
+    };});
+  }catch(e){el.innerHTML=`<div style="color:var(--red);font-size:11px;padding:12px">${esc(e.message)}</div>`;}
+}
+function setPRFilter(f,el){S.prFilter=f;document.querySelectorAll('#pr-state-filter .filter-pill-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');loadPRsTab(f);}
+
+async function loadIssuesTab(state='open'){
+  const el=document.getElementById('issues-tab-list');if(!el||!S.currentGhRepo)return;
+  el.innerHTML='<div style="font-size:11px;color:var(--tx4);padding:12px">Loading issues...</div>';
+  const [owner,repoName]=S.currentGhRepo.full_name.split('/');
+  try{
+    const issues=await GET(`/github/repos/${owner}/${repoName}/issues?state=${state}`);
+    const realIssues=(issues||[]).filter(i=>!i.pull_request);
+    if(!realIssues.length){el.innerHTML='<div class="empty"><div class="empty-icon">🐛</div><div class="empty-title">No issues</div><div class="empty-desc">No '+state+' issues</div></div>';return;}
+    el.innerHTML=realIssues.map(is=>`<div class="gh-item">
+      <div class="gh-item-title">
+        <span class="chip ${is.state==='open'?'chip-open':'chip-done'}">${is.state}</span>
+        <a style="margin-left:8px" onclick="window.open('${esc(is.html_url)}','_blank')">#${is.number} ${esc(is.title)}</a>
+      </div>
+      <div class="gh-item-meta">
+        <span>by <strong>${esc(is.user?.login||'')}</strong></span>
+        <span>${new Date(is.created_at).toLocaleDateString()}</span>
+        ${is.labels?.map(l=>`<span style="background:rgba(${parseInt(l.color?.slice(0,2)||'88',16)},${parseInt(l.color?.slice(2,4)||'88',16)},${parseInt(l.color?.slice(4,6)||'88',16)},0.15);border:1px solid #${esc(l.color||'888')};border-radius:99px;padding:1px 7px;font-size:10px">${esc(l.name)}</span>`).join('')||''}
+        <span>💬 ${is.comments||0}</span>
+      </div>
+      <div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="window.open('${esc(is.html_url)}','_blank')">View on GitHub ↗</button></div>
+    </div>`).join('');
+  }catch(e){el.innerHTML=`<div style="color:var(--red);font-size:11px;padding:12px">${esc(e.message)}</div>`;}
+}
+function setIssueFilter(f,el){S.issueFilter=f;document.querySelectorAll('#issue-state-filter .filter-pill-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');loadIssuesTab(f);}
+
+function openNewIssue(){if(!S.currentGhRepo){toast('e','Select a repo','');return;}openModal('issue-modal');}
+async function createIssue(){
+  if(!S.currentGhRepo)return;
+  const [owner,repoName]=S.currentGhRepo.full_name.split('/');
+  const title=safe(document.getElementById('issue-title-in').value,300);
+  const body=safe(document.getElementById('issue-body-in').value,10000);
+  const labelStr=document.getElementById('issue-labels-in').value;
+  const labels=labelStr?labelStr.split(',').map(l=>l.trim()).filter(Boolean):[];
+  if(!title){toast('e','Error','Title required');return;}
+  try{
+    const issue=await POST(`/github/repos/${owner}/${repoName}/issues`,{title,body,labels});
+    closeModal('issue-modal');toast('s','Issue created',`#${issue.number}`);
+    loadIssuesTab(S.issueFilter);
+  }catch(e){toast('e','Error',e.message);}
+}
+
+async function loadReleasesTab(){
+  const el=document.getElementById('releases-tab-list');if(!el||!S.currentGhRepo)return;
+  el.innerHTML='<div style="font-size:11px;color:var(--tx4);padding:12px">Loading releases...</div>';
+  const [owner,repoName]=S.currentGhRepo.full_name.split('/');
+  try{
+    const releases=await GET(`/github/repos/${owner}/${repoName}/releases`);
+    if(!(releases||[]).length){el.innerHTML='<div class="empty"><div class="empty-icon">🚀</div><div class="empty-title">No releases</div><div class="empty-desc">Create your first release on GitHub</div></div>';return;}
+    el.innerHTML=releases.map(r=>`<div class="release-card">
+      <div class="release-tag">${esc(r.tag_name)}</div>
+      <div class="release-name">${esc(r.name||r.tag_name)}</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;font-size:11px;color:var(--tx4)">
+        <span>${new Date(r.published_at).toLocaleDateString()}</span>
+        <span>by ${esc(r.author?.login||'')}</span>
+        ${r.prerelease?'<span style="color:var(--yellow)">Pre-release</span>':''}
+        ${r.draft?'<span style="color:var(--tx4)">Draft</span>':''}
+      </div>
+      ${r.body?`<div class="release-body">${esc(r.body)}</div>`:'<div style="font-size:11px;color:var(--tx4)">No release notes</div>'}
+      <div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="window.open('${esc(r.html_url)}','_blank')">View on GitHub ↗</button></div>
+    </div>`).join('');
+  }catch(e){el.innerHTML=`<div style="color:var(--red);font-size:11px;padding:12px">${esc(e.message)}</div>`;}
+}
+
+async function starCurrentRepo(){
+  if(!S.currentGhRepo)return;
+  const [owner,repoName]=S.currentGhRepo.full_name.split('/');
+  try{await POST(`/github/repos/${owner}/${repoName}/star`,{});toast('s','Starred!',S.currentGhRepo.full_name);}
+  catch(e){toast('e','Error',e.message);}
+}
+async function forkCurrentRepo(){
+  if(!S.currentGhRepo)return;
+  const [owner,repoName]=S.currentGhRepo.full_name.split('/');
+  if(!confirm(`Fork ${S.currentGhRepo.full_name} to your account?`))return;
+  try{await POST(`/github/repos/${owner}/${repoName}/fork`,{});toast('s','Forked!','Check your GitHub profile');}
+  catch(e){toast('e','Error',e.message);}
+}
+function openRepoSettings(){
+  if(!S.currentGhRepo)return;
+  document.getElementById('rs-desc-in').value=S.currentGhRepo.description||'';
+  document.getElementById('rs-homepage-in').value=S.currentGhRepo.homepage||'';
+  openModal('repo-settings-modal');
+}
+async function saveRepoSettings(){
+  if(!S.currentGhRepo)return;
+  const [owner,repoName]=S.currentGhRepo.full_name.split('/');
+  const desc=document.getElementById('rs-desc-in').value;
+  const homepage=document.getElementById('rs-homepage-in').value;
+  try{
+    await PATCH(`/github/repos/${owner}/${repoName}`,{description:desc,homepage});
+    S.currentGhRepo={...S.currentGhRepo,description:desc,homepage};
+    closeModal('repo-settings-modal');toast('s','Saved','Repo settings updated');
+    document.getElementById('repo-ov-desc').textContent=desc||'No description.';
+  }catch(e){toast('e','Error',e.message);}
+}
+
+function openBranchModal(){if(!S.currentGhRepo){toast('e','No repo','');return;}openModal('branch-modal');}
+async function createBranch(){
+  if(!S.currentGhRepo)return;
+  const name=safe(document.getElementById('branch-name-in').value,100);
+  if(!name){toast('e','Error','Name required');return;}
+  const repoId=await getOrLinkRepo(S.currentGhRepo);if(!repoId)return;
+  try{
+    const branches=await GET(`/repos/${repoId}/branches`);
+    const sha=branches.find(b=>b.name===S.currentBranch)?.commit?.sha||branches[0]?.commit?.sha||'';
+    await POST(`/repos/${repoId}/branches`,{branchName:name,fromSha:sha});
+    closeModal('branch-modal');toast('s','Branch created',name);
+    // Refresh branches
+    const newBranches=await GET(`/repos/${repoId}/branches`);
+    const bs=document.getElementById('branch-sel');
+    if(bs)bs.innerHTML=newBranches.map(b=>`<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+    S.currentBranch=name;
   }catch(e){toast('e','Error',e.message);}
 }
 function openCommitModal(){
-  if(!S.currentRepo){toast('e','No repo','Select a repository first');return;}
+  if(!S.currentGhRepo){toast('e','No repo','');return;}
   document.getElementById('commit-path-in').value=S.currentFile||'';
   document.getElementById('commit-branch-in').value=S.currentBranch||'main';
-  if(S.currentFile)GET(`/repos/${S.currentRepo.id}/file?path=${encodeURIComponent(S.currentFile)}&ref=${S.currentBranch}`).then(f=>{document.getElementById('commit-content-in').value=f.decoded_content||'';}).catch(()=>{});
   openModal('commit-modal');
 }
 async function pushCommit(){
-  if(!S.currentRepo){toast('e','No repo','');return;}
+  if(!S.currentGhRepo)return;
   const path=safe(document.getElementById('commit-path-in').value,500);
   const content=document.getElementById('commit-content-in').value;
   const msg=safe(document.getElementById('commit-msg-in').value,300);
   const branch=safe(document.getElementById('commit-branch-in').value,100)||'main';
   if(!path||!content||!msg){toast('e','Error','All fields required');return;}
-  try{await POST(`/repos/${S.currentRepo.id}/commit`,{path,content,message:msg,branch,sha:S.currentFileSha||null});closeModal('commit-modal');toast('s','Pushed','Commit successful');}
-  catch(e){toast('e','Error',e.message);}
+  const repoId=await getOrLinkRepo(S.currentGhRepo);if(!repoId)return;
+  try{
+    await POST(`/repos/${repoId}/commit`,{path,content,message:msg,branch,sha:S.currentFileSha||null});
+    closeModal('commit-modal');
+    toast('s','Pushed! ✓',msg);
+    // Reload file + commits
+    loadFile(path);loadCommitsTab();
+  }catch(e){toast('e','Error',e.message);}
 }
 function openPRModal(){
-  if(!S.currentRepo){toast('e','No repo','Select a repository first');return;}
+  if(!S.currentGhRepo){toast('e','No repo','');return;}
   document.getElementById('pr-head-in').value=S.currentBranch||'';
+  document.getElementById('pr-base-in').value=S.currentGhRepo.default_branch||'main';
   openModal('pr-modal');
 }
 async function createPR(){
-  if(!S.currentRepo){return;}
+  if(!S.currentGhRepo)return;
   const title=safe(document.getElementById('pr-title-in').value,300);
   const body=safe(document.getElementById('pr-body-in').value,3000);
   const head=safe(document.getElementById('pr-head-in').value,100);
   const base=safe(document.getElementById('pr-base-in').value,100)||'main';
   if(!title||!head){toast('e','Error','Title and branch required');return;}
-  try{await POST(`/repos/${S.currentRepo.id}/prs`,{title,body,head,base});closeModal('pr-modal');toast('s','PR Created','');loadRPPRs();}
-  catch(e){toast('e','Error',e.message);}
+  const repoId=await getOrLinkRepo(S.currentGhRepo);if(!repoId)return;
+  try{
+    await POST(`/repos/${repoId}/prs`,{title,body,head,base});
+    closeModal('pr-modal');toast('s','PR Created! ⇄','');loadPRsTab(S.prFilter);loadRPPRs();
+  }catch(e){toast('e','Error',e.message);}
 }
 function openNewRepo(){openModal('repo-modal');}
 function repoMode(t){
@@ -2449,15 +2985,16 @@ async function addRepo(){
       const priv=document.getElementById('repo-vis-in').value==='true';
       const res=await POST('/repos/create',{workspaceId:S.ws.id,name:n,description:d,isPrivate:priv});
       r=res.repo;
+      // Also add to allMyRepos
+      S.allMyRepos.unshift(res.github||r);
     }else{
       const owner=safe(document.getElementById('repo-owner-in').value,100);
       const name=safe(document.getElementById('repo-name-in').value,100);
       r=await POST(`/workspaces/${S.ws.id}/repos`,{owner,name});
     }
     S.repos.push(r);
-    document.getElementById('repo-selector').innerHTML='<option value="">Select repository...</option>'+S.repos.map(rp=>`<option value="${rp.id}">${esc(rp.full_name)}</option>`).join('');
     document.getElementById('stat-repos').textContent=S.repos.length;
-    closeModal('repo-modal');renderRPRepos();toast('s','Repo added','');
+    closeModal('repo-modal');renderRPRepos();renderRepoList();toast('s','Repo added','');
   }catch(e){toast('e','Error',e.message);}
 }
 
@@ -2870,9 +3407,9 @@ function showRepos(){
   document.getElementById('repo-view').classList.remove('hidden');
   ['sb-home','sb-tasks','sb-repos'].forEach(id=>document.getElementById(id)?.classList.remove('active'));
   document.getElementById('sb-repos').classList.add('active');
-  const sel=document.getElementById('repo-selector');
-  sel.innerHTML='<option value="">Select repository...</option>'+S.repos.map(r=>`<option value="${r.id}">${esc(r.full_name)}</option>`).join('');
-  if(S.repos.length){sel.value=S.repos[0].id;loadRepo(S.repos[0].id);}
+  // Use new real GitHub loader
+  if(!S.allMyRepos.length)loadAllMyRepos();
+  else renderRepoList();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -2896,7 +3433,7 @@ function buildContribGraph(){
 // ════════════════════════════════════════════════════════════
 function openModal(id){document.getElementById(id)?.classList.remove('hidden');}
 function closeModal(id){document.getElementById(id)?.classList.add('hidden');}
-function closeAllModals(){['prof-modal','settings-modal','ch-modal','task-modal','repo-modal','commit-modal','pr-modal','proj-modal','notif-modal','user-search-modal','branch-modal','invite-modal'].forEach(closeModal);closeAI();}
+function closeAllModals(){['prof-modal','settings-modal','ch-modal','task-modal','repo-modal','commit-modal','pr-modal','proj-modal','notif-modal','user-search-modal','branch-modal','invite-modal','issue-modal','repo-settings-modal'].forEach(closeModal);closeAI();}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAllModals();if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();document.getElementById('g-search').focus();}});
 
 // ════════════════════════════════════════════════════════════
