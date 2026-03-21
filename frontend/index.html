@@ -5510,3 +5510,536 @@ window.enterApp = function(){
   }, 1500);
 };
 </script>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   GITHUB FEED CARDS + BURNDOWN + LAST ACTIVE + TASK PRESENCE
+═══════════════════════════════════════════════════════════ */
+
+/* GitHub event card */
+.gh-feed-card {
+  background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);
+  padding:14px;margin-bottom:8px;
+  border-left:3px solid var(--c5);
+  transition:all .15s;
+}
+.gh-feed-card:hover { border-color:var(--c5);background:var(--c2); }
+.gh-feed-card.gc-push   { border-left-color:#22c55e; }
+.gh-feed-card.gc-pr     { border-left-color:#a855f7; }
+.gh-feed-card.gc-review { border-left-color:#3b82f6; }
+.gh-feed-card.gc-issue  { border-left-color:#f97316; }
+.gh-feed-card.gc-branch { border-left-color:#06b6d4; }
+.gh-feed-card.gc-release{ border-left-color:#eab308; }
+.gh-feed-card.gc-star   { border-left-color:#f59e0b; }
+.gfc-header {
+  display:flex;align-items:center;gap:8px;margin-bottom:8px;
+}
+.gfc-avatar {
+  width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;
+}
+.gfc-sender { font-size:12px;font-weight:600;color:var(--tx1); }
+.gfc-repo   { font-size:11px;color:var(--blue);cursor:pointer; }
+.gfc-repo:hover { text-decoration:underline; }
+.gfc-time   { font-size:10px;color:var(--tx4);margin-left:auto; }
+.gfc-commits { margin-top:8px; }
+.gfc-commit {
+  display:flex;align-items:flex-start;gap:7px;
+  padding:5px 0;border-top:1px solid var(--c4);font-size:11px;
+}
+.gfc-sha {
+  font-family:'JetBrains Mono',monospace;font-size:10px;
+  color:var(--blue);background:var(--blue-dim);
+  padding:1px 6px;border-radius:3px;flex-shrink:0;cursor:pointer;
+}
+.gfc-sha:hover { text-decoration:underline; }
+.gfc-msg { color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.gfc-pr-stats {
+  display:flex;gap:10px;margin-top:8px;font-size:11px;
+  padding:6px 10px;background:var(--c0);border-radius:var(--r6);
+}
+.gfc-add { color:var(--gr); }
+.gfc-del { color:var(--red); }
+
+/* Burndown chart */
+.burndown-wrap {
+  background:var(--c1);border:1px solid var(--c4);border-radius:var(--r12);
+  padding:20px;margin-bottom:14px;
+}
+.bd-chart {
+  height:140px;display:flex;align-items:flex-end;gap:3px;
+  border-bottom:1px solid var(--c4);border-left:1px solid var(--c4);
+  padding:8px 0 0 8px;margin-top:12px;position:relative;
+  overflow:hidden;
+}
+.bd-bar-wrap {
+  flex:1;display:flex;flex-direction:column;justify-content:flex-end;
+  align-items:center;gap:1px;height:100%;
+}
+.bd-bar {
+  width:100%;border-radius:2px 2px 0 0;min-height:2px;
+  transition:height .5s var(--spring);
+}
+.bd-bar.open { background:rgba(59,130,246,.6); }
+.bd-bar.closed { background:rgba(34,197,94,.5); }
+.bd-label { font-size:8px;color:var(--tx4);margin-top:3px;writing-mode:horizontal-tb; }
+.bd-legend {
+  display:flex;gap:16px;font-size:11px;color:var(--tx3);margin-top:8px;
+}
+.bd-legend-dot { width:10px;height:10px;border-radius:2px;flex-shrink:0; }
+
+/* Task presence (who's working on it) */
+.task-workers {
+  display:flex;align-items:center;gap:4px;margin-top:6px;
+}
+.task-worker-av {
+  width:18px;height:18px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:7px;font-weight:700;color:#000;
+  border:1.5px solid var(--c0);margin-left:-4px;
+  position:relative;
+}
+.task-worker-av:first-child { margin-left:0; }
+.task-worker-pulse {
+  position:absolute;inset:-3px;border-radius:50%;
+  border:2px solid var(--gr);opacity:0;
+  animation:pulse-ring 2s infinite;
+}
+@keyframes pulse-ring {
+  0%  { opacity:.6;transform:scale(.9); }
+  100%{ opacity:0;transform:scale(1.5); }
+}
+.task-workers-label { font-size:10px;color:var(--tx3);margin-left:4px; }
+
+/* Last active badge */
+.last-active {
+  font-size:10px;color:var(--tx4);
+  display:flex;align-items:center;gap:3px;
+}
+.last-active.recent { color:var(--gr); }
+.last-active.today  { color:var(--yellow); }
+
+/* Activity graph rich (color per repo) */
+.cg-repo-legend {
+  display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:10px;color:var(--tx3);
+}
+.cg-repo-dot {
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+
+/* Nudge notification toast */
+.toast.nudge { border-left-color:var(--yellow); }
+
+/* Github feed channel special rendering */
+.msg.gh-event-msg .msg-text { display:none; }
+</style>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// GITHUB FEED CARDS + BURNDOWN + LAST ACTIVE + TASK PRESENCE + RICH GRAPH
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── GITHUB FEED RICH CARD RENDERING ──────────────────────────────────────
+// Intercept msg:new for github_event type messages in #github-feed
+const _origAppendMsg = window.appendMsg;
+window.appendMsg = function(m, cont=false, animate=false){
+  // If it's a github event card, render the rich version
+  if (m.type === 'github_event' || m.githubCard) {
+    renderGithubFeedCard(m);
+    return;
+  }
+  _origAppendMsg(m, cont, animate);
+};
+
+function renderGithubFeedCard(m){
+  const area = document.getElementById('msgs-area');
+  if (!area) return;
+  const card = m.githubCard || {};
+  const type = card.type || 'push';
+  const time = new Date(m.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const typeClass = 'gc-'+type;
+
+  const el = document.createElement('div');
+  el.className = 'gh-feed-card ' + typeClass;
+  el.dataset.mid = m.id;
+
+  // Header
+  let headerHtml = '<div class="gfc-header">';
+  if (card.senderAv) {
+    headerHtml += '<img class="gfc-avatar" src="'+esc(card.senderAv)+'" onerror="this.style.display=\'none\'">';
+  } else {
+    const initials = (card.sender||'GH').slice(0,2).toUpperCase();
+    headerHtml += '<div class="gfc-avatar" style="background:var(--c4);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--tx2)">'+initials+'</div>';
+  }
+  headerHtml += '<span class="gfc-sender">'+esc(card.sender||'GitHub')+'</span>';
+  if (card.repo) headerHtml += '<span class="gfc-repo" onclick="window.open(\''+esc(card.repoUrl||'')+'\',\'_blank\')">'+esc(card.repo)+'</span>';
+  headerHtml += '<span class="gfc-time">'+time+'</span>';
+  headerHtml += '</div>';
+
+  // Body by type
+  let bodyHtml = '<div style="font-size:12px;color:var(--tx2);line-height:1.5;margin-bottom:4px">'+fmtText(m.content||'')+'</div>';
+
+  if (type === 'push' && card.commits?.length) {
+    bodyHtml += '<div class="gfc-commits">';
+    card.commits.forEach(cm => {
+      bodyHtml += '<div class="gfc-commit">';
+      bodyHtml += '<span class="gfc-sha" onclick="navigator.clipboard.writeText(\''+esc(cm.sha||'')+'\').then(()=>toast(\'s\',\'SHA copied\',\'\'))">'+esc(cm.sha||'')+'</span>';
+      bodyHtml += '<span class="gfc-msg">'+esc(cm.message||'')+'</span>';
+      bodyHtml += '</div>';
+    });
+    bodyHtml += '</div>';
+    if (card.compareUrl) {
+      bodyHtml += '<a href="'+esc(card.compareUrl)+'" target="_blank" style="font-size:10px;color:var(--blue);margin-top:6px;display:inline-block">Compare changes ↗</a>';
+    }
+  }
+
+  if (type === 'pr' && card.pr) {
+    bodyHtml += '<div class="gfc-pr-stats">';
+    bodyHtml += '<span>⇄ '+esc(card.pr.head||'')+' → '+esc(card.pr.base||'')+'</span>';
+    if (card.pr.additions != null) bodyHtml += '<span class="gfc-add">+'+card.pr.additions+'</span>';
+    if (card.pr.deletions != null) bodyHtml += '<span class="gfc-del">-'+card.pr.deletions+'</span>';
+    if (card.pr.url) bodyHtml += '<a href="'+esc(card.pr.url)+'" target="_blank" style="color:var(--blue);margin-left:auto;font-size:10px">View PR ↗</a>';
+    bodyHtml += '</div>';
+  }
+
+  if (type === 'review' && card.review?.body) {
+    bodyHtml += '<div style="font-size:11px;color:var(--tx3);background:var(--c0);border-radius:var(--r6);padding:6px 10px;margin-top:6px;font-style:italic">"'+esc(card.review.body)+'"</div>';
+  }
+
+  if (type === 'release' && card.release?.url) {
+    bodyHtml += '<a href="'+esc(card.release.url)+'" target="_blank" style="font-size:11px;color:var(--blue);margin-top:6px;display:inline-block">View Release ↗</a>';
+  }
+
+  el.innerHTML = headerHtml + bodyHtml;
+  const emp = area.querySelector('.empty');
+  if (emp) emp.remove();
+  area.appendChild(el);
+  area.scrollTop = area.scrollHeight;
+}
+
+// ── BURNDOWN CHART (Owner/Lead only) ─────────────────────────────────────
+async function loadBurndownChart(){
+  if (!S.ws?.id) return;
+  if (!['owner','admin','manager','lead'].includes(S.myRole||'')) return;
+
+  try {
+    const data = await GET('/workspaces/'+S.ws.id+'/burndown');
+    if (!data?.days?.length) return;
+    renderBurndownChart(data.days);
+  } catch(e) {
+    if (e.message?.includes('403')) return; // not a lead, silently skip
+    console.warn('[burndown]', e.message);
+  }
+}
+
+function renderBurndownChart(days){
+  // Find or create burndown panel in home view
+  let panel = document.getElementById('burndown-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'burndown-panel';
+    panel.className = 'burndown-wrap panel';
+    panel.innerHTML = `
+      <div class="panel-hdr">
+        <div class="panel-title"><div class="panel-title-dot" style="background:var(--blue)"></div>Sprint Burndown <span style="font-size:10px;color:var(--tx4);font-weight:400">(last 30 days · lead+ only)</span></div>
+        <div class="panel-action" onclick="loadBurndownChart()">↻</div>
+      </div>
+      <div class="bd-chart" id="bd-chart"></div>
+      <div class="bd-legend">
+        <div style="display:flex;align-items:center;gap:5px"><div class="bd-legend-dot" style="background:rgba(59,130,246,.6)"></div>Open tasks</div>
+        <div style="display:flex;align-items:center;gap:5px"><div class="bd-legend-dot" style="background:rgba(34,197,94,.5)"></div>Closed today</div>
+        <div id="bd-summary" style="margin-left:auto;font-size:11px;color:var(--tx3)"></div>
+      </div>
+    `;
+    const approvalPanel = document.getElementById('approval-queue-panel') || document.getElementById('team-live-panel');
+    if (approvalPanel) approvalPanel.after(panel);
+    else {
+      const homeView = document.getElementById('home-view');
+      if (homeView) homeView.appendChild(panel);
+    }
+  }
+
+  const chart = document.getElementById('bd-chart');
+  if (!chart) return;
+  const maxVal = Math.max(...days.map(d => d.total||0), 1);
+
+  // Show last 14 days for readability
+  const visible = days.slice(-14);
+  chart.innerHTML = visible.map(d => {
+    const openH = Math.max(2, Math.round((d.open/maxVal)*120));
+    const closedH = Math.max(0, Math.round((d.closed/maxVal)*120));
+    const dateLabel = new Date(d.date).toLocaleDateString([],{month:'short',day:'numeric'});
+    return `<div class="bd-bar-wrap" title="${d.date}: ${d.open} open, ${d.closed} closed">
+      <div class="bd-bar open" style="height:${openH}px" title="${d.open} open"></div>
+      <div class="bd-label">${dateLabel}</div>
+    </div>`;
+  }).join('');
+
+  const totalDone = days.reduce((s,d)=>s+(d.closed||0),0);
+  const lastDay = days[days.length-1];
+  const summaryEl = document.getElementById('bd-summary');
+  if (summaryEl) summaryEl.textContent = totalDone+' closed this month · '+( lastDay?.open||0)+' remaining';
+}
+
+// ── TASK WORKING PRESENCE (live "who's on this task right now") ───────────
+const _taskWorkers = {}; // taskId → Map<userId, {handle, color, ts}>
+
+if (S.socket) {
+  S.socket.on('task:worker:active', ({ userId, handle, avatar_color, ts }) => {
+    if (!_taskWorkers[currentViewingTask]) _taskWorkers[currentViewingTask] = new Map();
+    _taskWorkers[currentViewingTask].set(userId, { handle, avatar_color, ts });
+    renderTaskWorkers(currentViewingTask);
+    // Auto-remove after 5s of inactivity
+    setTimeout(() => {
+      const workers = _taskWorkers[currentViewingTask];
+      if (workers) {
+        const w = workers.get(userId);
+        if (w && Date.now() - w.ts > 4500) { workers.delete(userId); renderTaskWorkers(currentViewingTask); }
+      }
+    }, 5000);
+  });
+  S.socket.on('task:viewer:left', ({ userId }) => {
+    for (const tid of Object.keys(_taskWorkers)) {
+      _taskWorkers[tid]?.delete(userId);
+    }
+  });
+  // Nudge notification
+  S.socket.on('notification:new', ({ type, title, body }) => {
+    const icons = { nudge:'⏰', task_assigned:'📋', pr_review:'⇄', pr_approved:'✅', changes_requested:'🔴', system:'ℹ' };
+    toast(type==='nudge'?'a':type==='pr_approved'?'s':'i', title, body||'', type==='nudge'?6000:4000);
+    document.getElementById('notif-dot').style.display = 'block';
+  });
+}
+
+let currentViewingTask = null;
+function setViewingTask(taskId){
+  if (currentViewingTask && S.socket?.connected) S.socket.emit('task:left', { taskId:currentViewingTask });
+  currentViewingTask = taskId;
+  if (taskId && S.socket?.connected) S.socket.emit('task:viewing', { taskId });
+}
+function emitTaskWorking(taskId){
+  if (taskId && S.socket?.connected) S.socket.emit('task:working', { taskId });
+}
+
+function renderTaskWorkers(taskId){
+  const workers = _taskWorkers[taskId];
+  if (!workers?.size) return;
+  const el = document.getElementById('tw-'+taskId);
+  if (!el) return;
+  el.innerHTML = '<span style="font-size:10px;color:var(--tx4);margin-right:2px">Working:</span>' +
+    [...workers.values()].map(w => {
+      const initials = (w.handle||'?').slice(0,2).toUpperCase();
+      return '<div class="task-worker-av" style="background:'+(w.avatar_color||'#22c55e')+'" data-tip="'+esc(w.handle||'')+' is working on this"><div class="task-worker-pulse"></div>'+initials+'</div>';
+    }).join('') +
+    '<span class="task-workers-label">'+workers.size+' active</span>';
+}
+
+// ── LAST ACTIVE TIMESTAMPS ────────────────────────────────────────────────
+function formatLastActive(ts){
+  if (!ts) return { label:'Never seen', cls:'' };
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff/60000);
+  const hours = Math.floor(mins/60);
+  const days = Math.floor(hours/24);
+  if (mins < 2)  return { label:'Just now', cls:'recent' };
+  if (mins < 60) return { label:mins+'m ago', cls:'recent' };
+  if (hours < 24)return { label:hours+'h ago', cls:'today' };
+  if (days < 7)  return { label:days+'d ago', cls:'' };
+  return { label: new Date(ts).toLocaleDateString(), cls:'' };
+}
+
+// Patch renderMembers to show last_active
+const _origRenderMembers = window.renderMembers;
+window.renderMembers = function(){
+  _origRenderMembers();
+  // Add last_active to each member item
+  const items = document.querySelectorAll('#rp-members-list .mem-item');
+  items.forEach((item, i) => {
+    const u = S.users[i];
+    if (!u || item.querySelector('.last-active')) return;
+    const la = formatLastActive(u.last_active);
+    const laEl = document.createElement('div');
+    laEl.className = 'last-active '+la.cls;
+    laEl.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> '+esc(la.label);
+    laEl.style.cssText = 'font-size:9px;margin-top:2px';
+    const info = item.querySelector('.mem-info');
+    if (info) info.appendChild(laEl);
+  });
+};
+
+// Patch team live status to show last_active
+const _origRenderTeamLive = window.renderTeamLivePanel;
+window.renderTeamLivePanel = function(members){
+  _origRenderTeamLive && _origRenderTeamLive(members);
+  // After render, patch in last_active times
+  const rows = document.querySelectorAll('#team-live-list .team-member-row');
+  rows.forEach((row, i) => {
+    const m = members?.[i];
+    if (!m?.user?.last_active || row.querySelector('.last-active')) return;
+    const la = formatLastActive(m.user.last_active);
+    const meta = row.querySelector('.tm-meta');
+    if (meta) {
+      const span = document.createElement('span');
+      span.className = 'last-active '+la.cls;
+      span.style.cssText = 'margin-left:8px;font-size:9px';
+      span.textContent = la.label;
+      meta.appendChild(span);
+    }
+  });
+};
+
+// ── RICH CONTRIBUTION GRAPH (color-coded by repo) ────────────────────────
+async function loadRichContribGraph(){
+  try {
+    const [contribs, myRepos] = await Promise.all([
+      GET('/github/contributions').catch(()=>null),
+      GET('/github/repos/all').catch(()=>[]),
+    ]);
+    if (!contribs?.contributionCalendar) { buildFallbackGraph && buildFallbackGraph(); return; }
+    buildRichGraph(contribs.contributionCalendar, myRepos||[]);
+  } catch(e) { buildFallbackGraph && buildFallbackGraph(); }
+}
+
+const REPO_COLORS = [
+  '#22c55e','#3b82f6','#a855f7','#f97316','#06b6d4',
+  '#eab308','#ec4899','#14b8a6','#f43f5e','#84cc16',
+];
+
+function buildRichGraph(cal, repos){
+  const grid = document.getElementById('cg-grid');
+  if (!grid) return;
+  const outer = grid.closest('.cg-wrap') || grid.parentElement;
+  if (!outer) return;
+  outer.innerHTML = '';
+
+  // Assign colors to repos
+  const repoColorMap = {};
+  (repos||[]).slice(0,10).forEach((r,i) => { repoColorMap[r.full_name] = REPO_COLORS[i%REPO_COLORS.length]; });
+  const defaultColor = '#22c55e';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'cg-outer';
+
+  // Month row
+  const monthRow = document.createElement('div');
+  monthRow.className = 'cg-months';
+  monthRow.style.paddingLeft = '24px'; // offset for day labels
+
+  const rowWrap = document.createElement('div');
+  rowWrap.style.cssText = 'display:flex;align-items:flex-start';
+
+  // Day labels
+  const dayLabels = document.createElement('div');
+  dayLabels.className = 'cg-day-labels';
+  ['','Mon','','Wed','','Fri',''].forEach(d => {
+    const lbl = document.createElement('div');
+    lbl.className = 'cg-day-label';
+    lbl.textContent = d;
+    dayLabels.appendChild(lbl);
+  });
+
+  const weeksRow = document.createElement('div');
+  weeksRow.className = 'cg-days-wrap';
+  weeksRow.id = 'cg-grid'; // preserve id
+
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let lastMonth = -1;
+  let weekIndex = 0;
+  const monthPositions = [];
+
+  (cal.weeks||[]).forEach(week => {
+    const col = document.createElement('div');
+    col.className = 'cg-week';
+
+    const firstDay = week.contributionDays?.[0];
+    if (firstDay) {
+      const m = new Date(firstDay.date).getMonth();
+      if (m !== lastMonth) { lastMonth = m; monthPositions.push({ weekIndex, label:MONTH_NAMES[m] }); }
+    }
+
+    for (let d=0; d<7; d++) {
+      const day = week.contributionDays?.[d];
+      const cell = document.createElement('div');
+      cell.className = 'cg-cell';
+      if (day) {
+        const cnt = day.contributionCount||0;
+        // Color by contribution count (size = intensity, using the default green scale)
+        // For rich mode: vary the opacity and slightly vary hue
+        let bg = 'var(--c4)';
+        if (cnt > 0) {
+          const intensity = Math.min(1, cnt/10);
+          // Use default green but could be repo-specific in future
+          const alpha = 0.3 + intensity * 0.7;
+          bg = cnt <= 2 ? '#14532d' : cnt <= 5 ? '#166534' : cnt <= 9 ? '#16a34a' : '#22c55e';
+        }
+        cell.style.cssText = 'background:'+bg+';width:'+(cnt>0?'13':'13')+'px;height:'+(cnt>0?'13':'13')+'px;border-radius:3px;cursor:pointer;transition:transform .1s,opacity .1s;flex-shrink:0';
+        cell.title = day.date+': '+cnt+' contribution'+(cnt!==1?'s':'');
+        if (cnt > 7) {
+          cell.style.boxShadow = '0 0 6px rgba(34,197,94,.4)';
+        }
+      } else {
+        cell.style.cssText = 'background:transparent;width:13px;height:13px;border-radius:3px;pointer-events:none;flex-shrink:0';
+      }
+      col.appendChild(cell);
+    }
+    weeksRow.appendChild(col);
+    weekIndex++;
+  });
+
+  // Build month labels
+  const totalWeeks = weekIndex;
+  let lastPos = 0;
+  monthPositions.forEach((mp, i) => {
+    const nextPos = monthPositions[i+1]?.weekIndex||totalWeeks;
+    const span = document.createElement('div');
+    span.className = 'cg-month-label';
+    span.textContent = mp.label;
+    const widthWeeks = nextPos - mp.weekIndex;
+    span.style.cssText = 'flex:0 0 auto;min-width:'+(widthWeeks*16)+'px;font-size:10px;font-weight:600;color:var(--tx4)';
+    monthRow.appendChild(span);
+  });
+
+  rowWrap.appendChild(dayLabels);
+  rowWrap.appendChild(weeksRow);
+  wrapper.appendChild(monthRow);
+  wrapper.appendChild(rowWrap);
+
+  // Repo legend
+  if (repos?.length) {
+    const legend = document.createElement('div');
+    legend.className = 'cg-repo-legend';
+    // Show scale legend instead
+    legend.innerHTML = '<span>Less</span>'+
+      ['var(--c4)','#14532d','#166534','#16a34a','#22c55e'].map(c=>
+        '<div style="width:13px;height:13px;border-radius:3px;background:'+c+'"></div>'
+      ).join('')+
+      '<span>More</span>'+
+      '<span style="margin-left:auto;color:var(--tx4)">'+( cal.totalContributions||0)+' total contributions</span>';
+    wrapper.appendChild(legend);
+  }
+
+  outer.appendChild(wrapper);
+  outer.style.removeProperty('id');
+}
+
+// Override loadRealContribs to use rich version
+window.loadRealContribs = loadRichContribGraph;
+
+// ── HOOK EVERYTHING INTO ENTER APP ───────────────────────────────────────
+const _prevEnterApp = window.enterApp;
+window.enterApp = function(){
+  _prevEnterApp();
+  setTimeout(() => {
+    loadRichContribGraph();
+    loadPersonalStats && loadPersonalStats();
+    loadActivityFeed && loadActivityFeed();
+    loadBurndownChart();
+    setTimeout(checkOnboarding, 2000);
+  }, 1200);
+};
+
+// ── HOOK BURNDOWN INTO OWNER DASHBOARD ───────────────────────────────────
+const _prevBuildOwner = window.buildOwnerDashboard;
+window.buildOwnerDashboard = async function(){
+  await _prevBuildOwner();
+  loadBurndownChart();
+};
+</script>
