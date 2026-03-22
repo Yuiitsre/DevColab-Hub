@@ -1015,6 +1015,7 @@ function showRepos() {
 
 // ── CHANNEL / CHAT ────────────────────────────────────────────────────────
 async function switchChannel(channelId) {
+  S._dmMode = false;
   showView('chat-view');
   S.currentChannel = channelId;
   S.currentProject = null;
@@ -1027,21 +1028,44 @@ async function switchChannel(channelId) {
   document.getElementById('ch-name').textContent = displayName;
   document.getElementById('ch-desc').textContent = ch.description && !ch.description.startsWith('Project:') ? ch.description : '';
   document.getElementById('msg-input').placeholder = 'Message #' + displayName + '...';
+  // Clear unread badge
+  const chObj = S.channels.find(x => x.id === channelId);
+  if (chObj) { chObj.unread = 0; }
   // Sidebar active
   document.querySelectorAll('[data-chid]').forEach(el => el.classList.toggle('active', el.dataset.chid === channelId));
-  // Join socket room
-  if (S.socket?.connected) S.socket.emit('channel:join', { channelId });
-  // Load messages
+  renderSBChannels();
+  // Emit presence
+  if (S.socket?.connected) S.socket.emit('channel:viewing', { channelId });
+  // Load messages (will emit channel:join internally)
   await loadMessages(channelId);
   closeSidebar();
 }
 
 async function loadMessages(channelId) {
   try {
-    const msgs = await GET('/channels/' + channelId + '/messages?limit=50');
-    S.messages[channelId] = msgs || [];
-    renderMessages(channelId);
-  } catch(e) { console.warn('[msgs]', e); }
+    // Show loading state briefly while socket delivers history
+    const area = document.getElementById('msgs-area');
+    if (area && (!S.messages[channelId] || !S.messages[channelId].length)) {
+      area.innerHTML = '<div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div>';
+    }
+    // Emit channel:join — server will respond with channel:history
+    if (S.socket?.connected) {
+      S.socket.emit('channel:join', { channelId });
+    } else {
+      // Fallback to REST if socket not connected
+      const msgs = await GET('/channels/' + channelId + '/messages?limit=50');
+      S.messages[channelId] = msgs || [];
+      renderMessages(channelId);
+    }
+  } catch(e) {
+    console.warn('[msgs]', e);
+    // Last resort REST fallback
+    try {
+      const msgs = await GET('/channels/' + channelId + '/messages?limit=50');
+      S.messages[channelId] = msgs || [];
+      renderMessages(channelId);
+    } catch {}
+  }
 }
 
 function renderMessages(channelId) {
@@ -1055,9 +1079,10 @@ function renderMessages(channelId) {
   area.innerHTML = `<div class="msgs-date-sep">Today</div>`;
   let lastUser = null, lastTs = 0;
   msgs.forEach(m => {
-    const cont = m.user_id === lastUser && (new Date(m.ts||m.created_at).getTime() - lastTs) < 300000;
+    const uid = m.user_id || m.userId;
+    const cont = uid === lastUser && (new Date(m.ts||m.created_at).getTime() - lastTs) < 300000;
     appendMsg(m, cont, false);
-    lastUser = m.user_id || m.userId;
+    lastUser = uid;
     lastTs = new Date(m.ts || m.created_at).getTime();
   });
   area.scrollTop = area.scrollHeight;
@@ -1066,8 +1091,11 @@ function renderMessages(channelId) {
 function appendMsg(m, cont=false, animate=false) {
   const area = document.getElementById('msgs-area');
   if (!area) return;
-  const uid = m.user_id || m.userId;
-  const u = S.users.find(x => x.id === uid) || m.user || {};
+  const uid = m.user_id || m.userId || m.from_user || m.fromUserId;
+  // Try socket-included user data first, then local cache
+  const cachedUser = S.users.find(x => x.id === uid);
+  const msgUser = m.user || m.from_user_obj || {};
+  const u = { ...msgUser, ...( cachedUser || {}) };
   const color = u.avatar_color || '#22c55e';
   const inits = initials(u.display_name || u.github_username || u.handle || 'User');
   const time = fmtTime(m.ts || m.created_at);
@@ -1121,7 +1149,10 @@ function pickReact(msgId) { toast('i','Reactions','Coming soon'); }
 function sendMsg() {
   const ta = document.getElementById('msg-input');
   const raw = ta?.value?.trim();
-  if (!raw || !S.currentChannel || !S.socket?.connected) return;
+  // Handle DM mode — delegated to app-fixes.js override
+  if (S._dmMode) return; // app-fixes.js will handle
+  if (!raw || !S.currentChannel) return;
+  if (!S.socket?.connected) { toast('e','Not connected','Reconnecting...'); return; }
   ta.value = ''; ta.style.height = 'auto';
   const cm = raw.match(/```(\w*)\n?([\s\S]*?)```/s);
   const code = cm ? { lang: cm[1]||'javascript', body: cm[2].trim() } : null;
@@ -1148,6 +1179,14 @@ function initSocket() {
     // Re-join current channel
     if (S.currentChannel) S.socket.emit('channel:join', { channelId: S.currentChannel });
   });
+  // Handle channel history from socket (primary message source)
+  S.socket.on('channel:history', ({ channelId, messages }) => {
+    if (!messages?.length) return;
+    S.messages[channelId] = messages;
+    if (channelId === S.currentChannel) {
+      renderMessages(channelId);
+    }
+  });
   S.socket.on('msg:new', m => {
     const chId = m.channelId || m.channel_id;
     if (!S.messages[chId]) S.messages[chId] = [];
@@ -1168,7 +1207,7 @@ function initSocket() {
       if (i>=0) msgs.splice(i,1);
     }
   });
-  S.socket.on('msg:edited', ({ messageId, content }) => {
+  S.socket.on('msg:updated', ({ messageId, content }) => {
     const el = document.querySelector('[data-mid="'+messageId+'"] .msg-text');
     if (el) el.innerHTML = fmtText(content);
     for (const msgs of Object.values(S.messages)) {
