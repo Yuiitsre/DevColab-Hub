@@ -1274,29 +1274,36 @@ async function switchChannel(channelId) {
 }
 
 async function loadMessages(channelId) {
-  try {
-    // Show loading state briefly while socket delivers history
-    const area = document.getElementById('msgs-area');
-    if (area && (!S.messages[channelId] || !S.messages[channelId].length)) {
-      area.innerHTML = '<div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div>';
-    }
-    // Emit channel:join — server will respond with channel:history
-    if (S.socket?.connected) {
-      S.socket.emit('channel:join', { channelId });
-    } else {
-      // Fallback to REST if socket not connected
-      const msgs = await GET('/channels/' + channelId + '/messages?limit=50');
-      S.messages[channelId] = msgs || [];
-      renderMessages(channelId);
-    }
-  } catch(e) {
-    console.warn('[msgs]', e);
-    // Last resort REST fallback
+  // Show spinner only if no cached messages
+  const area = document.getElementById('msgs-area');
+  if (area && (!S.messages[channelId]?.length)) {
+    area.innerHTML = '<div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div>';
+  }
+  // SINGLE SOURCE: always use socket channel:join which returns channel:history
+  // channel:history handler will call renderMessages()
+  // Do NOT also call renderMessages here — that causes double render
+  if (S.socket?.connected) {
+    S.socket.emit('channel:join', { channelId });
+    // Set a fallback timeout: if channel:history doesn't arrive in 3s, use REST
+    clearTimeout(S._msgFallbackTimer);
+    S._msgFallbackTimer = setTimeout(async () => {
+      if (S.currentChannel !== channelId) return; // channel switched
+      if (!S.messages[channelId]?.length) {
+        // Socket didn't deliver, fall back to REST
+        try {
+          const msgs = await GET('/channels/' + channelId + '/messages?limit=50');
+          S.messages[channelId] = msgs || [];
+          if (S.currentChannel === channelId) renderMessages(channelId);
+        } catch(e) { console.warn('[msgs fallback]', e); }
+      }
+    }, 3000);
+  } else {
+    // No socket — use REST directly
     try {
       const msgs = await GET('/channels/' + channelId + '/messages?limit=50');
       S.messages[channelId] = msgs || [];
       renderMessages(channelId);
-    } catch {}
+    } catch(e) { console.warn('[msgs REST]', e); }
   }
 }
 
@@ -1304,13 +1311,19 @@ function renderMessages(channelId) {
   const area = document.getElementById('msgs-area');
   if (!area) return;
   const msgs = S.messages[channelId] || [];
+
+  // Always clear DOM first — prevents duplicate rendering
+  area.innerHTML = '';
+
   const msgCntEl = document.getElementById('ch-msg-count');
-  if (msgCntEl && msgs.length) msgCntEl.textContent = '· ' + msgs.length + (msgs.length===50?'+':' ') + 'message' + (msgs.length!==1?'s':'');
+  if (msgCntEl) msgCntEl.textContent = msgs.length ? '· ' + msgs.length + (msgs.length===50?'+':'') + ' message' + (msgs.length!==1?'s':'') : '';
+
   if (!msgs.length) {
     area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💬</div><div class="empty-state-title">Start the conversation</div><div class="empty-state-desc">Be the first to post in this channel</div></div>';
     return;
   }
-  area.innerHTML = `<div class="msgs-date-sep">Today</div>`;
+
+  area.innerHTML = '<div class="msgs-date-sep">Today</div>';
   let lastUser = null, lastTs = 0;
   msgs.forEach(m => {
     const uid = m.user_id || m.userId;
@@ -1319,16 +1332,16 @@ function renderMessages(channelId) {
     lastUser = uid;
     lastTs = new Date(m.ts || m.created_at).getTime();
   });
+
   area.scrollTop = area.scrollHeight;
-  // Load reactions for visible messages
-  loadVisibleReactions(channelId);
-  // Emit read receipt for last message
+  // Emit read receipt for last visible message
   if (S.currentChannel && S.socket?.connected && msgs.length > 0) {
     const lastMsg = msgs[msgs.length - 1];
-    if (lastMsg?.id && lastMsg.userId !== S.user?.id) {
+    if (lastMsg?.id && (lastMsg.user_id || lastMsg.userId) !== S.user?.id) {
       S.socket.emit('msg:read', { channelId: S.currentChannel, messageId: lastMsg.id });
     }
   }
+  loadVisibleReactions(channelId);
 }
 
 function appendMsg(m, cont=false, animate=false) {
@@ -1849,43 +1862,97 @@ function wrapSel(b,a) { const ta=document.getElementById('msg-input'); const s=t
 function initSocket() {
   S.socket = io(WS_URL, { auth:{ token:S.token }, transports:['websocket','polling'] });
   S.socket.on('connect', () => {
-    // Re-join current channel
-    if (S.currentChannel) S.socket.emit('channel:join', { channelId: S.currentChannel });
+    // Re-join current channel — server will send channel:history
+    // But only request if we have no messages (i.e., fresh page load or long disconnect)
+    if (S.currentChannel) {
+      const hasMsgs = S.messages[S.currentChannel]?.length > 0;
+      S.socket.emit('channel:join', { channelId: S.currentChannel });
+      // If we already have messages, don't re-render on channel:history
+      // (set flag so channel:history handler knows to skip re-render)
+      S._skipHistoryRender = hasMsgs;
+      setTimeout(() => { S._skipHistoryRender = false; }, 2000);
+    }
   });
   // Handle channel history from socket (primary message source)
   S.socket.on('channel:history', ({ channelId, messages }) => {
-    if (!messages?.length) return;
+    if (!Array.isArray(messages)) return;
+    clearTimeout(S._msgFallbackTimer);
     S.messages[channelId] = messages;
     if (channelId === S.currentChannel) {
+      if (S._skipHistoryRender) {
+        // Reconnect scenario: merge any new messages instead of full re-render
+        S._skipHistoryRender = false;
+        const area = document.getElementById('msgs-area');
+        if (area && area.children.length > 1) return; // already rendered
+      }
       renderMessages(channelId);
     }
   });
   S.socket.on('msg:new', m => {
     const chId = m.channelId || m.channel_id;
+    if (!chId) return;
     if (!S.messages[chId]) S.messages[chId] = [];
+
+    // DEDUP: skip if message ID already in our store or DOM
+    if (m.id) {
+      const alreadyStored = S.messages[chId].some(x => x.id === m.id);
+      const alreadyInDOM = !!document.querySelector('[data-mid="' + m.id + '"]');
+      if (alreadyStored || alreadyInDOM) return;
+    }
+
     S.messages[chId].push(m);
+
     if (chId === S.currentChannel) {
-      appendMsg(m, false, true);
-      document.getElementById('msgs-area').scrollTop = 999999;
+      // Find previous message for grouping
+      const msgs = S.messages[chId];
+      const prev = msgs.length >= 2 ? msgs[msgs.length - 2] : null;
+      const uid = m.user_id || m.userId;
+      const prevUid = prev ? (prev.user_id || prev.userId) : null;
+      const cont = uid === prevUid && (new Date(m.ts||m.created_at).getTime() - new Date(prev.ts||prev.created_at).getTime()) < 300000;
+      appendMsg(m, cont, true);
+      const area = document.getElementById('msgs-area');
+      if (area) {
+        const fromBottom = area.scrollHeight - area.scrollTop - area.clientHeight;
+        if (fromBottom < 150) area.scrollTop = area.scrollHeight; // auto-scroll if near bottom
+      }
     } else {
-      // Mark unread
       const ch = S.channels.find(x => x.id === chId);
-      if (ch) { ch.unread = (ch.unread||0)+1; renderSBChannels(); }
+      if (ch && !(S._mutedChannels||new Set()).has(chId)) {
+        ch.unread = (ch.unread||0) + 1;
+        renderSBChannels();
+      }
     }
   });
-  S.socket.on('msg:deleted', ({ messageId }) => {
-    document.querySelectorAll('[data-mid="'+messageId+'"]').forEach(el => el.remove());
+  S.socket.on('msg:deleted', ({ messageId, hard }) => {
+    // Remove from DOM with animation
+    document.querySelectorAll('[data-mid="'+messageId+'"]').forEach(el => {
+      el.style.transition = 'opacity .3s, transform .3s';
+      el.style.opacity = '0'; el.style.transform = 'translateX(-6px)';
+      setTimeout(() => el.remove(), 320);
+    });
+    // Remove from store
     for (const msgs of Object.values(S.messages)) {
       const i = msgs.findIndex(m => m.id === messageId);
-      if (i>=0) msgs.splice(i,1);
+      if (i >= 0) msgs.splice(i, 1);
     }
   });
-  S.socket.on('msg:updated', ({ messageId, content }) => {
-    const el = document.querySelector('[data-mid="'+messageId+'"] .msg-text');
-    if (el) el.innerHTML = fmtText(content);
+  S.socket.on('msg:updated', ({ messageId, content, edited }) => {
+    // Update in DOM
+    const textEl = document.querySelector('[data-mid="'+messageId+'"] .msg-text');
+    if (textEl) textEl.innerHTML = fmtText(content);
+    // Add (edited) label if not already present
+    const metaEl = document.querySelector('[data-mid="'+messageId+'"] .msg-meta');
+    if (metaEl && !metaEl.querySelector('.edited-label')) {
+      const lbl = document.createElement('span');
+      lbl.className = 'edited-label';
+      lbl.style.cssText = 'font-size:9px;color:var(--t4);margin-left:4px';
+      lbl.textContent = '(edited)';
+      metaEl.appendChild(lbl);
+    }
+    // Update in store
     for (const msgs of Object.values(S.messages)) {
       const m = msgs.find(x => x.id === messageId);
-      if (m) m.content = content;
+      if (m) { m.content = content; m.edited = true; }
     }
   });
   S.socket.on('typing:user', ({ userId, username }) => {
