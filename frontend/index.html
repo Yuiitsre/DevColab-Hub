@@ -1551,12 +1551,17 @@ button:focus-visible { outline:2px solid var(--gr); outline-offset:2px; border-r
               <div class="input-send" onclick="sendMsg()"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
             </div>
             <div class="input-fmtbar">
-              <div class="fmt-btn" onclick="wrapSelected('**','**')" data-tip="Bold selected text"><strong>B</strong></div>
-              <div class="fmt-btn" onclick="wrapSelected('_','_')" data-tip="Italic selected text"><em>I</em></div>
-              <div class="fmt-btn" onclick="wrapSelected('`','`')" data-tip="Inline code">&lt;/&gt;</div>
-              <div class="fmt-btn" onclick="insertCodeBlock()" data-tip="Insert code block">{}</div>
-              <div class="fmt-btn" onclick="wrapSelected('~~','~~')" data-tip="Strikethrough" style="text-decoration:line-through">S</div>
-              <div class="input-hint">Enter to send · Shift+Enter new line · /ai for AI</div>
+              <div class="fmt-btn" onclick="insertAtCursor('@')" data-tip="Mention someone (@)">@ Mention</div>
+              <div class="fmt-btn" onclick="insertCodeBlock()" data-tip="Insert code block (```)">⌨ Code</div>
+              <div class="fmt-btn" onclick="insertPRLink()" data-tip="Link a pull request">⇄ PR</div>
+              <div class="fmt-btn" onclick="openAI();setMode('chat')" data-tip="Ask AI assistant" style="color:var(--purple)">✦ AI</div>
+              <div class="fmt-btn" onclick="toggleMsgFormat()" data-tip="Formatting (B/I/~~)">Aa</div>
+              <div id="fmt-extra" class="hidden" style="display:none;align-items:center;gap:2px">
+                <div class="fmt-btn" onclick="wrapSelected('**','**')"><strong>B</strong></div>
+                <div class="fmt-btn" onclick="wrapSelected('_','_')"><em>I</em></div>
+                <div class="fmt-btn" onclick="wrapSelected('~~','~~')" style="text-decoration:line-through">S</div>
+              </div>
+              <div class="input-hint">Enter · Shift+Enter newline · /ai for AI</div>
             </div>
           </div>
         </div>
@@ -1752,6 +1757,10 @@ button:focus-visible { outline:2px solid var(--gr); outline-offset:2px; border-r
             <div id="releases-tab-list"></div>
           </div>
         </div>
+      </div>
+      <!-- PROJECT OVERVIEW PANEL -->
+      <div id="project-view" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div id="proj-overview-content" style="flex:1;overflow-y:auto;padding:0"></div>
       </div>
     </div><!-- /.main -->
 
@@ -2560,6 +2569,25 @@ function insertCodeBlock(){
   ta.focus();autoGrow(ta);
 }
 function insertCode(){ insertCodeBlock(); }
+function insertAtCursor(text){
+  const ta=document.getElementById('msg-input');
+  if(!ta)return;
+  const s=ta.selectionStart;
+  ta.value=ta.value.slice(0,s)+text+ta.value.slice(s);
+  ta.setSelectionRange(s+text.length,s+text.length);
+  ta.focus();
+}
+function insertPRLink(){
+  const url=prompt('GitHub PR URL:');
+  if(!url)return;
+  insertAtCursor(url+' ');
+}
+let _fmtVisible=false;
+function toggleMsgFormat(){
+  _fmtVisible=!_fmtVisible;
+  const el=document.getElementById('fmt-extra');
+  if(el){ el.style.display=_fmtVisible?'flex':'none'; el.classList.toggle('hidden',!_fmtVisible); }
+}
 function copyCode(btn){navigator.clipboard.writeText(btn.closest('.msg-code-block').querySelector('.code-body').textContent).then(()=>toast('s','Copied',''));}
 function forkCode(btn){const c=btn.closest('.msg-code-block').querySelector('.code-body').textContent;const ta=document.getElementById('msg-input');ta.value='\`\`\`javascript\n'+c+'\n```';ta.focus();}
 function reviewCode(btn){const c=btn.closest('.msg-code-block').querySelector('.code-body').textContent;openAI();setMode('review');setTimeout(()=>{document.getElementById('ai-input').value=c;},100);}
@@ -6748,29 +6776,47 @@ window.createProject = async function(){
 
 // ── CHANNEL CONTEXT MENU ─────────────────────────────────────────────────
 function showChannelCtx(e, ch){
-  e.preventDefault();
+  e.preventDefault();e.stopPropagation();
+  if (!ch || !ch.id) return;
   const isDefault = ['general','github-feed','ai-help'].includes(ch.name);
   const canManage = S.myPermissions?.CREATE_CHANNEL || S.isOwner;
   const items = [
-    { label:esc(ch.description||'#'+ch.name), disabled:true },
+    { label: '#' + esc(ch.name), disabled:true },
     { sep:true },
     { label:'💬 Switch to channel', fn:()=>switchChannel(ch.id) },
-    { label:'🔗 Copy link', fn:()=>{ navigator.clipboard.writeText(window.location.origin+'?ch='+ch.id); toast('s','Copied',''); } },
-    ...(canManage&&!isDefault?[
-      { sep:true },
-      { label:'✏ Rename', fn:()=>{
-          const n = prompt('New channel name:', ch.name);
-          if (n) PATCH('/channels/'+ch.id,{name:n}).then(()=>{loadWorkspace();toast('s','Renamed','');}).catch(e=>toast('e','Error',e.message));
-      }},
-      { label:ch.type==='public'?'🔒 Make Private':'🌐 Make Public', fn:()=>{
-          PATCH('/channels/'+ch.id,{type:ch.type==='public'?'private':'public'}).then(()=>{loadWorkspace();toast('s','Updated','');}).catch(e=>toast('e','Error',e.message));
-      }},
-      { label:'🗑 Delete channel', danger:true, fn:()=>{
-          if (confirm('Delete #'+ch.name+'? All messages will be lost.'))
-            DEL('/channels/'+ch.id).then(()=>{loadWorkspace();toast('s','Deleted','');}).catch(e=>toast('e','Error',e.message));
-      }},
-    ]:[]),
+    { label:'🔗 Copy link', fn:()=>{ navigator.clipboard.writeText(window.location.origin+'/?ch='+ch.id); toast('s','Copied','Channel link copied'); } },
   ];
+  if (canManage && !isDefault) {
+    items.push({ sep:true });
+    items.push({ label:'✏️ Rename channel', fn:()=>{
+      const n = prompt('Rename channel (letters, numbers, hyphens only):', ch.name);
+      if (!n || !n.trim()) return;
+      const clean = n.trim().toLowerCase().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+      if (!clean) { toast('e','Invalid name','Use letters, numbers, hyphens'); return; }
+      PATCH('/channels/'+ch.id,{name:clean}).then(()=>{
+        const idx = S.channels.findIndex(c2=>c2.id===ch.id);
+        if (idx>=0) S.channels[idx].name = clean;
+        renderSidebar(); toast('s','Renamed','#'+clean);
+      }).catch(err=>toast('e','Error',err.message));
+    }});
+    items.push({ label: ch.type==='private'?'🌐 Make Public':'🔒 Make Private', fn:()=>{
+      const newType = ch.type==='private'?'public':'private';
+      PATCH('/channels/'+ch.id,{type:newType}).then(()=>{
+        const idx = S.channels.findIndex(c2=>c2.id===ch.id);
+        if (idx>=0) S.channels[idx].type = newType;
+        renderSidebar(); toast('s','Updated','Channel is now '+newType);
+      }).catch(err=>toast('e','Error',err.message));
+    }});
+    items.push({ sep:true });
+    items.push({ label:'🗑️ Delete channel', danger:true, fn:()=>{
+      if (!confirm('Delete #'+ch.name+'? All messages will be permanently deleted.')) return;
+      DEL('/channels/'+ch.id).then(()=>{
+        S.channels = S.channels.filter(c2=>c2.id!==ch.id);
+        if (S.ch===ch.id && S.channels.length) switchChannel(S.channels[0].id);
+        renderSidebar(); toast('s','Deleted','#'+ch.name+' removed');
+      }).catch(err=>toast('e','Error',err.message));
+    }});
+  }
   buildCtx(e, items);
 }
 
@@ -6894,4 +6940,318 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pv) { pv.classList.add('hidden'); }
   };
 });
+</script>
+<style>
+/* Project overview card styles */
+.proj-overview-wrap { padding:28px 32px; }
+.proj-ov-header {
+  display:flex;align-items:flex-start;gap:16px;margin-bottom:24px;
+  background:var(--c1);border:1px solid var(--c4);border-radius:var(--r12);padding:20px;
+  position:relative;overflow:hidden;
+}
+.proj-ov-header::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--proj-color,var(--gr)),transparent)}
+.proj-ov-colormark{width:44px;height:44px;border-radius:var(--r10);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#000;flex-shrink:0}
+.proj-ov-info{flex:1;min-width:0}
+.proj-ov-name{font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:4px}
+.proj-ov-desc{font-size:12px;color:var(--tx3);margin-bottom:10px}
+.proj-ov-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--tx3)}
+.proj-ov-actions{display:flex;flex-direction:column;gap:8px;flex-shrink:0;align-items:flex-end}
+.begin-btn{
+  padding:10px 20px;background:linear-gradient(135deg,var(--gr),var(--gr2));
+  color:#000;border:none;border-radius:var(--r10);font-size:14px;font-weight:800;
+  cursor:pointer;transition:all var(--t2);letter-spacing:-.2px;
+  box-shadow:0 4px 16px var(--gr-glow);display:flex;align-items:center;gap:6px;
+}
+.begin-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px var(--gr-glow);filter:brightness(1.05)}
+.begin-btn:active{transform:translateY(0)}
+.proj-ov-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.proj-ov-stat{background:var(--c1);border:1px solid var(--c4);border-radius:var(--r10);padding:14px;text-align:center}
+.proj-ov-stat-val{font-size:22px;font-weight:800;letter-spacing:-.5px;line-height:1}
+.proj-ov-stat-lbl{font-size:9px;color:var(--tx4);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.proj-ov-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.proj-ov-panel{background:var(--c1);border:1px solid var(--c4);border-radius:var(--r12);padding:16px}
+.proj-ov-panel-title{font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.3px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+/* Online member avatars */
+.online-members-row{display:flex;align-items:center;gap:-4px;margin-bottom:8px}
+.oma{width:28px;height:28px;border-radius:50%;border:2px solid var(--c1);margin-left:-6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#000}
+.oma:first-child{margin-left:0}
+/* Commit row */
+.proj-commit-row{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--c4);align-items:flex-start}
+.proj-commit-row:last-child{border-bottom:none}
+/* Member task row */
+.proj-member-task-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--c4)}
+.proj-member-task-row:last-child{border-bottom:none}
+/* Progress bar */
+.proj-progress-outer{height:6px;background:var(--c3);border-radius:99px;overflow:hidden;margin-top:8px}
+.proj-progress-inner{height:100%;border-radius:99px;transition:width .8s var(--spring)}
+</style>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// PROJECT OVERVIEW CARD (shown in main area when project clicked from sidebar)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Override openProject to show overview card instead of full page
+window.openProject = async function(projectId){
+  const proj = S.projects.find(p => p.id === projectId);
+  S.currentProject = proj || null;
+
+  // Switch view
+  ['home-view','chat-view','tasks-view','repo-view'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.add('hidden'); el.style.display=''; }
+  });
+  const pv = document.getElementById('project-view');
+  if (pv) { pv.classList.remove('hidden'); pv.style.display='flex'; }
+
+  // Update sidebar active state
+  document.querySelectorAll('.sb-proj-item').forEach(el => el.classList.toggle('active', el.dataset.pid === projectId));
+  ['sb-home','sb-tasks','sb-repos'].forEach(id => document.getElementById(id)?.classList.remove('active'));
+
+  // Render loading placeholder
+  const content = document.getElementById('proj-overview-content');
+  if (content) content.innerHTML = '<div style="padding:32px;text-align:center;color:var(--tx4);font-size:12px">Loading project...</div>';
+
+  try {
+    const data = await GET('/projects/'+projectId+'/dashboard');
+    // Cache
+    const pIdx = S.projects.findIndex(p=>p.id===projectId);
+    if (pIdx>=0) { S.projects[pIdx] = { ...S.projects[pIdx], ...data.project, _progress: data.progress||0 }; S.currentProject = S.projects[pIdx]; }
+    renderProjectOverviewCard(data, projectId);
+    renderSidebarProjects();
+  } catch(e) {
+    if (content) content.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-desc">'+esc(e.message)+'</div></div>';
+  }
+};
+
+function renderProjectOverviewCard(data, projectId){
+  const content = document.getElementById('proj-overview-content');
+  if (!content) return;
+  const proj = data.project || {};
+  const tasks = data.tasks || [];
+  const members = (data.members||[]).map(m => ({...m, user: m.user||{}}));
+  const stats = data.stats || {};
+  const prog = data.progress || 0;
+  const color = proj.color || '#22c55e';
+  const name = proj.name || 'Project';
+  const isLeadOrOwner = S.isOwner || ['admin','manager','lead'].includes(S.myRole||'');
+
+  // Online members
+  const onlineMembers = members.filter(m => S.online[m.user?.id]);
+
+  // My tasks (for member view)
+  const myTasks = tasks.filter(t => t.assigned_to === S.user?.id && t.status !== 'done' && t.status !== 'approved');
+  const myUrgent = myTasks.filter(t => {
+    if(!t.deadline)return t.priority==='urgent';
+    const h=(new Date(t.deadline)-Date.now())/3600000;
+    return h<24||t.priority==='urgent';
+  });
+
+  let html = '<div class="proj-overview-wrap">';
+
+  // ── Header card with Begin button ──
+  html += '<div class="proj-ov-header" style="--proj-color:'+esc(color)+'">'+
+    '<div class="proj-ov-colormark" style="background:'+esc(color)+'">'+esc(name.slice(0,2).toUpperCase())+'</div>'+
+    '<div class="proj-ov-info">'+
+      '<div class="proj-ov-name">'+esc(name)+'</div>'+
+      (proj.description?'<div class="proj-ov-desc">'+esc(proj.description)+'</div>':'')+
+      '<div class="proj-ov-meta">'+
+        (proj.github_url?'<a href="'+esc(proj.github_url)+'" target="_blank" style="color:var(--blue);border:1px solid rgba(59,130,246,.2);background:var(--blue-dim);padding:2px 8px;border-radius:99px;text-decoration:none;font-size:10px">🐙 '+esc(proj.github_repo||'GitHub')+'</a>':'')+
+        '<span>'+tasks.length+' tasks</span>'+
+        '<span>'+members.length+' members</span>'+
+        (proj.deadline?'<span>📅 Due '+new Date(proj.deadline).toLocaleDateString()+'</span>':'')+
+        '<span class="chip chip-'+(prog>75?'done':prog>40?'review':'open')+'">'+prog+'% done</span>'+
+      '</div>'+
+      '<div class="proj-progress-outer" style="margin-top:10px;max-width:300px"><div class="proj-progress-inner" style="width:'+prog+'%;background:'+esc(color)+'"></div></div>'+
+    '</div>'+
+    '<div class="proj-ov-actions">'+
+      '<button class="begin-btn" onclick="beginProject(\''+esc(projectId)+'\')" title="Open full project workspace in new window">'+
+        '▶ Begin'+
+      '</button>'+
+      (isLeadOrOwner?'<button class="btn btn-secondary btn-sm" onclick="openEditProject(\''+esc(projectId)+'\')">✏ Edit</button>':'')+
+    '</div>'+
+  '</div>';
+
+  // ── Stats ──
+  html += '<div class="proj-ov-stats">'+
+    [
+      {val:stats.in_progress||0,lbl:'Working',color:'var(--blue)'},
+      {val:stats.in_review||0,lbl:'In Review',color:'var(--yellow)'},
+      {val:stats.blocked||0,lbl:'Blocked',color:'var(--red)'},
+      {val:stats.done||0,lbl:'Done',color:'var(--gr)'},
+      {val:onlineMembers.length,lbl:'Online Now',color:'var(--gr)'},
+    ].map(s=>'<div class="proj-ov-stat"><div class="proj-ov-stat-val" style="color:'+s.color+'">'+s.val+'</div><div class="proj-ov-stat-lbl">'+s.lbl+'</div></div>').join('')+
+  '</div>';
+
+  // ── Different content for Owner vs Member ──
+  if (isLeadOrOwner) {
+    // OWNER VIEW: team activity + recent commits
+    html += '<div class="proj-ov-row">';
+
+    // Who's working
+    html += '<div class="proj-ov-panel"><div class="proj-ov-panel-title"><div style="width:6px;height:6px;border-radius:50%;background:var(--gr)"></div>Team Activity</div>'+
+      (members.length ? members.slice(0,5).map(m => {
+        const u=m.user||{};const isOnline=S.online[u.id];
+        const initials=(u.display_name||u.handle||'?').slice(0,2).toUpperCase();
+        const myTask=tasks.find(t=>t.assigned_to===u.id&&t.status!=='done');
+        return '<div class="proj-member-task-row">'+
+          '<div style="width:26px;height:26px;border-radius:50%;background:'+(u.avatar_color||'#22c55e')+';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#000;flex-shrink:0">'+initials+'</div>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-size:11px;font-weight:600">'+esc(u.display_name||u.handle||'')+'</div>'+
+            (myTask?'<div style="font-size:10px;color:var(--blue)">📋 '+esc(myTask.title.slice(0,35))+'</div>':'<div style="font-size:10px;color:var(--tx4)">No active task</div>')+
+          '</div>'+
+          '<div style="font-size:9px;font-weight:700;'+(isOnline?'color:var(--gr)':'color:var(--tx4)')+'">'+( isOnline?'● Online':'○ Offline')+'</div>'+
+        '</div>';
+      }).join('') : '<div style="font-size:11px;color:var(--tx4)">No members yet</div>')+
+    '</div>';
+
+    // Quick actions
+    html += '<div class="proj-ov-panel"><div class="proj-ov-panel-title"><div style="width:6px;height:6px;border-radius:50%;background:var(--blue)"></div>Quick Actions</div>'+
+      '<div style="display:flex;flex-direction:column;gap:8px">'+
+        '<button class="btn btn-primary btn-sm" style="justify-content:center" onclick="beginProject(\''+esc(projectId)+'\')">▶ Open Workspace</button>'+
+        '<button class="btn btn-secondary btn-sm" style="justify-content:center" onclick="openNewTask()">+ Create Task</button>'+
+        '<button class="btn btn-secondary btn-sm" style="justify-content:center" onclick="openModal(\'invite-modal\')">+ Invite Member</button>'+
+        (data.repo?'<a href="https://github.com/'+esc(data.repo.full_name)+'/pulls" target="_blank" class="btn btn-secondary btn-sm" style="justify-content:center;text-decoration:none">⇄ View PRs on GitHub</a>':'')+
+        '<button class="btn btn-secondary btn-sm" style="justify-content:center" onclick="openEditProject(\''+esc(projectId)+'\')">⚙ Project Settings</button>'+
+      '</div>'+
+    '</div>';
+    html += '</div>';
+
+    // Review queue if any
+    const inReview = tasks.filter(t=>t.status==='in_review');
+    if (inReview.length) {
+      html += '<div class="proj-ov-panel" style="margin-bottom:16px"><div class="proj-ov-panel-title" style="color:var(--yellow)">⏳ Awaiting Review ('+inReview.length+')</div>'+
+        inReview.map(t => {
+          const dev=members.find(m=>m.user?.id===t.assigned_to)?.user||{};
+          return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--c4)">'+
+            '<div style="flex:1"><div style="font-size:12px;font-weight:600">'+esc(t.title||'')+'</div><div style="font-size:10px;color:var(--tx3)">by '+esc(dev.display_name||dev.handle||'')+'</div></div>'+
+            (t.pr_url?'<a href="'+esc(t.pr_url)+'" target="_blank" style="font-size:10px;color:var(--blue)">View PR ↗</a>':'')+
+            '<button class="btn btn-secondary btn-sm" style="font-size:10px;padding:3px 8px" onclick="beginProject(\''+esc(projectId)+'\')">Review ↗</button>'+
+          '</div>';
+        }).join('')+
+      '</div>';
+    }
+  } else {
+    // MEMBER VIEW: my tasks + urgent alerts
+    html += '<div class="proj-ov-row">';
+
+    // My tasks summary
+    html += '<div class="proj-ov-panel"><div class="proj-ov-panel-title"><div style="width:6px;height:6px;border-radius:50%;background:var(--gr)"></div>My Tasks ('+myTasks.length+')</div>'+
+      (myUrgent.length ? '<div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);border-radius:var(--r8);padding:8px;margin-bottom:10px;font-size:11px;color:var(--red)">🔴 '+myUrgent.length+' urgent/overdue task'+(myUrgent.length>1?'s':'')+' need attention</div>' : '')+
+      (myTasks.length ? myTasks.slice(0,4).map(t => {
+        const dl=deadline(t.deadline);
+        return '<div class="proj-member-task-row">'+
+          '<div style="width:7px;height:7px;border-radius:50%;background:'+prioColor(t.priority)+';flex-shrink:0"></div>'+
+          '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.title||'')+'</div>'+
+          (t.branch_name?'<div style="font-size:9px;color:var(--blue);font-family:monospace">🌿 '+esc(t.branch_name)+'</div>':'')+
+          '</div>'+
+          '<span style="font-size:9px;'+( dl.cls==='kp-dl-over'?'color:var(--red)':dl.cls==='kp-dl-soon'?'color:var(--yellow)':'color:var(--tx4)')+'">'+dl.label+'</span>'+
+        '</div>';
+      }).join('') : '<div style="font-size:11px;color:var(--tx4);padding:8px;text-align:center">No tasks assigned yet</div>')+
+    '</div>';
+
+    // Quick actions for member
+    html += '<div class="proj-ov-panel"><div class="proj-ov-panel-title"><div style="width:6px;height:6px;border-radius:50%;background:var(--blue)"></div>Quick Actions</div>'+
+      '<div style="display:flex;flex-direction:column;gap:8px">'+
+        '<button class="btn btn-primary btn-sm" style="justify-content:center" onclick="beginProject(\''+esc(projectId)+'\')">▶ Open Workspace</button>'+
+        (myTasks.find(t=>t.status==='in_progress')?'<button class="btn btn-secondary btn-sm" style="justify-content:center;color:var(--blue)" onclick="beginProject(\''+esc(projectId)+'\')">⇄ Submit Work for Review</button>':'')+
+        '<button class="btn btn-ghost btn-sm" style="justify-content:center" onclick="switchChannel(\''+esc(S.channels.find(ch=>ch.name.includes('proj'))?.id||'')+'\')">💬 Project Chat</button>'+
+      '</div>'+
+    '</div>';
+    html += '</div>';
+  }
+
+  html += '</div>'; // end proj-overview-wrap
+  content.innerHTML = html;
+}
+
+// ── BEGIN PROJECT: Open full workspace in popup window ────────────────────
+function beginProject(projectId){
+  const url = window.location.origin + '/project.html?id=' + encodeURIComponent(projectId);
+  const w = Math.min(1400, screen.availWidth * 0.9);
+  const h = Math.min(900, screen.availHeight * 0.9);
+  const left = Math.round((screen.availWidth - w) / 2);
+  const top = Math.round((screen.availHeight - h) / 2);
+  const popup = window.open(url, 'dc_project_'+projectId,
+    'width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=no,status=no,toolbar=no,menubar=no,location=no'
+  );
+  if (!popup || popup.closed) {
+    // Popup blocked - open in new tab
+    window.open(url, '_blank');
+    toast('i','Opening in new tab','Allow popups for the best experience');
+  }
+}
+
+// ── OPEN EDIT PROJECT ─────────────────────────────────────────────────────
+window.openEditProject = function(projectId){
+  const p = S.projects.find(x=>x.id===projectId) || S.currentProject;
+  if(!p)return;
+  const mo=document.createElement('div');mo.className='modal-ov';mo.id='edit-proj-modal';
+  mo.onclick=e=>{if(e.target===mo)mo.remove();};
+  mo.innerHTML='<div class="modal sm"><div class="modal-hdr">'+
+    '<div class="modal-title">Edit Project</div>'+
+    '<div class="modal-close" onclick="document.getElementById(\'edit-proj-modal\').remove()">✕</div>'+
+  '</div><div class="modal-body">'+
+    '<div class="field"><label class="field-label">Name</label><input class="field-input" id="ep-name" value="'+esc(p.name||'')+'" type="text"></div>'+
+    '<div class="field"><label class="field-label">Description</label><textarea class="field-input" id="ep-desc" rows="2">'+esc(p.description||'')+'</textarea></div>'+
+    '<div class="field-row">'+
+      '<div class="field"><label class="field-label">Status</label><select class="field-select" id="ep-status">'+
+        ['active','on_hold','done','archived'].map(s=>'<option value="'+s+'"'+(p.status===s?' selected':'')+'>'+s+'</option>').join('')+
+      '</select></div>'+
+      '<div class="field"><label class="field-label">Deadline</label><input class="custom-date-input" id="ep-deadline" type="date" value="'+(p.deadline?p.deadline.slice(0,10):'')+'"></div>'+
+    '</div>'+
+  '</div><div class="modal-ftr">'+
+    '<button class="btn btn-danger btn-sm" onclick="deleteProject(\''+esc(p.id)+'\')">🗑 Delete</button>'+
+    '<button class="btn btn-secondary" onclick="document.getElementById(\'edit-proj-modal\').remove()">Cancel</button>'+
+    '<button class="btn btn-primary" onclick="saveProjectEdit(\''+esc(p.id)+'\')">Save</button>'+
+  '</div></div>';
+  document.body.appendChild(mo);
+};
+
+async function saveProjectEdit(projId){
+  const name=safe(document.getElementById('ep-name')?.value||'',100);
+  const desc=safe(document.getElementById('ep-desc')?.value||'',1000);
+  const status=document.getElementById('ep-status')?.value||'active';
+  const dl=document.getElementById('ep-deadline')?.value||'';
+  try{
+    await PATCH('/projects/'+projId,{name,description:desc,status,deadline:dl||null});
+    const idx=S.projects.findIndex(p=>p.id===projId);
+    if(idx>=0)S.projects[idx]={...S.projects[idx],name,description:desc,status,deadline:dl||null};
+    if(S.currentProject?.id===projId)S.currentProject={...S.currentProject,name,description:desc,status};
+    document.getElementById('edit-proj-modal')?.remove();
+    renderSidebarProjects();
+    // Reload overview
+    openProject(projId);
+    toast('s','Project updated','');
+  }catch(e){toast('e','Error',e.message);}
+}
+
+async function deleteProject(projId){
+  if(!confirm('Delete this project? All tasks will be removed. The GitHub repo will remain.'))return;
+  try{
+    await DEL('/projects/'+projId);
+    S.projects=S.projects.filter(p=>p.id!==projId);
+    S.currentProject=null;
+    renderSidebarProjects();
+    document.getElementById('edit-proj-modal')?.remove();
+    showHome();
+    toast('s','Project deleted','');
+  }catch(e){toast('e','Error',e.message);}
+}
+
+// Patch showView to handle project view
+const __prevShowViewFinal = window.showView;
+window.showView = function(view){
+  __prevShowViewFinal && __prevShowViewFinal(view);
+  const pv=document.getElementById('project-view');
+  if(pv&&view!=='project')pv.classList.add('hidden');
+};
+
+// Fix showHome to also hide project view
+const __prevShowHome = window.showHome;
+window.showHome = function(){
+  __prevShowHome && __prevShowHome();
+  const pv=document.getElementById('project-view');
+  if(pv)pv.classList.add('hidden');
+};
 </script>
