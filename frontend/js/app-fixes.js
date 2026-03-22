@@ -100,8 +100,10 @@ async function startDM(userId){
 function _appendDMMsg(m, target){
   const area=document.getElementById('msgs-area');
   if(!area)return;
-  const fromId=m.from_user||m.fromUserId||m.userId;
-  const isMe=fromId===S.user?.id;
+  const fromId = m.from_user || m.fromUserId || m.userId;
+  // Use stored myId from DM session OR fall back to S.user?.id
+  const myId = _DM.current?.myId || S.user?.id;
+  const isMe = !!(myId && fromId && fromId === myId);
   const rawU=isMe?S.user:(target||_fixUser((S.users||[]).find(u=>u.id===fromId)||{id:fromId}));
   const u=_fixUser(rawU||{});
   const time=new Date(m.created_at||m.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
@@ -109,10 +111,13 @@ function _appendDMMsg(m, target){
   const content=m.content||m.text||'';
   const txt=typeof fmtText==='function'?fmtText(content):_e(content);
 
-  const el=document.createElement('div');
-  el.className='msg anim-fade-up';
-  el.style.position='relative';
-  if(m.id) el.dataset.mid=m.id;
+  // DEDUP: skip if this message ID already rendered
+  if (m.id && area.querySelector('[data-mid="' + m.id + '"]')) return;
+
+  const el = document.createElement('div');
+  el.className = 'msg anim-fade-up';
+  el.style.position = 'relative';
+  if (m.id) el.dataset.mid = m.id;
 
   // Message HTML — own messages aligned right-ish, others left
   el.innerHTML=`
@@ -227,16 +232,35 @@ function _dmCtxFull(e, m, el, isMe, content) {
       const ta=document.getElementById('msg-input');
       const content=ta?.value?.trim();if(!content)return;
       ta.value='';ta.style.height='auto';
-      // Append locally immediately (optimistic)
+
+      const myId = S.user?.id;
+      const toId = _DM.current.userId;
+      if(!myId){ toast('e','Not ready','Please wait a moment');return; }
+
+      // Store last message for preview
       if(!_DM.lastMessages)_DM.lastMessages={};
-      _DM.lastMessages[_DM.current.userId]=content.slice(0,40);
-      _appendDMMsg({from_user:S.user?.id,content,created_at:new Date().toISOString()},null);
+      _DM.lastMessages[toId]=content.slice(0,40);
+
+      // Generate a temp ID to track optimistic message
+      const tempId = 'temp-' + Date.now();
+
+      // Optimistic local append — uses stored myId so isMe=true
+      if(!_DM.current.myId)_DM.current.myId=myId;
+      _appendDMMsg({id:tempId,from_user:myId,content,created_at:new Date().toISOString()},null);
       const area=document.getElementById('msgs-area');if(area)area.scrollTop=area.scrollHeight;
-      // Send via socket or REST
+
+      // Send via socket
       if(S.socket?.connected){
-        S.socket.emit('dm:send',{toUserId:_DM.current.userId,content});
+        S.socket.emit('dm:send',{toUserId:toId,content});
+        // Server echoes dm:new back — we ignore it via fromId===myId check
       }else{
-        POST('/messages/dm',{toUserId:_DM.current.userId,content}).catch(e=>toast('e','Send failed',e.message));
+        POST('/messages/dm',{toUserId:toId,content})
+          .then(saved=>{
+            // Replace temp element with real saved message
+            const tempEl=document.querySelector('[data-mid="'+tempId+'"]');
+            if(tempEl&&saved?.id)tempEl.dataset.mid=saved.id;
+          })
+          .catch(e=>toast('e','Send failed',e.message));
       }
       return;
     }
@@ -463,8 +487,11 @@ function _patchSocket(){
   S.socket.off('dm:new');
   S.socket.on('dm:new',dm=>{
     const fromId=dm.fromUserId||dm.from_user;
-    // CRITICAL FIX: ignore echo of own sent message (already appended locally)
-    if(fromId===S.user?.id)return;
+    const myId=S.user?.id||_DM.current?.myId;
+    // Ignore echo of own sent message — already appended optimistically
+    if(myId&&fromId===myId)return;
+    // Also check by message ID dedup
+    if(dm.id&&document.querySelector('[data-mid="'+dm.id+'"]'))return;
     // Recipient getting a new DM
     const sender=_fixUser((S.users||[]).find(u=>u.id===fromId)||{id:fromId});
     if(!_DM.lastMessages)_DM.lastMessages={};
@@ -485,6 +512,28 @@ function _patchSocket(){
   // ── Reactions ──
   S.socket.off('msg:reactions');
   S.socket.on('msg:reactions',({messageId,reactions})=>_renderRxns(messageId,reactions));
+
+  // ── DM delivery confirmation (replace temp ID with real ID) ──
+  S.socket.off('dm:sent');
+  S.socket.on('dm:sent', ({ id, ts }) => {
+    if (!id) return;
+    // Find the most recent temp message and update its ID
+    const area = document.getElementById('msgs-area');
+    if (!area) return;
+    const tempEls = area.querySelectorAll('[data-mid^="temp-"]');
+    if (tempEls.length > 0) {
+      const lastTemp = tempEls[tempEls.length - 1];
+      lastTemp.dataset.mid = id;
+      // Add a subtle "sent" indicator
+      const ts_el = lastTemp.querySelector('.msg-ts');
+      if (ts_el) ts_el.style.color = 'var(--green)';
+      setTimeout(() => { if (ts_el) ts_el.style.color = ''; }, 1500);
+    }
+    // Update in DM last messages
+    if (_DM.current?.userId) {
+      if (!_DM.lastMessages) _DM.lastMessages = {};
+    }
+  });
 
   // ── Presence → refresh panels ──
   S.socket.on('presence',({userId,status})=>{
