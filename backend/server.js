@@ -232,9 +232,11 @@ io.on('connection', async (socket) => {
       const { data:saved } = await db.createDM(dm);
       // notify both
       const out = { id:saved.id, roomId:room.id, fromUserId:userId, content:safeStr(content,5000), ts:saved.created_at };
+      // Send to RECIPIENT only — do NOT echo back to sender (they already appended optimistically)
       const recipientSockets = onlineUsers.get(toUserId);
       if (recipientSockets) recipientSockets.forEach(sid => io.to(sid).emit('dm:new', out));
-      socket.emit('dm:new', out);
+      // Send a delivery confirmation to sender (not a full dm:new which would duplicate)
+      socket.emit('dm:sent', { tempId: out.id, id: saved.id, ts: saved.created_at });
       // notification
       await db.createNotif({ id:uuid(), user_id:toUserId, type:NOTIF_TYPE.DM, title:encrypt(`DM from @${user.handle}`), body:encrypt(safeStr(content,100)), read:false, data:JSON.stringify({fromUserId:userId}), created_at:new Date().toISOString() });
     } catch(e) { socket.emit('error',{message:e.message}); }
