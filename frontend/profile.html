@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Profile — DevCollab Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<style>
+body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; overflow-y: auto; overflow-x: hidden; }
+pre, code { font-family: 'JetBrains Mono', monospace; }
+
+/* Profile layout */
+.profile-root { min-height: 100vh; }
+.profile-nav {
+  height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 24px;
+  background: rgba(9,9,11,.95); border-bottom: 1px solid rgba(255,255,255,.05);
+  backdrop-filter: blur(16px); position: sticky; top: 0; z-index: 100;
+}
+.profile-nav-brand { font-size: 14px; font-weight: 800; letter-spacing: -.3px; color: var(--t1); }
+.profile-nav-brand em { color: var(--green); font-style: normal; }
+.profile-nav-back { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--t3); cursor: pointer; padding: 5px 10px; border-radius: var(--r8); transition: all var(--fast); text-decoration: none; }
+.profile-nav-back:hover { background: var(--s3); color: var(--t1); }
+
+/* Hero */
+.profile-hero {
+  background: linear-gradient(180deg, var(--s1) 0%, var(--bg) 100%);
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  padding: 40px 40px 0;
+  position: relative; overflow: hidden;
+}
+.profile-hero::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+}
+.profile-hero-inner { max-width: 900px; margin: 0 auto; }
+.profile-av-wrap { position: relative; display: inline-block; margin-bottom: 16px; }
+.profile-av {
+  width: 96px; height: 96px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.1);
+  box-shadow: 0 0 0 3px rgba(34,197,94,.2), var(--sh2);
+  overflow: hidden;
+}
+.profile-av img { width: 100%; height: 100%; object-fit: cover; }
+.profile-av-placeholder {
+  width: 96px; height: 96px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; font-weight: 700; color: #000;
+  border: 3px solid rgba(255,255,255,.1);
+}
+.profile-online-ring {
+  position: absolute; bottom: 4px; right: 4px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--green); border: 3px solid var(--bg);
+}
+.profile-name { font-size: 26px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 4px; }
+.profile-handle { font-size: 14px; color: var(--t3); font-family: 'JetBrains Mono', monospace; margin-bottom: 10px; }
+.profile-bio { font-size: 13px; color: var(--t2); line-height: 1.7; max-width: 500px; margin-bottom: 14px; }
+.profile-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--t4); margin-bottom: 20px; }
+.profile-meta-item { display: flex; align-items: center; gap: 5px; }
+.profile-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 20px; }
+
+/* Tabs */
+.profile-tabs {
+  display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,.05);
+  max-width: 900px; margin: 0 auto 0;
+}
+.profile-tab {
+  padding: 12px 20px; font-size: 12px; font-weight: 600; color: var(--t3);
+  cursor: pointer; border-bottom: 2px solid transparent; transition: all var(--normal);
+  white-space: nowrap;
+}
+.profile-tab:hover { color: var(--t2); }
+.profile-tab.active { color: var(--t1); border-bottom-color: var(--green); }
+
+/* Body */
+.profile-body { max-width: 900px; margin: 24px auto; padding: 0 40px 40px; }
+
+/* Overview grid */
+.overview-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+
+/* Stats */
+.stat-row { display: flex; gap: 12px; margin-bottom: 20px; }
+.mini-stat { flex: 1; background: var(--s1); border: 1px solid rgba(255,255,255,.05); border-radius: 10px; padding: 14px; text-align: center; }
+.mini-stat-val { font-size: 22px; font-weight: 800; letter-spacing: -.5px; color: var(--green); }
+.mini-stat-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--t4); margin-top: 3px; }
+
+/* Edit form */
+.edit-section { background: var(--s1); border: 1px solid rgba(255,255,255,.05); border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
+.edit-section-hdr { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.04); display: flex; align-items: center; justify-content: space-between; }
+.edit-section-title { font-size: 13px; font-weight: 700; }
+.edit-section-body { padding: 18px; }
+
+/* Contribution graph */
+.cg-wrap { overflow-x: auto; padding-bottom: 4px; }
+.cg-months { display: flex; padding-left: 28px; margin-bottom: 3px; font-size: 9px; color: var(--t4); font-weight: 600; min-width: max-content; }
+.cg-month { flex: 0 0 auto; min-width: 52px; }
+.cg-row { display: flex; gap: 0; min-width: max-content; }
+.cg-day-labels { display: flex; flex-direction: column; gap: 3px; padding-top: 1px; margin-right: 6px; font-size: 9px; color: var(--t4); }
+.cg-day-lbl { height: 13px; line-height: 13px; text-align: right; font-weight: 500; width: 22px; }
+.cg-weeks { display: flex; gap: 3px; }
+.cg-week { display: flex; flex-direction: column; gap: 3px; }
+.cg-cell { width: 13px; height: 13px; border-radius: 3px; cursor: pointer; transition: transform .1s; }
+.cg-cell:hover { transform: scale(1.3); outline: 1px solid rgba(255,255,255,.3); }
+
+/* Skills/lang tags */
+.tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.lang-tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--s2); border: 1px solid rgba(255,255,255,.06); border-radius: 99px; font-size: 11px; font-weight: 600; color: var(--t2); }
+.lang-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* Danger zone */
+.danger-zone { background: rgba(239,68,68,.04); border: 1px solid rgba(239,68,68,.12); border-radius: 14px; padding: 18px; }
+.danger-zone-title { font-size: 13px; font-weight: 700; color: var(--red); margin-bottom: 4px; }
+.danger-zone-desc { font-size: 11px; color: var(--t3); margin-bottom: 12px; }
+
+/* Repo cards */
+.repo-card { background: var(--s1); border: 1px solid rgba(255,255,255,.05); border-radius: 12px; padding: 14px; margin-bottom: 10px; transition: all 150ms; }
+.repo-card:hover { border-color: rgba(255,255,255,.09); }
+.repo-card-name { font-size: 13px; font-weight: 700; color: var(--blue); margin-bottom: 4px; }
+.repo-card-desc { font-size: 11px; color: var(--t3); margin-bottom: 8px; line-height: 1.5; }
+.repo-card-meta { display: flex; gap: 10px; align-items: center; font-size: 10px; color: var(--t4); }
+
+/* Toast */
+#toasts { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; width: 300px; pointer-events: none; }
+.toast { background: rgba(15,15,17,.98); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 10px 12px; box-shadow: 0 12px 40px rgba(0,0,0,.6); display: flex; align-items: flex-start; gap: 8px; pointer-events: all; animation: fadeUp .2s cubic-bezier(.16,1,.3,1); }
+.toast-s { border-left: 3px solid var(--green); }
+.toast-e { border-left: 3px solid var(--red); }
+.toast-i { border-left: 3px solid var(--blue); }
+.toast-title { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+.toast-msg { font-size: 10px; color: var(--t3); }
+@keyframes fadeUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+/* Mobile */
+@media (max-width: 700px) {
+  .profile-hero { padding: 24px 20px 0; }
+  .profile-body { padding: 0 16px 32px; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .stat-row { flex-wrap: wrap; }
+  .mini-stat { min-width: calc(50% - 6px); }
+}
+</style>
+</head>
+<body>
+<div class="profile-root">
+  <!-- Nav -->
+  <nav class="profile-nav">
+    <a href="app.html" class="profile-nav-back">← Back to app</a>
+    <div style="flex:1"></div>
+    <span class="profile-nav-brand">DevCollab <em>Hub</em></span>
+  </nav>
+
+  <!-- Hero -->
+  <div class="profile-hero">
+    <div class="profile-hero-inner">
+      <div class="profile-av-wrap">
+        <div id="pf-av" class="profile-av-placeholder" style="background:#22c55e">DS</div>
+        <div class="profile-online-ring" id="pf-ring"></div>
+      </div>
+      <div class="profile-name" id="pf-name">Loading...</div>
+      <div class="profile-handle" id="pf-handle">@...</div>
+      <div class="profile-bio" id="pf-bio"></div>
+      <div class="profile-meta">
+        <div class="profile-meta-item" id="pf-location"></div>
+        <div class="profile-meta-item" id="pf-company"></div>
+        <div class="profile-meta-item" id="pf-github-link"></div>
+        <div class="profile-meta-item" id="pf-joined"></div>
+      </div>
+      <div class="profile-actions" id="pf-actions"></div>
+    </div>
+    <!-- Tabs -->
+    <div class="profile-tabs">
+      <div class="profile-tab active" onclick="switchTab('overview',this)">Overview</div>
+      <div class="profile-tab" onclick="switchTab('repos',this)">Repositories</div>
+      <div class="profile-tab" onclick="switchTab('activity',this)">Activity</div>
+      <div class="profile-tab" id="tab-settings" onclick="switchTab('settings',this)" style="display:none">Settings</div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="profile-body">
+    <!-- Overview tab -->
+    <div id="tab-overview">
+      <div class="stat-row" id="pf-stats"></div>
+      <div class="overview-grid">
+        <!-- Left -->
+        <div>
+          <div class="panel mb-12">
+            <div class="panel-hdr"><div class="panel-hdr-title">Skills & Languages</div></div>
+            <div class="panel-body"><div class="tags-wrap" id="pf-langs"></div></div>
+          </div>
+          <div class="panel mb-12">
+            <div class="panel-hdr"><div class="panel-hdr-title">Workspace Role</div></div>
+            <div class="panel-body" id="pf-role-info"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-hdr"><div class="panel-hdr-title">Current Projects</div></div>
+            <div class="panel-body" id="pf-projects"></div>
+          </div>
+        </div>
+        <!-- Right -->
+        <div>
+          <div class="panel mb-16">
+            <div class="panel-hdr"><div class="panel-hdr-title">Contribution Activity</div></div>
+            <div class="panel-body">
+              <div class="cg-wrap">
+                <div class="cg-months" id="pf-cg-months"></div>
+                <div class="cg-row">
+                  <div class="cg-day-labels" id="pf-cg-days"></div>
+                  <div class="cg-weeks" id="pf-cg-weeks"></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px;margin-top:8px;font-size:9px;color:var(--t4)">
+                <span>Less</span>
+                <div style="display:flex;gap:2px">
+                  <div class="cg-cell" style="background:var(--s4);cursor:default"></div>
+                  <div class="cg-cell" style="background:#14532d;cursor:default"></div>
+                  <div class="cg-cell" style="background:#166534;cursor:default"></div>
+                  <div class="cg-cell" style="background:#16a34a;cursor:default"></div>
+                  <div class="cg-cell" style="background:#22c55e;cursor:default"></div>
+                </div>
+                <span>More</span>
+                <span id="pf-cg-total" style="margin-left:auto"></span>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-hdr"><div class="panel-hdr-title">Pinned Repos</div></div>
+            <div class="panel-body" id="pf-pinned-repos"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Repos tab -->
+    <div id="tab-repos" style="display:none">
+      <div style="display:flex;gap:10px;margin-bottom:16px">
+        <input class="field-input" id="repo-q" placeholder="Find a repository..." style="max-width:300px" oninput="filterPfRepos(this.value)">
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" id="rpf-all" onclick="setRpfFilter('all',this)">All</button>
+          <button class="btn btn-ghost btn-sm" id="rpf-pub" onclick="setRpfFilter('public',this)">Public</button>
+          <button class="btn btn-ghost btn-sm" id="rpf-priv" onclick="setRpfFilter('private',this)">Private</button>
+        </div>
+      </div>
+      <div id="pf-repos-list"></div>
+    </div>
+
+    <!-- Activity tab -->
+    <div id="tab-activity" style="display:none">
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-hdr-title">Recent Activity</div></div>
+        <div class="panel-body" id="pf-activity-list">
+          <div class="panel-empty"><div class="panel-empty-text">No recent activity</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings tab (only own profile) -->
+    <div id="tab-settings-content" style="display:none">
+      <!-- Edit profile -->
+      <div class="edit-section mb-16">
+        <div class="edit-section-hdr">
+          <div class="edit-section-title">Edit Profile</div>
+          <button class="btn btn-primary btn-sm" onclick="saveProfile()">Save Changes</button>
+        </div>
+        <div class="edit-section-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="field">
+              <label class="field-label">Display Name</label>
+              <input class="field-input" id="edit-display-name" type="text" placeholder="Your full name">
+            </div>
+            <div class="field">
+              <label class="field-label">Handle (@username)</label>
+              <input class="field-input" id="edit-handle" type="text" placeholder="@handle" readonly style="opacity:.6;cursor:not-allowed">
+              <div class="field-hint">Handle is set from GitHub and cannot be changed</div>
+            </div>
+            <div class="field" style="grid-column:span 2">
+              <label class="field-label">Bio</label>
+              <textarea class="field-textarea" id="edit-bio" rows="3" placeholder="Tell your team about yourself..."></textarea>
+            </div>
+            <div class="field">
+              <label class="field-label">Location</label>
+              <input class="field-input" id="edit-location" type="text" placeholder="City, Country">
+            </div>
+            <div class="field">
+              <label class="field-label">Company / Team</label>
+              <input class="field-input" id="edit-company" type="text" placeholder="Company name">
+            </div>
+            <div class="field" style="grid-column:span 2">
+              <label class="field-label">Website</label>
+              <input class="field-input" id="edit-website" type="url" placeholder="https://yoursite.com">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Avatar color -->
+      <div class="edit-section mb-16">
+        <div class="edit-section-hdr"><div class="edit-section-title">Avatar Color</div></div>
+        <div class="edit-section-body">
+          <div style="display:flex;gap:10px;flex-wrap:wrap" id="color-picker">
+            <div class="color-swatch selected" data-color="#22c55e" onclick="pickColor(this)" style="width:36px;height:36px;border-radius:50%;background:#22c55e;cursor:pointer;border:3px solid rgba(255,255,255,.4);transition:all .15s"></div>
+            <div class="color-swatch" data-color="#3b82f6" onclick="pickColor(this)" style="width:36px;height:36px;border-radius:50%;background:#3b82f6;cursor:pointer;border:3px solid transparent;transition:all .15s"></div>
+            <div class="color-swatch" data-color="#a855f7" onclick="pickColor(this)" style="width:36px;height:36px;border-radius:50%;background:#a855f7;cursor:pointer;border:3px solid transparent;transition:all .15s"></div>
+            <div class="color-swatch" data-color="#f97316" onclick="pickColor(this)" style="width:36px;height:36px;border-radius:50%;background:#f97316;cursor:pointer;border:3px solid transparent;transition:all .15s"></div>
+            <div class="color-swatch" data-color="#eab308" onclick="pickColor(this)" style="width:36px;height:36px;border-radius:50%;background:#eab308;cursor:pointer;border:3px solid transparent;transition:all .15s"></div>
+            <div class="color-swatch" data-color="#ef4444" onclick="pickColor(this)" style="width:36px;height:36px;border-radius:50%;background:#ef4444;cursor:pointer;border:3px solid transparent;transition:all .15s"></div>
+            <div class="color-swatch" data-color="#06b6d4" onclick="pickColor(this)" style="width:36px;height:36px;border-radius:50%;background:#06b6d4;cursor:pointer;border:3px solid transparent;transition:all .15s"></div>
+            <div class="color-swatch" data-color="#ec4899" onclick="pickColor(this)" style="width:36px;height:36px;border-radius:50%;background:#ec4899;cursor:pointer;border:3px solid transparent;transition:all .15s"></div>
+          </div>
+          <div class="field-hint" style="margin-top:10px">This color is shown when GitHub profile picture isn't available</div>
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      <div class="edit-section mb-16">
+        <div class="edit-section-hdr"><div class="edit-section-title">Notification Preferences</div></div>
+        <div class="edit-section-body" style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:600">Task Assignments</div><div class="field-hint" style="margin:0">When a task is assigned to you</div></div>
+            <div class="toggle on" id="notif-tasks" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:600">PR Reviews</div><div class="field-hint" style="margin:0">When someone reviews your pull request</div></div>
+            <div class="toggle on" id="notif-prs" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:600">@Mentions</div><div class="field-hint" style="margin:0">When you're mentioned in a channel</div></div>
+            <div class="toggle on" id="notif-mentions" onclick="this.classList.toggle('on')"></div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div><div style="font-size:13px;font-weight:600">Nudges</div><div class="field-hint" style="margin:0">Reminders on idle tasks</div></div>
+            <div class="toggle" id="notif-nudges" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="danger-zone">
+        <div class="danger-zone-title">⚠ Danger Zone</div>
+        <div class="danger-zone-desc">These actions are permanent and cannot be undone.</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-danger btn-sm" onclick="signOut()">Sign Out All Devices</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="js/utils.js"></script>
+<script>
+'use strict';
+const IS_DEV = location.hostname==='localhost'||location.hostname==='127.0.0.1';
+const API_URL = IS_DEV ? 'http://localhost:4000/api' : 'https://devcolab-backend.onrender.com/api';
+window._dcToken = localStorage.getItem('dc_token');
+
+async function apiCall(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = window._dcToken;
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API_URL + path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.message || 'HTTP ' + res.status);
+  return data.data ?? data;
+}
+const GET   = p    => apiCall('GET', p);
+const PATCH = (p,b)=> apiCall('PATCH', p, b);
+const POST  = (p,b)=> apiCall('POST', p, b);
+
+let _user = null, _ghProfile = null, _repos = [], _rpfFilter = 'all', _pickedColor = null;
+const params = new URLSearchParams(location.search);
+const targetHandle = params.get('handle'); // if viewing someone else's profile
+
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    _user = await GET('/auth/me');
+    if (!_user?.id) { window.location.href = 'index.html'; return; }
+    _pickedColor = _user.avatar_color || '#22c55e';
+    // Show settings tab only for own profile
+    const isOwn = !targetHandle || targetHandle === _user.github_username || targetHandle === _user.handle;
+    if (isOwn) document.getElementById('tab-settings').style.display = '';
+    await renderProfile(isOwn);
+    loadGitHubData();
+    loadContribGraph();
+    loadActivity();
+  } catch(e) { toast('e','Error',e.message); }
+});
+
+async function renderProfile(isOwn) {
+  const u = _user;
+  // Avatar
+  const avEl = document.getElementById('pf-av');
+  if (u.avatar_url) {
+    avEl.outerHTML = `<div class="profile-av" id="pf-av"><img src="${esc(u.avatar_url)}" alt="avatar"></div>`;
+  } else {
+    avEl.style.background = u.avatar_color || '#22c55e';
+    avEl.textContent = initials(u.display_name || u.github_username || 'U');
+  }
+  // Text
+  const name = safe(u.display_name || u.github_username || 'User', 60);
+  document.getElementById('pf-name').textContent = name;
+  document.getElementById('pf-handle').textContent = '@' + (u.github_username || u.handle || '');
+  if (u.bio) document.getElementById('pf-bio').textContent = u.bio;
+  else document.getElementById('pf-bio').style.display = 'none';
+  // Meta
+  if (u.location) document.getElementById('pf-location').innerHTML = '📍 ' + esc(u.location);
+  if (u.company) document.getElementById('pf-company').innerHTML = '🏢 ' + esc(u.company);
+  document.getElementById('pf-github-link').innerHTML = `<a href="https://github.com/${esc(u.github_username)}" target="_blank" style="color:var(--blue);display:flex;align-items:center;gap:4px">🐙 @${esc(u.github_username)}</a>`;
+  document.getElementById('pf-joined').textContent = '📅 Joined ' + new Date(u.created_at||Date.now()).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  // Actions
+  const acts = document.getElementById('pf-actions');
+  if (isOwn) {
+    acts.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="switchTab('settings',document.querySelectorAll('.profile-tab')[3])">⚙ Edit Profile</button>
+      <a href="https://github.com/${esc(u.github_username)}" target="_blank" class="btn btn-ghost btn-sm">🐙 GitHub</a>`;
+  } else {
+    acts.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="toast('i','DM','Coming soon')">💬 Message</button>`;
+  }
+  // Stats
+  document.getElementById('pf-stats').innerHTML = `
+    <div class="mini-stat"><div class="mini-stat-val" id="stat-repos">–</div><div class="mini-stat-lbl">Repos</div></div>
+    <div class="mini-stat"><div class="mini-stat-val" id="stat-contribs">–</div><div class="mini-stat-lbl">Contributions</div></div>
+    <div class="mini-stat"><div class="mini-stat-val" id="stat-tasks">–</div><div class="mini-stat-lbl">Tasks Done</div></div>
+    <div class="mini-stat"><div class="mini-stat-val" id="stat-prs">–</div><div class="mini-stat-lbl">PRs Opened</div></div>`;
+  // Role
+  try {
+    const ws = await GET('/workspaces');
+    const wsId = ws?.[0]?.id;
+    if (wsId) {
+      const roleData = await GET('/workspaces/' + wsId + '/my-role');
+      const role = roleData?.role || 'member';
+      document.getElementById('pf-role-info').innerHTML = `<div style="display:flex;align-items:center;gap:10px"><span class="role role-${esc(role)}">${esc(role)}</span><span style="font-size:12px;color:var(--t3)">${esc(ws[0].name)}</span></div>`;
+      // Projects
+      const projs = await GET('/workspaces/' + wsId + '/projects');
+      const projEl = document.getElementById('pf-projects');
+      if (projs?.length) {
+        projEl.innerHTML = projs.slice(0,4).map(p => `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)"><div style="width:8px;height:8px;border-radius:50%;background:${esc(p.color||'#22c55e')};flex-shrink:0"></div><span style="font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span></div>`).join('');
+      } else projEl.innerHTML = '<div class="panel-empty"><div class="panel-empty-text">No projects</div></div>';
+    }
+  } catch {}
+  // Tasks stat
+  try {
+    const tasks = await GET('/tasks/mine');
+    const doneCnt = tasks.filter(t => t.status==='done'||t.status==='approved').length;
+    const el = document.getElementById('stat-tasks');
+    if (el) el.textContent = doneCnt;
+  } catch {}
+  // Pre-fill edit form
+  if (isOwn) {
+    const fi = v => v ? safe(v, 500) : '';
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = fi(val); };
+    setVal('edit-display-name', u.display_name);
+    setVal('edit-handle', u.github_username || u.handle);
+    setVal('edit-bio', u.bio);
+    setVal('edit-location', u.location);
+    setVal('edit-company', u.company);
+    setVal('edit-website', u.website);
+    // Set active color
+    document.querySelectorAll('.color-swatch').forEach(sw => {
+      sw.style.borderColor = sw.dataset.color === _pickedColor ? 'rgba(255,255,255,.7)' : 'transparent';
+      sw.classList.toggle('selected', sw.dataset.color === _pickedColor);
+    });
+  }
+}
+
+async function loadGitHubData() {
+  try {
+    const gh = await GET('/github/profile');
+    _ghProfile = gh;
+    const repoCount = document.getElementById('stat-repos');
+    if (repoCount) repoCount.textContent = gh.public_repos || 0;
+    // Languages
+    const repos = await GET('/github/repos/all');
+    _repos = repos || [];
+    const el = document.getElementById('stat-repos');
+    if (el) el.textContent = _repos.length;
+    // Count languages
+    const langCount = {};
+    _repos.forEach(r => { if (r.language) langCount[r.language] = (langCount[r.language]||0)+1; });
+    const LANG_COLORS = { JavaScript:'#f1e05a', TypeScript:'#3178c6', Python:'#3572A5', Rust:'#dea584', Go:'#00ADD8', Java:'#b07219', CSS:'#563d7c', HTML:'#e34c26', Shell:'#89e051', 'C++':'#f34b7d' };
+    const sorted = Object.entries(langCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const langsEl = document.getElementById('pf-langs');
+    if (langsEl) langsEl.innerHTML = sorted.map(([lang]) => `<span class="lang-tag"><span class="lang-dot" style="background:${LANG_COLORS[lang]||'#aaa'}"></span>${esc(lang)}</span>`).join('')||'<span style="font-size:11px;color:var(--t4)">No data</span>';
+    // Pinned repos
+    const pinnedEl = document.getElementById('pf-pinned-repos');
+    if (pinnedEl) renderRepoCards(_repos.sort((a,b)=>(b.stargazers_count||0)-(a.stargazers_count||0)).slice(0,4), pinnedEl);
+    // Repos tab
+    renderPfRepos();
+    // PR stat
+    const prStat = document.getElementById('stat-prs');
+    if (prStat) prStat.textContent = _repos.filter(r=>r.open_issues_count>0).length || 0;
+  } catch(e) { console.warn('[ghdata]', e); }
+}
+
+function renderRepoCards(repos, el) {
+  if (!repos?.length) { el.innerHTML = '<div class="panel-empty"><div class="panel-empty-text">No repositories</div></div>'; return; }
+  el.innerHTML = repos.map(r => `<div class="repo-card">
+    <div class="repo-card-name"><a href="${esc(r.html_url||'https://github.com/'+r.full_name)}" target="_blank">${esc(r.full_name||r.name)}</a></div>
+    ${r.description ? `<div class="repo-card-desc">${esc(r.description.slice(0,120))}</div>` : ''}
+    <div class="repo-card-meta">
+      <span class="badge ${r.private?'badge-gray':'badge-green'}">${r.private?'Private':'Public'}</span>
+      ${r.language?`<span>● ${esc(r.language)}</span>`:''}
+      ${r.stargazers_count?`<span>⭐ ${r.stargazers_count}</span>`:''}
+      ${r.forks_count?`<span>🍴 ${r.forks_count}</span>`:''}
+      <span>${timeAgo(r.pushed_at)}</span>
+    </div>
+  </div>`).join('');
+}
+
+let _rpfCurrent = 'all';
+function filterPfRepos(q='') {
+  let repos = _repos.filter(r => _rpfCurrent==='all' || (_rpfCurrent==='public'&&!r.private) || (_rpfCurrent==='private'&&r.private));
+  if (q) repos = repos.filter(r => (r.full_name||'').toLowerCase().includes(q.toLowerCase()));
+  renderRepoCards(repos, document.getElementById('pf-repos-list'));
+}
+function setRpfFilter(f, el) {
+  _rpfCurrent = f;
+  document.querySelectorAll('[id^="rpf-"]').forEach(b => { b.className = b.className.replace('btn-secondary','btn-ghost').replace('btn-ghost','btn-ghost'); });
+  el.className = el.className.replace('btn-ghost','btn-secondary');
+  filterPfRepos(document.getElementById('repo-q')?.value||'');
+}
+function renderPfRepos() { filterPfRepos(''); }
+
+async function loadContribGraph() {
+  try {
+    const data = await GET('/github/contributions');
+    if (!data?.contributionCalendar) { buildFallback(); return; }
+    buildGraph(data.contributionCalendar);
+  } catch { buildFallback(); }
+}
+
+function buildGraph(cal) {
+  const weeksEl=document.getElementById('pf-cg-weeks');const monthsEl=document.getElementById('pf-cg-months');const totalEl=document.getElementById('pf-cg-total');
+  if(!weeksEl)return;
+  weeksEl.innerHTML='';monthsEl.innerHTML='';
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let lastM=-1;
+  (cal.weeks||[]).forEach(week=>{
+    const col=document.createElement('div');col.className='cg-week';
+    const first=week.contributionDays?.[0];
+    if(first){const m=new Date(first.date).getMonth();if(m!==lastM){lastM=m;const l=document.createElement('div');l.className='cg-month';l.style.cssText='flex:0 0 52px;font-size:9px;color:var(--t4);font-weight:600';l.textContent=MONTHS[m];monthsEl.appendChild(l);}}
+    for(let d=0;d<7;d++){const day=week.contributionDays?.[d];const cell=document.createElement('div');cell.className='cg-cell';
+      if(day){const cnt=day.contributionCount||0;cell.style.background=cnt===0?'var(--s4)':cnt<=3?'#14532d':cnt<=6?'#166534':cnt<=9?'#16a34a':'#22c55e';cell.title=day.date+': '+cnt;}
+      else cell.style.cssText='width:13px;height:13px;border-radius:3px;background:transparent;pointer-events:none';
+      col.appendChild(cell);}
+    weeksEl.appendChild(col);
+  });
+  if(totalEl)totalEl.textContent=(cal.totalContributions||0)+' contributions this year';
+  if(document.getElementById('stat-contribs'))document.getElementById('stat-contribs').textContent=cal.totalContributions||0;
+  const dl=document.getElementById('pf-cg-days');if(dl)dl.innerHTML=['','Mon','','Wed','','Fri',''].map(d=>`<div class="cg-day-lbl">${d}</div>`).join('');
+}
+function buildFallback() {
+  const w=document.getElementById('pf-cg-weeks');if(!w)return;
+  w.innerHTML='';const uid=_user?.id||'x';function pseudo(i){return((uid.charCodeAt(i%(uid.length||1))||7)*2654435761*(i+1))>>>0;}
+  const colors=['var(--s4)','#14532d','#166534','#16a34a','#22c55e'];
+  for(let i=0;i<52;i++){const col=document.createElement('div');col.className='cg-week';for(let j=0;j<7;j++){const cell=document.createElement('div');cell.className='cg-cell';const v=pseudo(i*7+j)%100;cell.style.background=colors[v<40?Math.floor(pseudo(i*7+j+1)%4)+1:0];col.appendChild(cell);}w.appendChild(col);}
+  const dl=document.getElementById('pf-cg-days');if(dl)dl.innerHTML=['','Mon','','Wed','','Fri',''].map(d=>`<div class="cg-day-lbl">${d}</div>`).join('');
+}
+
+async function loadActivity() {
+  try {
+    const ws = await GET('/workspaces');
+    const wsId = ws?.[0]?.id;
+    if (!wsId) return;
+    const acts = await GET('/workspaces/' + wsId + '/activity');
+    const el = document.getElementById('pf-activity-list');
+    if (!el) return;
+    const myActs = (acts||[]).filter(a => a.user_id === _user?.id || !a.user_id).slice(0,20);
+    if (!myActs.length) { el.innerHTML = '<div class="panel-empty"><div class="panel-empty-text">No recent activity</div></div>'; return; }
+    el.innerHTML = myActs.map(a => `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <span style="font-size:14px;flex-shrink:0">📋</span>
+      <div style="flex:1"><div style="font-size:12px;font-weight:500">${esc(a.description||a.action||'Activity')}</div><div style="font-size:10px;color:var(--t4);margin-top:2px">${timeAgo(a.created_at)}</div></div>
+    </div>`).join('');
+  } catch(e) { console.warn('[activity]', e); }
+}
+
+// Tab switch
+function switchTab(name, el) {
+  document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+  el?.classList.add('active');
+  const tabs = { overview: 'tab-overview', repos: 'tab-repos', activity: 'tab-activity', settings: 'tab-settings-content' };
+  Object.values(tabs).forEach(id => { const e = document.getElementById(id); if (e) e.style.display = 'none'; });
+  const target = tabs[name];
+  if (target) document.getElementById(target).style.display = '';
+  if (name === 'repos') renderPfRepos();
+}
+
+// Save profile
+async function saveProfile() {
+  const val = id => document.getElementById(id)?.value?.trim()||null;
+  const updates = {
+    display_name: val('edit-display-name'),
+    bio: val('edit-bio'),
+    location: val('edit-location'),
+    company: val('edit-company'),
+    website: val('edit-website'),
+    avatar_color: _pickedColor,
+  };
+  try {
+    await PATCH('/users/me', updates);
+    toast('s','Saved! ✓','Profile updated');
+    // Refresh display name
+    if (updates.display_name) {
+      document.getElementById('pf-name').textContent = updates.display_name;
+      const av = document.getElementById('pf-av');
+      if (av && !av.querySelector('img')) av.textContent = initials(updates.display_name);
+    }
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+function pickColor(el) {
+  _pickedColor = el.dataset.color;
+  document.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.style.borderColor = sw.dataset.color === _pickedColor ? 'rgba(255,255,255,.7)' : 'transparent';
+  });
+  // Update avatar preview
+  const av = document.getElementById('pf-av');
+  if (av && !av.querySelector('img')) av.style.background = _pickedColor;
+}
+
+async function signOut() {
+  if (!confirm('Sign out of all devices?')) return;
+  try { await POST('/auth/logout',{}); } catch {}
+  localStorage.removeItem('dc_token');
+  window.location.href = 'index.html';
+}
+
+// Toast
+function toast(type, title, msg='', dur=4000) {
+  const icons={s:'✓',e:'✕',i:'ℹ'};
+  const el=document.createElement('div');el.className='toast toast-'+type;
+  el.innerHTML=`<span>${icons[type]||'·'}</span><div><div class="toast-title">${esc(title)}</div>${msg?`<div class="toast-msg">${esc(msg)}</div>`:''}</div>`;
+  document.getElementById('toasts')?.appendChild(el);
+  setTimeout(()=>{el.style.cssText+='opacity:0;transform:translateX(12px);transition:all .3s';setTimeout(()=>el.remove(),320);},dur);
+}
+</script>
+</body>
+</html>

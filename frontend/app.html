@@ -1,0 +1,2014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DevCollab Hub</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2322c55e'/><text y='.9em' font-size='60' font-weight='900' fill='%23000' x='18'>DC</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/layout.css">
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script src="js/utils.js" defer></script>
+<style>
+/* App-specific overrides using Plus Jakarta Sans */
+body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ── PROJECT OVERVIEW ── */
+.proj-overview-wrap { padding: 28px 32px; max-width: 1200px; }
+.proj-ov-card {
+  background: var(--s1); border: 1px solid rgba(255,255,255,.06);
+  border-radius: 16px; padding: 22px; margin-bottom: 20px;
+  position: relative; overflow: hidden;
+}
+.proj-ov-card::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; }
+.proj-ov-name { font-size: 22px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 4px; }
+.proj-ov-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:11px; color:var(--t4); margin-bottom:12px; }
+.begin-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 12px 22px; background: var(--green); color: #000;
+  border-radius: 12px; font-size: 14px; font-weight: 800; letter-spacing: -.2px;
+  cursor: pointer; border: 1px solid var(--green2);
+  box-shadow: 0 4px 20px rgba(34,197,94,.3);
+  transition: all 200ms; user-select: none;
+}
+.begin-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(34,197,94,.4); }
+.begin-btn:active { transform: translateY(0); }
+
+/* ── DASHBOARD ── */
+.dash-hdr { padding: 28px 32px 16px; }
+.dash-greeting {
+  font-size: 26px; font-weight: 800; letter-spacing: -.5px; line-height: 1.2;
+}
+.dash-greeting .name { color: var(--green); }
+.dash-sub { font-size: 12px; color: var(--t4); margin-top: 5px; }
+.dash-body { padding: 0 32px 32px; overflow-y: auto; flex: 1; }
+.mgr-stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+.collab-focus-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
+
+/* Focus card */
+.focus-card {
+  background: var(--s1); border: 1px solid rgba(255,255,255,.06); border-radius: 14px;
+  padding: 18px; cursor: pointer; transition: all 180ms; position: relative; overflow: hidden;
+}
+.focus-card::before { content:''; position:absolute; top:0;left:0;bottom:0; width:3px; border-radius:2px 0 0 2px; }
+.focus-card.urgent::before { background: var(--red); }
+.focus-card.medium::before { background: var(--yellow); }
+.focus-card.normal::before { background: var(--green); }
+.focus-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.4); border-color: rgba(255,255,255,.1); }
+.focus-card-prio { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+.focus-card-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; line-height: 1.35; margin-bottom: 10px; }
+.focus-card-dl { font-size: 11px; margin-bottom: 12px; }
+.focus-card-branch { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--blue); background: var(--blue-d); padding: 2px 7px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
+.focus-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.focus-btn { padding: 4px 11px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid; transition: all .1s; font-family: inherit; }
+.fb-start  { background: var(--green-d); color: var(--green); border-color: rgba(34,197,94,.2); }
+.fb-submit { background: var(--blue-d); color: var(--blue); border-color: rgba(59,130,246,.2); }
+.fb-timer  { background: rgba(249,115,22,.1); color: var(--orange); border-color: rgba(249,115,22,.2); }
+
+/* Workload bar */
+.wl-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.wl-row:last-child { border-bottom:none; }
+.wl-name { font-size:11px; font-weight:600; width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
+.wl-track { flex:1; height:7px; background:var(--s3); border-radius:99px; overflow:hidden; }
+.wl-fill  { height:100%; border-radius:99px; transition:width .5s cubic-bezier(.16,1,.3,1); }
+.wl-count { font-size:10px; color:var(--t4); width:18px; text-align:right; flex-shrink:0; }
+
+/* Velocity chart */
+.vel-chart { display:flex; align-items:flex-end; gap:4px; height:64px; padding:4px 0; }
+.vel-col { display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; }
+.vel-bar { width:100%; border-radius:4px 4px 0 0; min-height:3px; transition:height .5s cubic-bezier(.16,1,.3,1); }
+.vel-lbl { font-size:8px; color:var(--t4); font-weight:600; }
+.vel-num { font-size:9px; color:var(--t3); }
+
+/* Attention items */
+.attn-item { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.attn-item:last-child { border-bottom:none; }
+.attn-icon { font-size:14px; flex-shrink:0; }
+.attn-title { font-size:12px; font-weight:600; line-height:1.4; }
+.attn-sub { font-size:10px; color:var(--t4); margin-top:2px; }
+.attn-action { font-size:10px; font-weight:700; padding:3px 9px; border-radius:5px; cursor:pointer; flex-shrink:0; transition:all .1s; }
+
+/* PR tracker */
+.pr-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.pr-row:last-child { border-bottom:none; }
+.pr-row-title { flex:1; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Standup */
+#standup-ta {
+  width:100%; padding:10px 12px; background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.07);
+  border-radius:10px; color:var(--t1); font-size:12px; font-family:'Plus Jakarta Sans',sans-serif;
+  resize:none; height:108px; line-height:1.7; transition:border-color .15s;
+}
+#standup-ta:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(34,197,94,.1); }
+#standup-ta::placeholder { color:var(--t4); }
+
+/* Pomodoro */
+#pomo-display {
+  font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:800;
+  color:var(--green); background:var(--green-d); padding:5px 14px;
+  border-radius:99px; border:1px solid rgba(34,197,94,.2); letter-spacing:1px;
+  display:none;
+}
+.pomo-pulse { animation: glow 1s ease infinite; }
+
+/* Collab my-task row */
+.my-task-row { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.my-task-row:last-child { border-bottom:none; }
+.my-task-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+.my-task-info { flex:1; min-width:0; }
+.my-task-title { font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:3px; }
+.my-task-meta { display:flex; align-items:center; gap:8px; font-size:10px; color:var(--t3); }
+.my-task-actions { display:flex; gap:5px; flex-shrink:0; }
+
+/* Team row (manager) */
+.team-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.team-row:last-child { border-bottom:none; }
+.team-row-info { flex:1; min-width:0; }
+.team-row-name { font-size:12px; font-weight:600; }
+.team-row-task { font-size:10px; color:var(--blue); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Invite modal search results */
+.invite-result { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:var(--r8); cursor:pointer; transition:background var(--fast); }
+.invite-result:hover { background:rgba(255,255,255,.05); }
+.invite-result.selected { background:var(--green-d); }
+.invite-result-info { flex:1; min-width:0; }
+.invite-result-name { font-size:13px; font-weight:600; }
+.invite-result-handle { font-size:11px; color:var(--t4); }
+
+/* Contribution graph */
+.cg-wrap { overflow-x: auto; }
+.cg-months { display:flex; padding-left:24px; margin-bottom:3px; font-size:9px; color:var(--t4); font-weight:600; }
+.cg-month { flex:0 0 auto; }
+.cg-row { display:flex; gap:0; }
+.cg-day-labels { display:flex; flex-direction:column; gap:3px; padding-top:1px; margin-right:6px; font-size:9px; color:var(--t4); }
+.cg-day-lbl { height:13px; line-height:13px; text-align:right; font-weight:500; }
+.cg-weeks { display:flex; gap:3px; }
+.cg-week { display:flex; flex-direction:column; gap:3px; }
+.cg-cell { width:13px; height:13px; border-radius:3px; cursor:pointer; transition:transform .1s; }
+.cg-cell:hover { transform:scale(1.3); }
+
+/* Quick assign */
+.qa-row { display:grid; grid-template-columns:1fr 120px 90px; gap:6px; margin-bottom:8px; }
+
+/* Approval queue item */
+.aq-item { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.aq-item:last-child { border-bottom:none; }
+.aq-actions { display:flex; gap:5px; flex-shrink:0; }
+
+/* Project channel chat sidebar name */
+#chat-ch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+
+/* No-results found in invite */
+#invite-no-results { display:none; font-size:12px; color:var(--t4); padding:12px; text-align:center; }
+
+/* Channel rename placeholder */
+.channel-name-clean {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+</style>
+</head>
+<body>
+
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+
+<!-- Loading screen -->
+<div class="loading-screen" id="loading">
+  <div class="loading-logo">DC</div>
+  <div class="spinner spinner-lg"></div>
+  <div class="loading-status" id="loading-status">Loading workspace...</div>
+</div>
+
+<!-- App root (hidden until loaded) -->
+<div class="app-root" id="app" style="display:none">
+
+  <!-- NAV -->
+  <nav class="nav">
+    <button class="nav-hamburger" id="nav-hamburger" onclick="toggleSidebar()" aria-label="Menu">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <a href="#" class="nav-brand" onclick="showHome()">
+      <div class="nav-logo">DC</div>
+      <span class="nav-brand-name">DevCollab <em>Hub</em></span>
+    </a>
+    <div class="nav-ws-pill" id="nav-ws-name" onclick="showHome()" data-tip="Go to dashboard">–</div>
+    <div class="nav-search-wrap">
+      <svg class="nav-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="nav-search-input" id="nav-search" placeholder="Search users, channels, tasks..." autocomplete="off" onkeydown="if(event.key==='Enter')doSearch(this.value)">
+      <span class="nav-search-kbd">⌘K</span>
+    </div>
+    <div class="nav-spacer"></div>
+    <div class="nav-actions">
+      <!-- Mode toggle -->
+      <button class="nav-mode-btn nav-mode-collab" id="mode-btn" onclick="toggleDashMode()">
+        <span id="mode-icon">⚡</span>
+        <span id="mode-label">Collab</span>
+      </button>
+      <!-- Notifications -->
+      <div class="nav-btn" onclick="openNotifs()" title="Notifications">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="nav-notif-dot" id="notif-dot"></div>
+      </div>
+      <!-- Theme -->
+      <div class="nav-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</div>
+      <!-- Avatar -->
+      <div class="nav-avatar" id="nav-av" onclick="openProfile()" title="Profile"></div>
+    </div>
+  </nav>
+
+  <!-- SHELL -->
+  <div class="shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-scroll" id="sb-scroll">
+        <!-- Nav items -->
+        <div class="sb-section">
+          <a class="sb-item" id="sb-home" onclick="showHome()">
+            <span class="sb-item-bar"></span>
+            <span class="sb-item-icon">🏠</span>
+            <span class="sb-item-text">Home</span>
+          </a>
+          <a class="sb-item" id="sb-tasks" onclick="showTasks()">
+            <span class="sb-item-bar"></span>
+            <span class="sb-item-icon">✅</span>
+            <span class="sb-item-text">My Tasks</span>
+          </a>
+          <a class="sb-item" id="sb-repos" onclick="showRepos()">
+            <span class="sb-item-bar"></span>
+            <span class="sb-item-icon">🗂</span>
+            <span class="sb-item-text">Repositories</span>
+          </a>
+        </div>
+
+        <!-- Projects -->
+        <div class="sb-section">
+          <div class="sb-section-hdr">
+            <span class="sb-section-label">Projects</span>
+            <div class="sb-section-add" onclick="openNewProject()" title="New project">+</div>
+          </div>
+          <div id="sb-projects"></div>
+        </div>
+
+        <!-- Channels -->
+        <div class="sb-section">
+          <div class="sb-section-hdr">
+            <span class="sb-section-label">Channels</span>
+            <div class="sb-section-add" onclick="openNewChannel()" title="New channel">+</div>
+          </div>
+          <div id="sb-channels"></div>
+        </div>
+
+        <!-- DMs -->
+        <div class="sb-section">
+          <div class="sb-section-hdr">
+            <span class="sb-section-label">Direct Messages</span>
+            <div class="sb-section-add" onclick="newDM()" title="New DM">+</div>
+          </div>
+          <div id="sb-dms"></div>
+        </div>
+
+        <!-- AI -->
+        <div class="sb-ai-card" onclick="openAI()">
+          <div class="sb-ai-mark">✦</div>
+          <span class="sb-ai-name">Gemini AI</span>
+          <span class="badge badge-live">LIVE</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="sb-footer">
+        <div class="av av-32 sb-user-av" id="sb-av" onclick="openProfile()"></div>
+        <div class="sb-user-info">
+          <div class="sb-user-name" id="sb-user-name">Loading...</div>
+          <div class="sb-user-status">
+            <div class="status-dot s-online"></div>
+            <span id="sb-role-label">Online</span>
+          </div>
+        </div>
+        <div class="sb-logout-btn" onclick="logout()" title="Sign out">⇥</div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main" id="main">
+
+      <!-- HOME VIEW -->
+      <div id="home-view" class="hidden" style="flex:1;overflow-y:auto;display:flex;flex-direction:column">
+
+        <!-- Manager Dashboard -->
+        <div id="dash-manager" class="hidden">
+          <div class="dash-hdr">
+            <div class="dash-greeting t-gradient">Manager View — <span class="name" id="mgr-name">Dashboard</span> 👔</div>
+            <div class="dash-sub" id="mgr-sub"></div>
+          </div>
+          <div class="dash-body">
+            <div class="mgr-stat-grid" id="mgr-stats"></div>
+            <div class="grid-2 mb-20">
+              <div class="panel">
+                <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--red)"></div>Needs Attention</div><div class="panel-action" onclick="loadMgrDash()">↻</div></div>
+                <div class="panel-body" id="mgr-attention"></div>
+              </div>
+              <div class="panel">
+                <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--yellow)"></div>Member Workload</div></div>
+                <div class="panel-body" id="mgr-workload"></div>
+              </div>
+            </div>
+            <div class="grid-2 mb-20">
+              <div class="panel">
+                <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--yellow)"></div>Review Queue <span id="aq-count" class="badge badge-yellow" style="margin-left:4px"></span></div></div>
+                <div class="panel-body" id="mgr-approval"></div>
+              </div>
+              <div class="panel">
+                <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--blue)"></div>Quick Assign</div></div>
+                <div class="panel-body">
+                  <div class="qa-row">
+                    <input class="field-input" id="qa-task" placeholder="Task title..." style="font-size:11px">
+                    <select class="field-select" id="qa-who" style="font-size:11px"></select>
+                    <select class="field-select" id="qa-prio" style="font-size:11px">
+                      <option value="urgent">🔴 Urgent</option>
+                      <option value="medium" selected>🟡 Medium</option>
+                      <option value="normal">🟢 Normal</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-primary w-full" style="justify-content:center" onclick="quickAssign()">Assign Task →</button>
+                </div>
+              </div>
+            </div>
+            <div class="panel mb-20">
+              <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--blue)"></div>Team Velocity (last 7 days)</div></div>
+              <div class="panel-body"><div class="vel-chart" id="vel-chart"></div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--green)"></div>Team Live Status</div><div class="panel-action" onclick="loadMgrDash()">↻</div></div>
+              <div class="panel-body" id="mgr-team"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Collaborator Dashboard -->
+        <div id="dash-collab" class="hidden">
+          <div class="dash-hdr">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <div class="dash-greeting t-gradient">Hey, <span class="name" id="col-name">Dev</span> ⚡</div>
+                <div class="dash-sub" id="col-sub"></div>
+              </div>
+              <div id="pomo-display"></div>
+            </div>
+          </div>
+          <div class="dash-body">
+            <!-- Focus tasks -->
+            <div style="margin-bottom:18px">
+              <div class="t-tiny mb-8">🎯 Today's Focus — Top 3 Urgent Tasks</div>
+              <div class="collab-focus-grid" id="col-focus"></div>
+            </div>
+            <div class="grid-2 mb-16">
+              <div class="panel">
+                <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--purple)"></div>My Pull Requests</div></div>
+                <div class="panel-body" id="col-prs"></div>
+              </div>
+              <div class="panel">
+                <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--blue)"></div>Daily Standup</div><div class="panel-action" onclick="saveStandup()">Save ✓</div></div>
+                <div class="panel-body">
+                  <div class="t-faint mb-8" style="font-size:10px">What did you work on? Any blockers?</div>
+                  <textarea id="standup-ta" placeholder="Yesterday: ...&#10;Today: ...&#10;Blockers: none"></textarea>
+                  <div id="standup-saved" style="font-size:10px;color:var(--green);margin-top:4px"></div>
+                </div>
+              </div>
+            </div>
+            <div class="panel mb-16">
+              <div class="panel-hdr">
+                <div class="panel-hdr-title"><div class="panel-dot" style="background:var(--green)"></div>All My Tasks</div>
+                <div style="display:flex;gap:4px">
+                  <button class="btn btn-xs btn-secondary on" id="tf-all" onclick="setTaskFilter('all',this)">All</button>
+                  <button class="btn btn-xs btn-ghost" id="tf-urgent" onclick="setTaskFilter('urgent',this)">🔴</button>
+                  <button class="btn btn-xs btn-ghost" id="tf-active" onclick="setTaskFilter('in_progress',this)">Active</button>
+                  <button class="btn btn-xs btn-ghost" id="tf-review" onclick="setTaskFilter('in_review',this)">Review</button>
+                </div>
+              </div>
+              <div class="panel-body" id="col-tasks"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot"></div>Activity Graph</div></div>
+              <div class="panel-body">
+                <div class="cg-wrap">
+                  <div class="cg-months" id="cg-months"></div>
+                  <div class="cg-row">
+                    <div class="cg-day-labels" id="cg-day-labels"></div>
+                    <div class="cg-weeks" id="cg-weeks"></div>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:5px;margin-top:8px;font-size:9px;color:var(--t4)">
+                  <span>Less</span>
+                  <div style="display:flex;gap:2px">
+                    <div class="cg-cell" style="background:var(--s4);cursor:default"></div>
+                    <div class="cg-cell" style="background:#14532d;cursor:default"></div>
+                    <div class="cg-cell" style="background:#166534;cursor:default"></div>
+                    <div class="cg-cell" style="background:#16a34a;cursor:default"></div>
+                    <div class="cg-cell" style="background:#22c55e;cursor:default"></div>
+                  </div>
+                  <span>More</span>
+                  <span id="cg-total" style="margin-left:auto"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /#home-view -->
+
+      <!-- CHAT VIEW -->
+      <div id="chat-view" class="hidden chat-view">
+        <div class="chat-hdr">
+          <span class="chat-hdr-icon" id="ch-icon">#</span>
+          <span class="chat-hdr-name" id="ch-name">general</span>
+          <span class="chat-hdr-sep">—</span>
+          <span class="chat-hdr-desc" id="ch-desc"></span>
+          <span id="ch-member-count" style="font-size:11px;color:var(--t4);margin-left:4px"></span>
+          <div class="chat-hdr-actions">
+            <button class="btn btn-ghost btn-sm" onclick="openAI()">✦ AI</button>
+          </div>
+        </div>
+        <div id="pinned-bar" style="display:none;align-items:center;gap:10px;padding:7px 20px;background:rgba(234,179,8,.04);border-bottom:1px solid rgba(234,179,8,.12);font-size:11px;flex-shrink:0">
+          <span>📌</span><span id="pinned-count"></span>
+          <a id="pinned-view-all" style="color:var(--blue);cursor:pointer;margin-left:auto;font-size:10px" onclick="showAllPins()">View all</a>
+        </div>
+        <div class="msgs-area" id="msgs-area">
+          <div class="empty-state">
+            <div class="empty-state-icon">💬</div>
+            <div class="empty-state-title">Select a channel</div>
+            <div class="empty-state-desc">Choose a channel from the sidebar to start messaging</div>
+          </div>
+        </div>
+        <div class="typing-bar" id="typing-bar"></div>
+        <div class="input-area">
+          <div class="input-box">
+            <div class="input-row">
+              <textarea class="input-ta" id="msg-input" placeholder="Message..." rows="1"
+                onkeydown="handleMsgKey(event)" oninput="onMsgInput(this)"></textarea>
+              <div class="input-send" onclick="sendMsg()">
+                <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </div>
+            </div>
+            <div class="input-fmt-bar">
+              <button class="fmt-btn" onclick="insertAt('@')">@ Mention</button>
+              <button class="fmt-btn" onclick="insertCode()">⌨ Code</button>
+              <button class="fmt-btn fmt-btn-ai" onclick="openAI()">✦ Ask AI</button>
+              <button class="fmt-btn" onclick="wrapSel('**','**')">B</button>
+              <button class="fmt-btn" onclick="wrapSel('_','_')"><em>I</em></button>
+              <span class="input-hint">Enter · Shift+Enter newline</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TASKS VIEW -->
+      <div id="tasks-view" class="hidden" style="flex:1;overflow-y:auto;padding:28px 32px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div class="t-h2">My Tasks</div>
+          <button class="btn btn-primary btn-sm" onclick="openNewTask()">+ New Task</button>
+        </div>
+        <div id="tasks-list"></div>
+      </div>
+
+      <!-- REPOS VIEW -->
+      <div id="repos-view" class="hidden" style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+          <div class="t-h3">Repositories</div>
+          <div style="display:flex;gap:6px">
+            <input class="field-input" id="repo-search" placeholder="Find a repository..." style="width:200px;font-size:11px" oninput="filterRepos(this.value)">
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-sm" id="repo-f-all" onclick="setRepoFilter('all',this)">All</button>
+              <button class="btn btn-ghost btn-sm" id="repo-f-pub" onclick="setRepoFilter('public',this)">Public</button>
+              <button class="btn btn-ghost btn-sm" id="repo-f-priv" onclick="setRepoFilter('private',this)">Private</button>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;overflow:hidden;display:flex">
+          <div style="width:300px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.04);overflow-y:auto;padding:8px" id="repo-list"></div>
+          <div style="flex:1;overflow:hidden;display:flex;flex-direction:column" id="repo-detail">
+            <div class="empty-state" style="height:100%"><div class="empty-state-icon">🗂</div><div class="empty-state-title">Select a repository</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROJECT OVERVIEW VIEW -->
+      <div id="project-view" class="hidden" style="flex:1;overflow-y:auto">
+        <div class="proj-overview-wrap" id="proj-overview-content"></div>
+      </div>
+
+    </main>
+
+    <!-- RIGHT PANEL -->
+    <div class="rpanel" id="rpanel">
+      <div class="rp-tabs">
+        <div class="rp-tab active" id="rpt-github" onclick="switchRPTab('github')">GitHub</div>
+        <div class="rp-tab" id="rpt-members" onclick="switchRPTab('members')">Members</div>
+        <div class="rp-tab" id="rpt-ai" onclick="openAI()">✦ AI</div>
+      </div>
+      <!-- GitHub tab -->
+      <div id="rp-github" class="rp-body">
+        <div class="rp-section-label">Repositories</div>
+        <div id="rp-repos-list"></div>
+        <div class="rp-section-label">Open Pull Requests</div>
+        <div id="rp-prs" style="font-size:11px;color:var(--t4)">No open PRs</div>
+        <div class="rp-section-label">Recent Commits</div>
+        <div id="rp-commits"></div>
+      </div>
+      <!-- Members tab -->
+      <div id="rp-members" class="rp-body hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span id="rp-member-count" class="t-tiny">Members</span>
+          <button class="btn btn-ghost btn-xs" onclick="openInvite()">+ Invite</button>
+        </div>
+        <div id="rp-members-list"></div>
+      </div>
+    </div>
+
+  </div><!-- /.shell -->
+</div><!-- /#app -->
+
+<!-- AI PANEL (overlay) -->
+<div class="ai-panel" id="ai-panel">
+  <div class="ai-panel-hdr">
+    <div class="ai-panel-mark">✦</div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700">Gemini AI</div>
+      <div style="font-size:10px;color:var(--t4)">Flash-Lite · Context-aware</div>
+    </div>
+    <div style="display:flex;gap:4px">
+      <button class="btn btn-ghost btn-xs" onclick="setAIMode('chat')" id="ai-m-chat">Chat</button>
+      <button class="btn btn-ghost btn-xs" onclick="setAIMode('review')" id="ai-m-review">Review</button>
+    </div>
+    <button class="btn btn-icon" onclick="closeAI()">✕</button>
+  </div>
+  <div class="ai-msgs" id="ai-msgs">
+    <div class="ai-bubble bot">Hi! I'm Gemini AI with full context of your workspace. Ask me about your code, tasks, architecture, or anything else.</div>
+  </div>
+  <div class="ai-input-area">
+    <div class="ai-input-box">
+      <textarea class="ai-input-ta" id="ai-input" placeholder="Ask anything..." rows="2"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI();}"></textarea>
+      <div class="ai-input-footer">
+        <span class="ai-model">✦ gemini-2.5-flash-lite</span>
+        <button class="ai-send-btn" onclick="sendAI()">Ask →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+
+<!-- Invite member modal -->
+<div class="modal-backdrop hidden" id="invite-modal">
+  <div class="modal modal-sm">
+    <div class="modal-hdr">
+      <div class="modal-title">Invite Member</div>
+      <div class="modal-close" onclick="closeModal('invite-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Search User</label>
+        <input class="field-input" id="invite-search" type="text" placeholder="@handle or name..." autocomplete="off" oninput="searchUsers(this.value)">
+      </div>
+      <div id="invite-results" style="max-height:180px;overflow-y:auto;margin-bottom:12px"></div>
+      <div id="invite-no-results">No users found. They need to sign in first.</div>
+      <div id="invite-selected" style="display:none;margin-bottom:12px">
+        <label class="field-label">Selected User</label>
+        <div id="invite-selected-display" style="padding:8px 12px;background:var(--green-d);border:1px solid rgba(34,197,94,.2);border-radius:var(--r8);font-size:13px;font-weight:600;color:var(--green)"></div>
+      </div>
+      <div class="field">
+        <label class="field-label">Role</label>
+        <select class="field-select" id="invite-role">
+          <option value="viewer">👁 Viewer</option>
+          <option value="junior">🌱 Junior Developer</option>
+          <option value="developer" selected>💻 Developer</option>
+          <option value="senior">⭐ Senior Developer</option>
+          <option value="lead">🏆 Team Lead</option>
+          <option value="admin">🛡 Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="closeModal('invite-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="sendInvite()">Send Invite</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Project modal -->
+<div class="modal-backdrop hidden" id="proj-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">New Project</div>
+      <div class="modal-close" onclick="closeModal('proj-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Project Name *</label>
+        <input class="field-input" id="pn-name" type="text" placeholder="e.g. my-awesome-project" oninput="this.value=this.value.replace(/[^a-zA-Z0-9 _-]/g,'')">
+      </div>
+      <div class="field">
+        <label class="field-label">Description</label>
+        <textarea class="field-textarea" id="pn-desc" rows="2" placeholder="What's this project about?"></textarea>
+      </div>
+      <div style="background:var(--green-d);border:1px solid rgba(34,197,94,.15);border-radius:var(--r10);padding:12px;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:18px">🐙</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:var(--green)">GitHub repo will be created</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:1px">A real GitHub repository under your account</div>
+          </div>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-xs btn-secondary pn-vis-btn on" id="pn-pub" onclick="setProjVis('public',this)">🌐 Public</button>
+            <button class="btn btn-xs btn-ghost pn-vis-btn" id="pn-priv" onclick="setProjVis('private',this)">🔒 Private</button>
+          </div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field" style="margin-bottom:0">
+          <label class="field-label">Color</label>
+          <select class="field-select" id="pn-color">
+            <option value="#22c55e">🟢 Green</option><option value="#3b82f6">🔵 Blue</option>
+            <option value="#a855f7">🟣 Purple</option><option value="#f97316">🟠 Orange</option>
+            <option value="#eab308">🟡 Yellow</option><option value="#ef4444">🔴 Red</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label class="field-label">Deadline</label>
+          <input class="field-input" id="pn-deadline" type="date">
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="closeModal('proj-modal')">Cancel</button>
+      <button class="btn btn-primary" id="pn-create-btn" onclick="createProject()">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Channel modal -->
+<div class="modal-backdrop hidden" id="channel-modal">
+  <div class="modal modal-sm">
+    <div class="modal-hdr">
+      <div class="modal-title">New Channel</div>
+      <div class="modal-close" onclick="closeModal('channel-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Channel Name *</label>
+        <input class="field-input" id="cn-name" type="text" placeholder="e.g. design-review">
+      </div>
+      <div class="field">
+        <label class="field-label">Description</label>
+        <input class="field-input" id="cn-desc" type="text" placeholder="What's this channel for?">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label class="field-label">Type</label>
+        <select class="field-select" id="cn-type">
+          <option value="public">🌐 Public</option>
+          <option value="private">🔒 Private</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="closeModal('channel-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createChannel()">Create Channel</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Task modal -->
+<div class="modal-backdrop hidden" id="task-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">New Task</div>
+      <div class="modal-close" onclick="closeModal('task-modal')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">Title *</label><input class="field-input" id="nt-title" type="text" placeholder="What needs to be done?"></div>
+      <div class="field"><label class="field-label">Description</label><textarea class="field-textarea" id="nt-desc" rows="3" placeholder="Details, acceptance criteria..."></textarea></div>
+      <div class="field-row">
+        <div class="field" style="margin-bottom:0"><label class="field-label">Priority</label><select class="field-select" id="nt-prio"><option value="urgent">🔴 Urgent</option><option value="medium" selected>🟡 Medium</option><option value="normal">🟢 Normal</option></select></div>
+        <div class="field" style="margin-bottom:0"><label class="field-label">Deadline</label><input class="field-input" id="nt-deadline" type="date"></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label class="field-label">Assign To (@handle)</label><input class="field-input" id="nt-assign" type="text" placeholder="@username"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="closeModal('task-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div id="toasts"></div>
+
+<!-- Context menu -->
+<div id="ctx-menu" class="ctx hidden" style="display:none"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// DEVCOLAB HUB — MAIN APPLICATION
+// ═══════════════════════════════════════════════════════════════════════════
+'use strict';
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+const S = {
+  token: null, user: null, ws: null,
+  myRole: 'viewer', myPerms: {}, isOwner: false,
+  channels: [], projects: [], users: [], tasks: [],
+  messages: {}, currentChannel: null, currentProject: null,
+  repos: [], online: {}, typing: {},
+  socket: null, aiHistory: [], aiMode: 'chat',
+  dashMode: localStorage.getItem('dc_dash_mode') || 'collab',
+  taskFilter: 'all',
+};
+
+// ── BOOT ──────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  S.token = localStorage.getItem('dc_token');
+  window._dcToken = S.token;
+  if (!S.token) { window.location.href = 'index.html'; return; }
+
+  try {
+    setLoading('Authenticating...');
+    S.user = await GET('/auth/me');
+    if (!S.user?.id) throw new Error('auth failed');
+
+    setLoading('Loading workspace...');
+    const workspaces = await GET('/workspaces');
+    if (!workspaces?.length) { setLoading('No workspace found'); return; }
+    S.ws = workspaces[0];
+
+    setLoading('Loading channels...');
+    await loadAll();
+
+    setLoading('Connecting...');
+    initSocket();
+
+    hideLoading();
+    renderApp();
+
+    // Deferred loads
+    setTimeout(() => {
+      loadRPGitHub();
+      loadContribGraph();
+      if (S.dashMode === 'manager') loadMgrDash();
+      else loadCollabDash();
+    }, 800);
+  } catch(e) {
+    console.error('[boot]', e);
+    setLoading('Failed: ' + e.message + '. Redirecting...');
+    setTimeout(() => { localStorage.removeItem('dc_token'); window.location.href = 'index.html'; }, 2000);
+  }
+});
+
+function setLoading(msg) { document.getElementById('loading-status').textContent = msg; }
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+
+async function loadAll() {
+  const [channels, projects, users, tasks, roleData] = await Promise.allSettled([
+    GET('/workspaces/' + S.ws.id + '/channels'),
+    GET('/workspaces/' + S.ws.id + '/projects'),
+    GET('/workspaces/' + S.ws.id + '/members'),
+    GET('/tasks/mine'),
+    GET('/workspaces/' + S.ws.id + '/my-role'),
+  ]);
+  S.channels  = channels.value  || [];
+  S.projects  = (projects.value || []).map(p => ({...p, name: p.name && p.name.length < 80 ? p.name : (p.github_repo?.split('/')?.[1] || 'Project')}));
+  S.users     = (users.value || []).map(m => ({...m, ...(m.user||{})}));
+  S.tasks     = tasks.value     || [];
+  S.myRole    = roleData.value?.role || 'viewer';
+  S.myPerms   = roleData.value?.permissions || {};
+  S.isOwner   = S.myRole === 'owner';
+}
+
+// ── RENDER APP ────────────────────────────────────────────────────────────
+function renderApp() {
+  // Nav
+  const u = S.user || {};
+  document.getElementById('nav-ws-name').textContent = S.ws?.name || 'Workspace';
+  // Avatar
+  const avEl = document.getElementById('nav-av');
+  if (u.avatar_url) {
+    avEl.innerHTML = `<img src="${esc(u.avatar_url)}" alt="avatar">`;
+  } else {
+    avEl.style.cssText = 'width:30px;height:30px;border-radius:50%;background:'+esc(u.avatar_color||'#22c55e')+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#000;cursor:pointer';
+    avEl.textContent = initials(u.display_name || u.github_username || 'User');
+  }
+  // Sidebar
+  const sbAv = document.getElementById('sb-av');
+  sbAv.style.background = u.avatar_color || '#22c55e';
+  sbAv.textContent = initials(u.display_name || u.github_username || 'User');
+  document.getElementById('sb-user-name').textContent = safe(u.display_name || u.github_username || 'User', 25);
+  document.getElementById('sb-role-label').textContent = S.myRole || 'developer';
+
+  renderSidebar();
+  showHome();
+  applyDashMode(false);
+}
+
+// ── SIDEBAR ──────────────────────────────────────────────────────────────
+function renderSidebar() {
+  renderSBProjects();
+  renderSBChannels();
+  renderSBDMs();
+}
+
+function renderSBProjects() {
+  const el = document.getElementById('sb-projects');
+  if (!el) return;
+  if (!S.projects.length) {
+    el.innerHTML = '<div style="padding:4px 14px;font-size:11px;color:var(--t4)">No projects yet</div>';
+    return;
+  }
+  el.innerHTML = S.projects.map(p => {
+    const active = S.currentProject?.id === p.id;
+    return `<div class="sb-proj-item${active?' active':''}" 
+      data-pid="${esc(p.id)}"
+      onclick="openProject('${esc(p.id)}')"
+      oncontextmenu="projCtx(event,'${esc(p.id)}')">
+      <div class="sb-proj-dot" style="background:${esc(p.color||'#22c55e')}"></div>
+      <span class="sb-proj-name">${esc(p.name)}</span>
+      ${p._pct ? `<span class="sb-proj-pct">${p._pct}%</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderSBChannels() {
+  const el = document.getElementById('sb-channels');
+  if (!el) return;
+  // Display friendly name - use description if "Project: ..." otherwise channel name
+  el.innerHTML = S.channels.map(ch => {
+    const isSel = S.currentChannel === ch.id;
+    const displayName = ch.description?.startsWith('Project: ')
+      ? ch.description.replace('Project: ','')
+      : ch.name;
+    const icon = ch.type === 'private' ? '🔒' : ch.type === 'announcement' ? '📢' : '#';
+    return `<div class="sb-item${isSel?' active':''}"
+      data-chid="${esc(ch.id)}"
+      onclick="switchChannel('${esc(ch.id)}')"
+      oncontextmenu="channelCtx(event,'${esc(ch.id)}')">
+      <span class="sb-item-bar"></span>
+      <span class="sb-item-icon">${icon}</span>
+      <span class="sb-item-text">${esc(displayName)}</span>
+      ${ch.unread ? `<span class="sb-item-badge">${ch.unread}</span>` : ''}
+    </div>`;
+  }).join('') || '<div style="padding:4px 14px;font-size:11px;color:var(--t4)">No channels</div>';
+}
+
+function renderSBDMs() {
+  const el = document.getElementById('sb-dms');
+  if (!el) return;
+  el.innerHTML = ''; // TODO: load DMs
+}
+
+// ── CHANNEL CONTEXT MENU (fixed - ID only approach) ──────────────────────
+function channelCtx(e, channelId) {
+  e.preventDefault(); e.stopPropagation();
+  const ch = S.channels.find(x => x.id === channelId);
+  if (!ch) return;
+  const isDefault = ['general','github-feed','ai-help'].includes(ch.name);
+  const canManage = S.myPerms?.CREATE_CHANNEL || S.isOwner;
+  const items = [
+    { label: '#' + (ch.name || ''), icon: '' },
+    { sep: true },
+    { label: 'Switch to Channel', icon: '💬', fn: () => switchChannel(channelId) },
+    { label: 'Copy Link', icon: '🔗', fn: () => { navigator.clipboard.writeText(location.origin + '/app.html?ch=' + channelId); toast('s','Copied','Channel link copied'); }},
+  ];
+  if (canManage && !isDefault) {
+    items.push({ sep: true });
+    items.push({ label: 'Rename', icon: '✏️', fn: () => {
+      const n = prompt('New channel name (letters, numbers, hyphens):', ch.name);
+      if (!n?.trim()) return;
+      const clean = n.trim().toLowerCase().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+      PATCH('/channels/' + channelId, { name: clean })
+        .then(() => {
+          const i = S.channels.findIndex(x=>x.id===channelId);
+          if (i>=0) S.channels[i].name = clean;
+          renderSBChannels();
+          if (S.currentChannel === channelId) document.getElementById('ch-name').textContent = clean;
+          toast('s','Renamed','#'+clean);
+        })
+        .catch(err => toast('e','Error', err.message));
+    }});
+    items.push({ label: ch.type==='private' ? 'Make Public' : 'Make Private', icon: ch.type==='private' ? '🌐' : '🔒', fn: () => {
+      const newType = ch.type === 'private' ? 'public' : 'private';
+      PATCH('/channels/' + channelId, { type: newType })
+        .then(() => {
+          const i = S.channels.findIndex(x=>x.id===channelId);
+          if (i>=0) S.channels[i].type = newType;
+          renderSBChannels();
+          toast('s', 'Updated', 'Channel is now ' + newType);
+        })
+        .catch(err => toast('e','Error',err.message));
+    }});
+    items.push({ sep: true });
+    items.push({ label: 'Delete Channel', icon: '🗑️', danger: true, fn: () => {
+      if (!confirm('Delete #' + ch.name + '? All messages will be permanently lost.')) return;
+      DEL('/channels/' + channelId)
+        .then(() => {
+          S.channels = S.channels.filter(x => x.id !== channelId);
+          if (S.currentChannel === channelId) { S.currentChannel = null; showHome(); }
+          renderSBChannels();
+          toast('s', 'Deleted', '#' + ch.name + ' removed');
+        })
+        .catch(err => toast('e','Error',err.message));
+    }});
+  }
+  buildCtx(e, items);
+}
+
+// ── PROJECT CONTEXT MENU ─────────────────────────────────────────────────
+function projCtx(e, projectId) {
+  e.preventDefault(); e.stopPropagation();
+  const p = S.projects.find(x => x.id === projectId);
+  if (!p) return;
+  const canManage = S.myPerms?.CREATE_PROJECT || S.isOwner;
+  const items = [
+    { label: p.name || 'Project', icon: '' },
+    { sep: true },
+    { label: 'Open Overview', icon: '👁', fn: () => openProject(projectId) },
+    { label: 'Begin Workspace', icon: '▶', fn: () => beginProject(projectId) },
+  ];
+  if (p.github_url) {
+    items.push({ label: 'View on GitHub', icon: '🐙', fn: () => window.open(p.github_url, '_blank') });
+  }
+  if (canManage) {
+    items.push({ sep: true });
+    items.push({ label: 'Rename', icon: '✏️', fn: () => {
+      const n = prompt('New project name:', p.name || '');
+      if (!n?.trim()) return;
+      PATCH('/projects/' + projectId, { name: n.trim() })
+        .then(() => {
+          const i = S.projects.findIndex(x=>x.id===projectId);
+          if (i>=0) S.projects[i].name = n.trim();
+          renderSBProjects();
+          toast('s','Renamed','');
+        })
+        .catch(err => toast('e','Error',err.message));
+    }});
+    items.push({ label: 'Edit Settings', icon: '⚙️', fn: () => openEditProject(projectId) });
+    items.push({ sep: true });
+    items.push({ label: 'Delete Project', icon: '🗑️', danger: true, fn: () => {
+      if (!confirm('Delete project "' + (p.name||'') + '"? All tasks removed. GitHub repo stays.')) return;
+      DEL('/projects/' + projectId)
+        .then(() => {
+          S.projects = S.projects.filter(x => x.id !== projectId);
+          if (S.currentProject?.id === projectId) { S.currentProject = null; showHome(); }
+          renderSBProjects();
+          toast('s','Deleted','Project removed');
+        })
+        .catch(err => toast('e','Error',err.message));
+    }});
+  }
+  buildCtx(e, items);
+}
+
+// ── VIEWS ─────────────────────────────────────────────────────────────────
+function showView(v) {
+  ['home-view','chat-view','tasks-view','repos-view','project-view'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', id !== v);
+  });
+  ['sb-home','sb-tasks','sb-repos'].forEach(id => {
+    document.getElementById(id)?.classList.remove('active');
+  });
+  document.querySelectorAll('[data-chid]').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('[data-pid]').forEach(el => el.classList.remove('active'));
+}
+
+function showHome() {
+  showView('home-view');
+  document.getElementById('sb-home')?.classList.add('active');
+  S.currentProject = null;
+  applyDashMode(false);
+  closeSidebar();
+}
+
+function showTasks() {
+  showView('tasks-view');
+  document.getElementById('sb-tasks')?.classList.add('active');
+  renderAllTasks();
+  closeSidebar();
+}
+
+function showRepos() {
+  showView('repos-view');
+  document.getElementById('sb-repos')?.classList.add('active');
+  loadRepos();
+  closeSidebar();
+}
+
+// ── CHANNEL / CHAT ────────────────────────────────────────────────────────
+async function switchChannel(channelId) {
+  showView('chat-view');
+  S.currentChannel = channelId;
+  S.currentProject = null;
+  const ch = S.channels.find(x => x.id === channelId);
+  if (!ch) return;
+  // Update header
+  document.getElementById('ch-icon').textContent = ch.type==='private'?'🔒':ch.type==='announcement'?'📢':'#';
+  // Display friendly name
+  const displayName = ch.description?.startsWith('Project: ') ? ch.description.replace('Project: ','') : ch.name;
+  document.getElementById('ch-name').textContent = displayName;
+  document.getElementById('ch-desc').textContent = ch.description && !ch.description.startsWith('Project:') ? ch.description : '';
+  document.getElementById('msg-input').placeholder = 'Message #' + displayName + '...';
+  // Sidebar active
+  document.querySelectorAll('[data-chid]').forEach(el => el.classList.toggle('active', el.dataset.chid === channelId));
+  // Join socket room
+  if (S.socket?.connected) S.socket.emit('channel:join', { channelId });
+  // Load messages
+  await loadMessages(channelId);
+  closeSidebar();
+}
+
+async function loadMessages(channelId) {
+  try {
+    const msgs = await GET('/channels/' + channelId + '/messages?limit=50');
+    S.messages[channelId] = msgs || [];
+    renderMessages(channelId);
+  } catch(e) { console.warn('[msgs]', e); }
+}
+
+function renderMessages(channelId) {
+  const area = document.getElementById('msgs-area');
+  if (!area) return;
+  const msgs = S.messages[channelId] || [];
+  if (!msgs.length) {
+    area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💬</div><div class="empty-state-title">Start the conversation</div><div class="empty-state-desc">Be the first to post in this channel</div></div>';
+    return;
+  }
+  area.innerHTML = `<div class="msgs-date-sep">Today</div>`;
+  let lastUser = null, lastTs = 0;
+  msgs.forEach(m => {
+    const cont = m.user_id === lastUser && (new Date(m.ts||m.created_at).getTime() - lastTs) < 300000;
+    appendMsg(m, cont, false);
+    lastUser = m.user_id || m.userId;
+    lastTs = new Date(m.ts || m.created_at).getTime();
+  });
+  area.scrollTop = area.scrollHeight;
+}
+
+function appendMsg(m, cont=false, animate=false) {
+  const area = document.getElementById('msgs-area');
+  if (!area) return;
+  const uid = m.user_id || m.userId;
+  const u = S.users.find(x => x.id === uid) || m.user || {};
+  const color = u.avatar_color || '#22c55e';
+  const inits = initials(u.display_name || u.github_username || u.handle || 'User');
+  const time = fmtTime(m.ts || m.created_at);
+  const name = safe(u.display_name || u.github_username || u.handle || uid || 'Unknown', 40);
+  const el = document.createElement('div');
+  el.className = 'msg' + (cont ? ' msg-cont' : '') + (animate ? ' anim-fade-up' : '');
+  el.dataset.mid = m.id;
+  el.oncontextmenu = (e) => msgCtx(e, m.id);
+  const txt = m.deleted ? '<span class="msg-deleted">[deleted]</span>' : fmtText(m.content || '');
+  el.innerHTML = `
+    <div class="av av-32 msg-av" style="background:${color}">
+      ${u.avatar_url ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : inits}
+    </div>
+    <div class="msg-body">
+      <div class="msg-meta">
+        <span class="msg-name">${esc(name)}</span>
+        <span class="msg-ts">${time}</span>
+      </div>
+      <div class="msg-text">${txt}</div>
+    </div>`;
+  const emp = area.querySelector('.empty-state');
+  if (emp) emp.remove();
+  area.appendChild(el);
+}
+
+function msgCtx(e, msgId) {
+  e.preventDefault();
+  const m = Object.values(S.messages).flat().find(x => x.id === msgId);
+  const isOwnMsg = (m?.user_id || m?.userId) === S.user?.id;
+  const items = [
+    { label: '😄 React', icon: '😄', fn: () => pickReact(msgId) },
+    { label: 'Reply', icon: '↩', fn: () => { document.getElementById('msg-input').value = ''; document.getElementById('msg-input').focus(); }},
+    { label: 'Copy Text', icon: '📋', fn: () => navigator.clipboard.writeText(m?.content||'').then(()=>toast('s','Copied','')) },
+    { label: 'Pin Message', icon: '📌', fn: () => POST('/channels/'+S.currentChannel+'/messages/pin',{messageId:msgId}).then(()=>toast('s','Pinned','')).catch(e2=>toast('e','Error',e2.message)) },
+  ];
+  if (isOwnMsg || S.isOwner) {
+    items.push({ sep: true });
+    if (isOwnMsg) items.push({ label: 'Edit', icon: '✏️', fn: () => {
+      const txt = prompt('Edit message:', m?.content||'');
+      if (txt !== null && S.socket?.connected) S.socket.emit('msg:edit', { messageId:msgId, content:txt });
+    }});
+    items.push({ label: 'Delete', icon: '🗑️', danger: true, fn: () => {
+      if (S.socket?.connected) S.socket.emit('msg:delete', { messageId: msgId });
+    }});
+  }
+  buildCtx(e, items);
+}
+
+function pickReact(msgId) { toast('i','Reactions','Coming soon'); }
+
+function sendMsg() {
+  const ta = document.getElementById('msg-input');
+  const raw = ta?.value?.trim();
+  if (!raw || !S.currentChannel || !S.socket?.connected) return;
+  ta.value = ''; ta.style.height = 'auto';
+  const cm = raw.match(/```(\w*)\n?([\s\S]*?)```/s);
+  const code = cm ? { lang: cm[1]||'javascript', body: cm[2].trim() } : null;
+  const content = code ? raw.replace(/```[\s\S]*?```/g,'').trim() : raw;
+  S.socket.emit('msg:send', { channelId: S.currentChannel, content, type: code?'code':'text', code });
+}
+
+function handleMsgKey(e) { if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();} }
+function onMsgInput(el) {
+  autoGrow(el);
+  if (!S.currentChannel || !S.socket?.connected) return;
+  S.socket.emit('typing:start', { channelId: S.currentChannel });
+  clearTimeout(S._typingTimer);
+  S._typingTimer = setTimeout(() => S.socket.emit('typing:stop',{channelId:S.currentChannel}), 2500);
+}
+function insertAt(text) { const ta=document.getElementById('msg-input'); if(!ta)return; const s=ta.selectionStart; ta.value=ta.value.slice(0,s)+text+ta.value.slice(s); ta.setSelectionRange(s+text.length,s+text.length); ta.focus(); }
+function insertCode() { const ta=document.getElementById('msg-input'); ta.value+=(ta.value?'\n':'')+'```javascript\n// code\n```'; ta.focus(); autoGrow(ta); }
+function wrapSel(b,a) { const ta=document.getElementById('msg-input'); const s=ta.selectionStart,e=ta.selectionEnd; const sel=ta.value.slice(s,e)||'text'; ta.value=ta.value.slice(0,s)+b+sel+a+ta.value.slice(e); ta.setSelectionRange(s+b.length,s+b.length+sel.length); ta.focus(); }
+
+// ── SOCKET ────────────────────────────────────────────────────────────────
+function initSocket() {
+  S.socket = io(WS_URL, { auth:{ token:S.token }, transports:['websocket','polling'] });
+  S.socket.on('connect', () => {
+    // Re-join current channel
+    if (S.currentChannel) S.socket.emit('channel:join', { channelId: S.currentChannel });
+  });
+  S.socket.on('msg:new', m => {
+    const chId = m.channelId || m.channel_id;
+    if (!S.messages[chId]) S.messages[chId] = [];
+    S.messages[chId].push(m);
+    if (chId === S.currentChannel) {
+      appendMsg(m, false, true);
+      document.getElementById('msgs-area').scrollTop = 999999;
+    } else {
+      // Mark unread
+      const ch = S.channels.find(x => x.id === chId);
+      if (ch) { ch.unread = (ch.unread||0)+1; renderSBChannels(); }
+    }
+  });
+  S.socket.on('msg:deleted', ({ messageId }) => {
+    document.querySelectorAll('[data-mid="'+messageId+'"]').forEach(el => el.remove());
+    for (const msgs of Object.values(S.messages)) {
+      const i = msgs.findIndex(m => m.id === messageId);
+      if (i>=0) msgs.splice(i,1);
+    }
+  });
+  S.socket.on('msg:edited', ({ messageId, content }) => {
+    const el = document.querySelector('[data-mid="'+messageId+'"] .msg-text');
+    if (el) el.innerHTML = fmtText(content);
+    for (const msgs of Object.values(S.messages)) {
+      const m = msgs.find(x => x.id === messageId);
+      if (m) m.content = content;
+    }
+  });
+  S.socket.on('typing:user', ({ userId, username }) => {
+    if (userId === S.user?.id) return;
+    S.typing[userId] = username;
+    clearTimeout(S['_tt'+userId]);
+    S['_tt'+userId] = setTimeout(()=>{ delete S.typing[userId]; renderTyping(); }, 3000);
+    renderTyping();
+  });
+  S.socket.on('typing:off', ({ userId }) => { delete S.typing[userId]; renderTyping(); });
+  S.socket.on('presence', ({ userId, status }) => {
+    S.online[userId] = status === 'online';
+    renderSBDMs();
+  });
+  S.socket.on('task:updated', ({ task }) => {
+    const i = S.tasks.findIndex(t => t.id === task?.id);
+    if (i>=0) S.tasks[i] = { ...S.tasks[i], ...task };
+    else if (task?.assigned_to === S.user?.id) S.tasks.unshift(task);
+    if (S.dashMode === 'collab') loadCollabDash();
+    if (S.dashMode === 'manager') loadMgrDash();
+  });
+  S.socket.on('task:started', ({ taskId, branchName }) => {
+    const t = S.tasks.find(x => x.id === taskId);
+    if (t) { t.status='in_progress'; t.branch_name=branchName; }
+    if (S.dashMode === 'collab') loadCollabDash();
+  });
+  S.socket.on('notification:new', ({ type, title, body }) => {
+    toast(type==='pr_approved'?'s':type==='nudge'?'a':'i', title, body||'', type==='nudge'?7000:4000);
+    document.getElementById('notif-dot').style.display = 'block';
+  });
+  S.socket.on('project:created', ({ project }) => {
+    if (project && !S.projects.find(p=>p.id===project.id)) {
+      S.projects.push({...project, name: project.name || 'Project'});
+      renderSBProjects();
+    }
+  });
+  S.socket.on('project:deleted', ({ projectId }) => {
+    S.projects = S.projects.filter(p => p.id !== projectId);
+    if (S.currentProject?.id === projectId) showHome();
+    renderSBProjects();
+  });
+  S.socket.on('channel:updated', ({ channel }) => {
+    const i = S.channels.findIndex(c => c.id === channel.id);
+    if (i>=0) S.channels[i] = { ...S.channels[i], ...channel };
+    renderSBChannels();
+  });
+  S.socket.on('channel:deleted', ({ channelId }) => {
+    S.channels = S.channels.filter(c => c.id !== channelId);
+    if (S.currentChannel === channelId) showHome();
+    renderSBChannels();
+  });
+}
+
+function renderTyping() {
+  const users = Object.values(S.typing);
+  const bar = document.getElementById('typing-bar');
+  if (!bar) return;
+  if (!users.length) { bar.innerHTML=''; return; }
+  bar.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>' + esc(users.join(', ')) + ' typing...';
+}
+
+// ── INVITE (fixed - shows actual user name not UUID) ──────────────────────
+let _inviteSelected = null;
+let _inviteSearchTimer = null;
+
+function openInvite() {
+  _inviteSelected = null;
+  document.getElementById('invite-search').value = '';
+  document.getElementById('invite-results').innerHTML = '';
+  document.getElementById('invite-selected').style.display = 'none';
+  document.getElementById('invite-no-results').style.display = 'none';
+  openModal('invite-modal');
+}
+
+function searchUsers(query) {
+  clearTimeout(_inviteSearchTimer);
+  const q = query.trim();
+  if (q.length < 2) { document.getElementById('invite-results').innerHTML = ''; return; }
+  _inviteSearchTimer = setTimeout(async () => {
+    try {
+      const users = await GET('/users/search?q=' + encodeURIComponent(q));
+      renderInviteResults(users || []);
+    } catch(e) {
+      console.warn('[search]', e);
+      document.getElementById('invite-no-results').style.display = 'block';
+    }
+  }, 300);
+}
+
+function renderInviteResults(users) {
+  const el = document.getElementById('invite-results');
+  const noRes = document.getElementById('invite-no-results');
+  if (!users.length) {
+    el.innerHTML = '';
+    noRes.style.display = 'block';
+    return;
+  }
+  noRes.style.display = 'none';
+  el.innerHTML = users.slice(0,8).map(u => {
+    const name = safe(u.display_name || u.github_username || u.handle || 'User', 40);
+    const handle = u.handle || u.github_username || '';
+    const color = u.avatar_color || '#22c55e';
+    const inits = initials(name);
+    return `<div class="invite-result" onclick="selectInviteUser('${esc(u.id)}','${esc(name)}','${esc(handle)}')">
+      <div class="av av-32" style="background:${esc(color)}">${u.avatar_url ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : inits}</div>
+      <div class="invite-result-info">
+        <div class="invite-result-name">${esc(name)}</div>
+        <div class="invite-result-handle">${handle ? '@'+esc(handle) : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectInviteUser(userId, name, handle) {
+  _inviteSelected = userId;
+  document.querySelectorAll('.invite-result').forEach(el => el.classList.remove('selected'));
+  const sel = document.getElementById('invite-selected');
+  const disp = document.getElementById('invite-selected-display');
+  sel.style.display = 'block';
+  disp.innerHTML = `<strong>${esc(name)}</strong> ${handle ? '<span style="color:var(--t3)">@'+esc(handle)+'</span>' : ''}`;
+  document.getElementById('invite-results').querySelectorAll('.invite-result').forEach(el => {
+    if (el.onclick.toString().includes(userId)) el.classList.add('selected');
+  });
+}
+
+async function sendInvite() {
+  if (!_inviteSelected) { toast('e','Select a user','Search and click a user first'); return; }
+  const role = document.getElementById('invite-role')?.value || 'developer';
+  try {
+    await POST('/workspaces/' + S.ws.id + '/invite', { userId: _inviteSelected, role });
+    closeModal('invite-modal');
+    toast('s','Invited! ✓','');
+    // Refresh users list
+    const members = await GET('/workspaces/' + S.ws.id + '/members');
+    S.users = (members || []).map(m => ({...m, ...(m.user||{})}));
+    renderRPMembers();
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+// ── PROJECT OVERVIEW (clicking project in sidebar) ────────────────────────
+async function openProject(projectId) {
+  S.currentProject = S.projects.find(p => p.id === projectId) || null;
+  showView('project-view');
+  document.querySelectorAll('[data-pid]').forEach(el => el.classList.toggle('active', el.dataset.pid === projectId));
+  const content = document.getElementById('proj-overview-content');
+  content.innerHTML = '<div class="empty-state"><div class="spinner spinner-lg"></div></div>';
+  try {
+    const data = await GET('/projects/' + projectId + '/dashboard');
+    const pIdx = S.projects.findIndex(p=>p.id===projectId);
+    if (pIdx>=0) { S.projects[pIdx]._pct = data.progress||0; S.currentProject = S.projects[pIdx]; }
+    renderProjectOverview(data, projectId);
+    renderSBProjects();
+  } catch(e) {
+    content.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><div class="empty-state-title">Error</div><div class="empty-state-desc">${esc(e.message)}</div></div>`;
+  }
+  closeSidebar();
+}
+
+function renderProjectOverview(data, projectId) {
+  const proj = data.project || {};
+  const tasks = data.tasks || [];
+  const members = data.members || [];
+  const stats = data.stats || {};
+  const prog = data.progress || 0;
+  const color = proj.color || '#22c55e';
+  const name = proj.name || 'Project';
+  const isLead = S.isOwner || ['admin','manager','lead'].includes(S.myRole);
+  const myTasks = tasks.filter(t => t.assigned_to === S.user?.id && t.status !== 'done' && t.status !== 'approved');
+  const myUrgent = myTasks.filter(t => {
+    if (!t.deadline) return t.priority === 'urgent';
+    return (new Date(t.deadline) - Date.now()) < 86400000 || t.priority === 'urgent';
+  });
+
+  const content = document.getElementById('proj-overview-content');
+  content.innerHTML = `
+  <div class="proj-overview-wrap">
+    <div class="proj-ov-card" style="--proj-c:${esc(color)};border-color:rgba(255,255,255,.07)">
+      <div style="display:flex;align-items:flex-start;gap:16px">
+        <div class="av av-48" style="border-radius:14px;background:${esc(color)};font-size:16px;font-weight:900;color:#000;flex-shrink:0">${esc(name.slice(0,2).toUpperCase())}</div>
+        <div style="flex:1;min-width:0">
+          <div class="proj-ov-name">${esc(name)}</div>
+          <div class="proj-ov-meta">
+            ${proj.github_url ? `<a href="${esc(proj.github_url)}" target="_blank" class="badge badge-blue" style="text-decoration:none">🐙 ${esc(proj.github_repo||'GitHub')} ↗</a>` : ''}
+            <span>${tasks.length} tasks</span>
+            <span>${members.length} members</span>
+            ${proj.deadline ? `<span>📅 Due ${fmtDate(proj.deadline)}</span>` : ''}
+            <span class="badge ${prog>75?'badge-green':prog>40?'badge-yellow':'badge-blue'}">${prog}% done</span>
+          </div>
+          ${proj.description ? `<div style="font-size:12px;color:var(--t3);margin-bottom:10px">${esc(proj.description)}</div>` : ''}
+          <div class="progress-wrap progress-wrap-lg" style="max-width:400px">
+            <div class="progress-fill" style="width:${prog}%;background:${esc(color)}"></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;align-items:flex-end">
+          <button class="begin-btn" onclick="beginProject('${esc(projectId)}')">▶ Begin</button>
+          ${isLead ? `<button class="btn btn-secondary btn-sm" onclick="openEditProject('${esc(projectId)}')">⚙ Settings</button>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px">
+      ${[
+        {v:stats.in_progress||0,l:'Working',c:'var(--blue)'},
+        {v:stats.in_review||0,l:'In Review',c:'var(--yellow)'},
+        {v:stats.blocked||0,l:'Blocked',c:'var(--red)'},
+        {v:stats.done||0,l:'Done',c:'var(--green)'},
+        {v:(members||[]).filter(m=>S.online[m.user?.id]).length,l:'Online',c:'var(--green)'},
+      ].map(s => `<div class="stat-card"><div class="stat-card-val" style="font-size:26px;color:${s.c}">${s.v}</div><div class="stat-card-label">${s.l}</div></div>`).join('')}
+    </div>
+
+    <div class="grid-2">
+      ${isLead ? `
+      <!-- Lead/Owner: team activity + approval queue -->
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--green)"></div>Team Activity</div></div>
+        <div class="panel-body">
+          ${members.length ? members.slice(0,6).map(m => {
+            const u = m.user||{};
+            const isOnline = S.online[u.id];
+            const inits = initials(u.display_name||u.handle||'?');
+            const myT = tasks.find(t=>t.assigned_to===u.id&&t.status!=='done');
+            return `<div class="team-row">
+              <div style="position:relative">
+                <div class="av av-28" style="background:${esc(u.avatar_color||'#22c55e')}">${inits}</div>
+                <div class="status-dot" style="position:absolute;bottom:0;right:0;border:2px solid var(--s1);${isOnline?'background:var(--green)':'background:var(--s6)'}"></div>
+              </div>
+              <div class="team-row-info">
+                <div class="team-row-name">${esc(u.display_name||u.handle||'User')}</div>
+                ${myT ? `<div class="team-row-task">📋 ${esc(myT.title.slice(0,40))}</div>` : '<div style="font-size:10px;color:var(--t4)">No active task</div>'}
+              </div>
+              <span class="role ${esc('role-'+(m.role||'developer'))}">${esc(m.role||'dev')}</span>
+            </div>`;
+          }).join('') : '<div class="panel-empty"><div class="panel-empty-text">No members</div></div>'}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--yellow)"></div>Quick Actions</div></div>
+        <div class="panel-body" style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary w-full" style="justify-content:center" onclick="beginProject('${esc(projectId)}')">▶ Open Full Workspace</button>
+          <button class="btn btn-secondary w-full" style="justify-content:center" onclick="openNewTask()">+ Create Task</button>
+          <button class="btn btn-secondary w-full" style="justify-content:center" onclick="openInvite()">+ Invite Member</button>
+          ${data.repo ? `<a href="https://github.com/${esc(data.repo.full_name)}/pulls" target="_blank" class="btn btn-secondary w-full" style="justify-content:center;text-decoration:none">⇄ View PRs on GitHub</a>` : ''}
+        </div>
+      </div>
+      ` : `
+      <!-- Member: my tasks + quick actions -->
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--green)"></div>My Tasks (${myTasks.length})</div></div>
+        <div class="panel-body">
+          ${myUrgent.length ? `<div style="background:var(--red-d);border:1px solid rgba(239,68,68,.15);border-radius:var(--r8);padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--red)">🔴 ${myUrgent.length} urgent/overdue task${myUrgent.length>1?'s':''} need attention</div>` : ''}
+          ${myTasks.length ? myTasks.slice(0,5).map(t => {
+            const dl = deadline(t.deadline);
+            return `<div class="my-task-row">
+              <div class="my-task-dot" style="background:${prioColor(t.priority||'normal')}"></div>
+              <div class="my-task-info">
+                <div class="my-task-title">${esc(t.title||'')}</div>
+                ${t.branch_name ? `<div style="font-size:9px;color:var(--blue);font-family:monospace">🌿 ${esc(t.branch_name)}</div>` : ''}
+              </div>
+              <span style="font-size:9px;color:${dl.color}">${dl.label}</span>
+            </div>`;
+          }).join('') : '<div class="panel-empty"><div class="panel-empty-text">No tasks assigned yet</div></div>'}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--blue)"></div>Quick Actions</div></div>
+        <div class="panel-body" style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary w-full" style="justify-content:center" onclick="beginProject('${esc(projectId)}')">▶ Open Full Workspace</button>
+          ${myTasks.find(t=>t.status==='in_progress') ? `<button class="btn btn-secondary w-full" style="justify-content:center;color:var(--blue)" onclick="beginProject('${esc(projectId)}')">⇄ Submit Work for Review</button>` : ''}
+          <button class="btn btn-ghost w-full" style="justify-content:center" onclick="openProject('${esc(projectId)}')">↻ Refresh</button>
+        </div>
+      </div>
+      `}
+    </div>
+  </div>`;
+}
+
+function beginProject(projectId) {
+  const url = location.origin + '/project.html?id=' + encodeURIComponent(projectId);
+  const w = Math.min(1440, screen.availWidth*.9), h = Math.min(900, screen.availHeight*.9);
+  const l = Math.round((screen.availWidth-w)/2), t = Math.round((screen.availHeight-h)/2);
+  const popup = window.open(url, 'dcproj_'+projectId, `width=${w},height=${h},left=${l},top=${t},resizable=yes,scrollbars=no`);
+  if (!popup || popup.closed) { window.open(url,'_blank'); toast('i','Opened in new tab','Allow popups for popup mode'); }
+}
+
+// ── PROJECT MODALS ────────────────────────────────────────────────────────
+let _projVis = 'public';
+function setProjVis(v, el) {
+  _projVis = v;
+  document.querySelectorAll('.pn-vis-btn').forEach(b => { b.className = b.className.replace(' on',''); });
+  el.className += ' on';
+  el.style.cssText = v==='private' ? 'background:var(--blue-d);color:var(--blue);border-color:rgba(59,130,246,.2)' : 'background:var(--green-d);color:var(--green);border-color:rgba(34,197,94,.2)';
+}
+function openNewProject() { openModal('proj-modal'); }
+async function createProject() {
+  const name = safe(document.getElementById('pn-name')?.value||'',100).trim();
+  const desc = safe(document.getElementById('pn-desc')?.value||'',1000);
+  const color = document.getElementById('pn-color')?.value || '#22c55e';
+  const dl = document.getElementById('pn-deadline')?.value || '';
+  if (!name) { toast('e','Error','Project name required'); return; }
+  const btn = document.getElementById('pn-create-btn');
+  if (btn) { btn.textContent='Creating repo…'; btn.disabled=true; }
+  try {
+    const result = await POST('/workspaces/'+S.ws.id+'/projects', { name, description:desc, color, deadline:dl||null, isPrivate:_projVis==='private' });
+    S.projects.push({ ...result, name });
+    renderSBProjects();
+    closeModal('proj-modal');
+    openProject(result.id);
+    toast('s','Project created! 🚀', result.github_url ? '🐙 '+result.github_url : '');
+  } catch(e) { toast('e','GitHub Error', e.message); }
+  finally { if(btn){btn.textContent='Create Project';btn.disabled=false;} }
+}
+
+function openEditProject(projectId) {
+  const p = S.projects.find(x=>x.id===projectId)||S.currentProject;
+  if (!p) return;
+  const mo = document.createElement('div'); mo.className='modal-backdrop'; mo.id='ep-modal';
+  mo.onclick = e => { if(e.target===mo) mo.remove(); };
+  mo.innerHTML=`<div class="modal modal-sm">
+    <div class="modal-hdr"><div class="modal-title">Edit Project</div><div class="modal-close" onclick="document.getElementById('ep-modal').remove()">✕</div></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">Name</label><input class="field-input" id="ep-name" value="${esc(p.name||'')}"></div>
+      <div class="field"><label class="field-label">Description</label><textarea class="field-textarea" id="ep-desc" rows="2">${esc(p.description||'')}</textarea></div>
+      <div class="field-row">
+        <div class="field" style="margin-bottom:0"><label class="field-label">Status</label><select class="field-select" id="ep-status">
+          ${['active','on_hold','done','archived'].map(s=>`<option value="${s}"${p.status===s?' selected':''}>${s}</option>`).join('')}
+        </select></div>
+        <div class="field" style="margin-bottom:0"><label class="field-label">Deadline</label><input class="field-input" id="ep-dl" type="date" value="${p.deadline?p.deadline.slice(0,10):''}"></div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-danger btn-sm" onclick="deleteProject('${esc(p.id)}')">🗑 Delete</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('ep-modal').remove()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditProject('${esc(p.id)}')">Save</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+}
+async function saveEditProject(projectId) {
+  const name=safe(document.getElementById('ep-name')?.value||'',100);
+  const desc=safe(document.getElementById('ep-desc')?.value||'',1000);
+  const status=document.getElementById('ep-status')?.value||'active';
+  const dl=document.getElementById('ep-dl')?.value||'';
+  try {
+    await PATCH('/projects/'+projectId,{name,description:desc,status,deadline:dl||null});
+    const i=S.projects.findIndex(p=>p.id===projectId);
+    if(i>=0)S.projects[i]={...S.projects[i],name,description:desc,status};
+    document.getElementById('ep-modal')?.remove();
+    renderSBProjects(); openProject(projectId); toast('s','Updated','');
+  } catch(e){toast('e','Error',e.message);}
+}
+async function deleteProject(projectId) {
+  if(!confirm('Delete this project? All tasks will be removed.'))return;
+  try{
+    await DEL('/projects/'+projectId);
+    S.projects=S.projects.filter(p=>p.id!==projectId);
+    S.currentProject=null; renderSBProjects();
+    document.getElementById('ep-modal')?.remove();
+    showHome(); toast('s','Deleted','');
+  }catch(e){toast('e','Error',e.message);}
+}
+
+// ── CHANNEL MODAL ─────────────────────────────────────────────────────────
+function openNewChannel() { openModal('channel-modal'); }
+async function createChannel() {
+  const name=safe(document.getElementById('cn-name')?.value||'',50).toLowerCase().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+  const desc=safe(document.getElementById('cn-desc')?.value||'',300);
+  const type=document.getElementById('cn-type')?.value||'public';
+  if(!name){toast('e','Error','Channel name required');return;}
+  try{
+    const ch=await POST('/workspaces/'+S.ws.id+'/channels',{name,description:desc,type});
+    S.channels.push(ch); renderSBChannels(); closeModal('channel-modal');
+    switchChannel(ch.id); toast('s','Channel created','#'+name);
+  }catch(e){toast('e','Error',e.message);}
+}
+
+// ── TASKS ─────────────────────────────────────────────────────────────────
+function openNewTask() { openModal('task-modal'); }
+async function createTask() {
+  const title=safe(document.getElementById('nt-title')?.value||'',300);
+  const desc=safe(document.getElementById('nt-desc')?.value||'',5000);
+  const prio=document.getElementById('nt-prio')?.value||'medium';
+  const dl=document.getElementById('nt-deadline')?.value||'';
+  const handle=safe(document.getElementById('nt-assign')?.value||'',50).replace('@','');
+  if(!title){toast('e','Error','Title required');return;}
+  let assignedTo=S.user?.id;
+  if(handle){const u=S.users.find(x=>x.handle===handle||x.github_username===handle);if(u?.id)assignedTo=u.id;}
+  try{
+    const projs=S.projects;
+    if(!projs.length){toast('e','No project','Create a project first');return;}
+    const task=await POST('/projects/'+projs[0].id+'/tasks',{title,description:desc,priority:prio,assignedTo,deadline:dl||null});
+    S.tasks.unshift(task); closeModal('task-modal');
+    toast('s','Task created','');
+    if(S.dashMode==='collab')loadCollabDash();
+    else loadMgrDash();
+  }catch(e){toast('e','Error',e.message);}
+}
+
+function renderAllTasks() {
+  const el=document.getElementById('tasks-list');if(!el)return;
+  const myTasks=S.tasks;
+  if(!myTasks.length){el.innerHTML='<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-title">No tasks yet</div></div>';return;}
+  const STATUS_LABELS={not_started:'To Do',in_progress:'In Progress',in_review:'In Review',approved:'Approved ✓',done:'Done',blocked:'Blocked'};
+  const STATUS_COLORS={not_started:'var(--t4)',in_progress:'var(--blue)',in_review:'var(--yellow)',approved:'var(--green)',done:'var(--purple)',blocked:'var(--red)'};
+  el.innerHTML=myTasks.map(t=>{
+    const dl=deadline(t.deadline);
+    const sc=STATUS_COLORS[t.status]||'var(--t4)';
+    return `<div style="background:var(--s1);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span class="prio prio-${esc(t.priority||'normal')}">${(t.priority||'normal').toUpperCase()}</span>
+        <span style="flex:1;font-size:13px;font-weight:600">${esc(t.title||'')}</span>
+        <span style="font-size:10px;font-weight:700;color:${sc}">${STATUS_LABELS[t.status]||t.status}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px;color:var(--t3)">
+        <span style="color:${dl.color}">${dl.label}</span>
+        ${t.branch_name?`<span style="color:var(--blue);font-family:monospace">🌿 ${esc(t.branch_name)}</span>`:''}
+        ${t.pr_url?`<a href="${esc(t.pr_url)}" target="_blank" style="color:var(--blue)">⇄ PR ↗</a>`:''}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        ${t.status==='not_started'?`<button class="btn btn-xs" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="startTask('${t.id}')">▶ Start</button>`:''}
+        ${t.status==='in_progress'?`<button class="btn btn-xs" style="background:var(--blue-d);color:var(--blue);border:1px solid rgba(59,130,246,.2)" onclick="submitReview('${t.id}')">⇄ Submit</button>`:''}
+        ${(S.myPerms?.APPROVE_PR||S.isOwner)&&t.status==='in_review'?`<button class="btn btn-xs" style="background:var(--green-d);color:var(--green)" onclick="approveTask('${t.id}')">✓ Approve</button><button class="btn btn-xs" style="background:var(--red-d);color:var(--red)" onclick="rejectTask('${t.id}')">✕</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function startTask(id) {
+  try{const r=await POST('/tasks/'+id+'/start',{});const t=S.tasks.find(x=>x.id===id);if(t){t.status='in_progress';t.branch_name=r.branchName;}renderAllTasks();toast('s','Started!',r.branchName?'Branch: '+r.branchName:'');}
+  catch(e){toast('e','Error',e.message);}
+}
+async function submitReview(id) {
+  const t=S.tasks.find(x=>x.id===id);if(!t)return;
+  const prTitle=prompt('PR Title:',t.title||'');if(prTitle===null)return;
+  try{const r=await POST('/tasks/'+id+'/submit-review',{prTitle,prBody:''});t.status='in_review';t.pr_url=r.pr?.html_url||null;renderAllTasks();toast('s','Submitted','');}
+  catch(e){toast('e','Error',e.message);}
+}
+async function approveTask(id) {
+  try{await POST('/tasks/'+id+'/approve',{});const t=S.tasks.find(x=>x.id===id);if(t)t.status='approved';renderAllTasks();toast('s','Approved ✓','');}
+  catch(e){toast('e','Error',e.message);}
+}
+async function rejectTask(id) {
+  const reason=prompt('Reason for requesting changes:');if(!reason)return;
+  try{await POST('/tasks/'+id+'/reject',{reason});const t=S.tasks.find(x=>x.id===id);if(t){t.status='in_progress';t.rejection_reason=reason;}renderAllTasks();toast('i','Changes requested','');}
+  catch(e){toast('e','Error',e.message);}
+}
+
+// ── REPOS VIEW ────────────────────────────────────────────────────────────
+let _allRepos=[], _repoFilter='all';
+async function loadRepos() {
+  const el=document.getElementById('repo-list');if(!el)return;
+  try{
+    const repos=await GET('/github/repos/all');
+    _allRepos=repos||[];
+    S.repos=_allRepos;
+    filterRepos('');
+  }catch(e){el.innerHTML=`<div class="panel-empty"><div class="panel-empty-text">${esc(e.message)}</div></div>`;}
+}
+function filterRepos(q='') {
+  const el=document.getElementById('repo-list');if(!el)return;
+  let repos=_allRepos.filter(r=>_repoFilter==='all'||(_repoFilter==='public'&&!r.private)||(_repoFilter==='private'&&r.private));
+  if(q)repos=repos.filter(r=>(r.full_name||'').toLowerCase().includes(q.toLowerCase()));
+  el.innerHTML=repos.map(r=>`<div style="padding:10px;border-radius:var(--r8);cursor:pointer;transition:background var(--fast);margin-bottom:4px" onmouseenter="this.style.background='var(--s2)'" onmouseleave="this.style.background=''" onclick="openRepo('${esc(r.id||r.name||'')}','${esc(r.full_name||'')}')">
+    <div style="font-size:12px;font-weight:600;margin-bottom:3px">${esc(r.full_name||r.name||'')}</div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--t4)">
+      <span class="badge ${r.private?'badge-gray':'badge-green'}">${r.private?'Private':'Public'}</span>
+      ${r.language?`<span>${esc(r.language)}</span>`:''}
+      ${r.stargazers_count?`<span>⭐ ${r.stargazers_count}</span>`:''}
+    </div>
+  </div>`).join('')||'<div class="panel-empty"><div class="panel-empty-text">No repos found</div></div>';
+}
+function setRepoFilter(f,el) {
+  _repoFilter=f;
+  document.querySelectorAll('[id^="repo-f-"]').forEach(b=>b.className=b.className.replace(' btn-secondary','').replace('btn-ghost','btn-ghost')+' btn-ghost');
+  el.className=el.className.replace('btn-ghost','btn-secondary');
+  filterRepos(document.getElementById('repo-search')?.value||'');
+}
+function openRepo(id,fullName) {
+  const detail=document.getElementById('repo-detail');
+  detail.innerHTML=`<div style="padding:20px"><div class="t-h3 mb-12">${esc(fullName)}</div><a href="https://github.com/${esc(fullName)}" target="_blank" class="btn btn-secondary btn-sm">View on GitHub ↗</a></div>`;
+}
+
+// ── RIGHT PANEL ───────────────────────────────────────────────────────────
+function switchRPTab(tab) {
+  ['github','members'].forEach(t=>{
+    document.getElementById('rp-'+t)?.classList.toggle('hidden',t!==tab);
+    document.getElementById('rpt-'+t)?.classList.toggle('active',t===tab);
+  });
+  if(tab==='members')renderRPMembers();
+}
+async function loadRPGitHub() {
+  try{
+    const repos=await GET('/github/repos/all');S.repos=repos||[];
+    const el=document.getElementById('rp-repos-list');
+    if(el)el.innerHTML=repos.slice(0,5).map(r=>`<div style="padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <div style="font-size:11px;font-weight:600;color:var(--t1)"><a href="https://github.com/${esc(r.full_name)}" target="_blank" style="color:inherit">${esc(r.full_name)}</a></div>
+      <div style="font-size:10px;color:var(--t4);margin-top:2px;display:flex;gap:6px"><span class="badge ${r.private?'badge-gray':'badge-green'}">${r.private?'Private':'Public'}</span>${r.language?`<span>${esc(r.language)}</span>`:''}</div>
+    </div>`).join('');
+  }catch{}
+}
+function renderRPMembers() {
+  const el=document.getElementById('rp-members-list');if(!el)return;
+  const count=document.getElementById('rp-member-count');
+  const online=S.users.filter(u=>S.online[u.id]);
+  if(count)count.textContent=`${S.users.length} Members · ${online.length} Online`;
+  el.innerHTML=S.users.map(u=>{
+    const isOnline=S.online[u.id];
+    const inits=initials(u.display_name||u.github_username||u.handle||'?');
+    const myTask=S.tasks.find(t=>t.assigned_to===u.id&&t.status!=='done');
+    return `<div class="rp-member" onclick="memberCtx(event,'${esc(u.id||'')}')" style="cursor:pointer">
+      <div class="status-dot ${isOnline?'s-online':'s-offline'}"></div>
+      <div class="av av-28" style="background:${esc(u.avatar_color||'#22c55e')}">${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:inits}</div>
+      <div class="rp-member-info">
+        <div class="rp-member-name">${esc(u.display_name||u.github_username||u.handle||'User')}</div>
+        ${myTask?`<div class="rp-member-task">📋 ${esc(myTask.title.slice(0,28))}</div>`:'<div class="rp-member-sub">No active task</div>'}
+      </div>
+    </div>`;
+  }).join('')||'<div class="panel-empty"><div class="panel-empty-text">No members</div></div>';
+}
+
+function memberCtx(e, userId) {
+  e.preventDefault(); e.stopPropagation();
+  const u = S.users.find(x => x.id === userId);
+  if (!u) return;
+  const isMe = userId === S.user?.id;
+  const name = safe(u.display_name || u.github_username || u.handle || 'User', 40);
+  const items = [
+    { label: name, icon: '' },
+    { sep: true },
+    ...(!isMe ? [
+      { label: 'Send DM', icon: '💬', fn: () => startDM(userId) },
+      { label: 'Assign Task', icon: '📋', fn: () => { openNewTask(); setTimeout(()=>{ const el=document.getElementById('nt-assign');if(el)el.value='@'+(u.handle||u.github_username||''); },100); }},
+      { label: 'Mention in Chat', icon: '@', fn: () => insertAt('@'+(u.handle||u.github_username||'')) },
+    ] : []),
+    { label: 'Copy @handle', icon: '📋', fn: () => navigator.clipboard.writeText('@'+(u.handle||u.github_username||'')).then(()=>toast('s','Copied','')) },
+    ...(S.isOwner && !isMe ? [
+      { sep: true },
+      { label: 'Change Role', icon: '🔑', fn: () => {
+        const newRole = prompt('New role (owner/admin/lead/senior/developer/junior/viewer):', u.role||'developer');
+        if (newRole) PATCH('/workspaces/'+S.ws.id+'/members/'+userId+'/role',{role:newRole}).then(()=>{u.role=newRole;renderRPMembers();toast('s','Role updated',newRole);}).catch(e2=>toast('e','Error',e2.message));
+      }},
+    ] : []),
+  ];
+  buildCtx(e, items);
+}
+
+function startDM(userId) { toast('i','DMs','Click the + next to Direct Messages'); }
+
+// ── AI PANEL ──────────────────────────────────────────────────────────────
+let _aiMode = 'chat';
+function openAI() { document.getElementById('ai-panel')?.classList.add('open'); setTimeout(()=>document.getElementById('ai-input')?.focus(),300); }
+function closeAI() { document.getElementById('ai-panel')?.classList.remove('open'); }
+function setAIMode(m) { _aiMode=m; document.querySelectorAll('[id^="ai-m-"]').forEach(b=>b.className='btn btn-ghost btn-xs'); document.getElementById('ai-m-'+m)?.classList.add('btn-secondary'); }
+async function sendAI() {
+  const inp=document.getElementById('ai-input');const text=inp?.value?.trim();
+  if(!text)return; inp.value='';
+  appendAIMsg('user',text);
+  const thinking=appendAIMsg('bot','Thinking...',true);
+  const ctx=`[Workspace:${S.ws?.name||''} | Role:${S.myRole} | Tasks:${S.tasks.length} | Channel:${S.channels.find(c=>c.id===S.currentChannel)?.name||'none'}]`;
+  try{
+    const res=await POST('/ai/chat',{message:text+'\n'+ctx,history:S.aiHistory.slice(-6),mode:'lite'});
+    const reply=(res.reply||res||'').toString();
+    thinking?.remove();
+    S.aiHistory.push({role:'user',text});S.aiHistory.push({role:'model',text:reply});
+    appendAIMsg('bot',reply);
+  }catch(e){thinking?.remove();appendAIMsg('bot','Error: '+e.message);}
+}
+function appendAIMsg(role,text,loading=false) {
+  const msgs=document.getElementById('ai-msgs');if(!msgs)return;
+  const el=document.createElement('div');
+  el.className='ai-bubble '+(role==='user'?'user':'bot')+(loading?' loading':'');
+  if(role==='bot'){let h=esc(text);h=h.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');h=h.replace(/`([^`]+)`/g,'<code>$1</code>');h=h.replace(/\n/g,'<br>');el.innerHTML=h;}
+  else el.textContent=text;
+  msgs.appendChild(el);msgs.scrollTop=99999;
+  return el;
+}
+
+// ── CONTRIBUTION GRAPH ────────────────────────────────────────────────────
+async function loadContribGraph() {
+  try{
+    const data=await GET('/github/contributions');
+    if(!data?.contributionCalendar){buildFallbackGraph();return;}
+    buildRealGraph(data.contributionCalendar);
+  }catch{buildFallbackGraph();}
+}
+function buildRealGraph(cal) {
+  const weeksEl=document.getElementById('cg-weeks');const monthsEl=document.getElementById('cg-months');const totalEl=document.getElementById('cg-total');
+  if(!weeksEl)return;
+  weeksEl.innerHTML='';monthsEl.innerHTML='';
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let lastMonth=-1;
+  (cal.weeks||[]).forEach((week,wi)=>{
+    const col=document.createElement('div');col.className='cg-week';
+    const first=week.contributionDays?.[0];
+    if(first){const m=new Date(first.date).getMonth();if(m!==lastMonth){lastMonth=m;const lbl=document.createElement('div');lbl.className='cg-month';lbl.style.cssText='flex:0 0 '+(16)+'px;font-size:9px;color:var(--t4);font-weight:600';lbl.textContent=MONTHS[m];monthsEl.appendChild(lbl);}}
+    for(let d=0;d<7;d++){
+      const day=week.contributionDays?.[d];const cell=document.createElement('div');cell.className='cg-cell';
+      if(day){const cnt=day.contributionCount||0;cell.style.background=cnt===0?'var(--s4)':cnt<=3?'#14532d':cnt<=6?'#166534':cnt<=9?'#16a34a':'#22c55e';cell.title=day.date+': '+cnt+' contribution'+(cnt!==1?'s':'');}
+      else{cell.style.cssText='width:13px;height:13px;border-radius:3px;background:transparent;pointer-events:none';}
+      col.appendChild(cell);
+    }
+    weeksEl.appendChild(col);
+  });
+  if(totalEl)totalEl.textContent=(cal.totalContributions||0)+' total contributions';
+  // Day labels
+  const dl=document.getElementById('cg-day-labels');
+  if(dl)dl.innerHTML=['','Mon','','Wed','','Fri',''].map(d=>`<div class="cg-day-lbl">${d}</div>`).join('');
+}
+function buildFallbackGraph() {
+  const weeksEl=document.getElementById('cg-weeks');if(!weeksEl)return;
+  weeksEl.innerHTML='';
+  const colors=['var(--s4)','#14532d','#166534','#16a34a','#22c55e'];
+  const uid=S.user?.id||'x';
+  function pseudo(i){return((uid.charCodeAt(i%(uid.length||1))||7)*2654435761*(i+1))>>>0;}
+  for(let w=0;w<52;w++){const col=document.createElement('div');col.className='cg-week';
+    for(let d=0;d<7;d++){const cell=document.createElement('div');cell.className='cg-cell';const v=pseudo(w*7+d)%100;cell.style.background=colors[v<35?Math.floor(pseudo(w*7+d+1)%4)+1:0];col.appendChild(cell);}
+    weeksEl.appendChild(col);}
+  const dl=document.getElementById('cg-day-labels');if(dl)dl.innerHTML=['','Mon','','Wed','','Fri',''].map(d=>`<div class="cg-day-lbl">${d}</div>`).join('');
+}
+
+// ── DUAL DASHBOARD ────────────────────────────────────────────────────────
+let _dashMode = localStorage.getItem('dc_dash_mode')||'collab';
+let _taskFilter='all';
+let _pomInterval=null, _pomRunning=false, _pomSecs=25*60;
+
+function applyDashMode(reload=true) {
+  const btn=document.getElementById('mode-btn');const icon=document.getElementById('mode-icon');const label=document.getElementById('mode-label');
+  const mgr=document.getElementById('dash-manager');const col=document.getElementById('dash-collab');
+  const homeView=document.getElementById('home-view');
+  if(!homeView.classList.contains('hidden')){
+    if(_dashMode==='manager'){
+      if(btn){btn.className='nav-mode-btn nav-mode-manager';icon.textContent='👔';label.textContent='Manager';}
+      mgr?.classList.remove('hidden');col?.classList.add('hidden');
+      if(reload)loadMgrDash();
+    }else{
+      if(btn){btn.className='nav-mode-btn nav-mode-collab';icon.textContent='⚡';label.textContent='Collab';}
+      mgr?.classList.add('hidden');col?.classList.remove('hidden');
+      if(reload)loadCollabDash();
+    }
+  }
+}
+function toggleDashMode() {
+  _dashMode=_dashMode==='manager'?'collab':'manager';
+  localStorage.setItem('dc_dash_mode',_dashMode);
+  showHome();
+  setTimeout(applyDashMode,50);
+}
+
+async function loadMgrDash() {
+  const u=S.user||{};
+  const el=n=>document.getElementById(n);
+  const d=new Date();
+  if(el('mgr-name'))el('mgr-name').textContent=safe(u.display_name||u.github_username||'Team',30);
+  if(el('mgr-sub'))el('mgr-sub').textContent=(S.ws?.name||'Workspace')+' · '+d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  // Stats
+  const online=S.users.filter(u2=>S.online[u2.id]).length;
+  const inRev=S.tasks.filter(t=>t.status==='in_review').length;
+  const blocked=S.tasks.filter(t=>t.status==='blocked').length;
+  const done=S.tasks.filter(t=>t.status==='done'||t.status==='approved').length;
+  if(el('mgr-stats'))el('mgr-stats').innerHTML=[
+    {v:online,l:'Online Now',c:'var(--green)',a:'mgr-hc-online'},
+    {v:inRev,l:'In Review',c:'var(--yellow)',a:'mgr-hc-review'},
+    {v:blocked,l:'Blocked',c:'var(--red)',a:'mgr-hc-blocked'},
+    {v:done,l:'Done',c:'var(--blue)',a:'mgr-hc-done'},
+  ].map(s=>`<div class="stat-card ${s.a}"><div class="stat-card-val" style="color:${s.c}">${s.v}</div><div class="stat-card-label">${s.l}</div></div>`).join('');
+  // Attention
+  if(el('mgr-attention')){
+    const overdue=S.tasks.filter(t=>t.status!=='done'&&t.deadline&&new Date(t.deadline)<new Date()).slice(0,3);
+    const review=S.tasks.filter(t=>t.status==='in_review').slice(0,3);
+    const items=[...overdue.map(t=>{const dev=S.users.find(u2=>u2.id===t.assigned_to);return`<div class="attn-item"><div class="attn-icon">🔴</div><div style="flex:1"><div class="attn-title">${esc(t.title||'')}</div><div class="attn-sub">Overdue · ${esc(dev?.display_name||dev?.handle||'Unassigned')}</div></div></div>`;}),
+                ...review.map(t=>{const dev=S.users.find(u2=>u2.id===t.assigned_to);return`<div class="attn-item"><div class="attn-icon">⏳</div><div style="flex:1"><div class="attn-title">${esc(t.title||'')}</div><div class="attn-sub">Ready for review · ${esc(dev?.display_name||dev?.handle||'')}</div></div><div class="attn-action" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="approveTask('${t.id}')">✓</div></div>`;}),
+    ];
+    el('mgr-attention').innerHTML=items.join('')||'<div class="panel-empty"><div class="panel-empty-text">✓ All clear!</div></div>';
+  }
+  // Workload
+  if(el('mgr-workload')){
+    const wl=S.users.map(u2=>({user:u2,count:S.tasks.filter(t=>t.assigned_to===u2.id&&t.status!=='done').length})).filter(m=>m.count>0||S.online[m.user.id]).sort((a,b)=>b.count-a.count).slice(0,6);
+    const max=Math.max(...wl.map(m=>m.count),1);
+    el('mgr-workload').innerHTML=wl.map(m=>{
+      const inits=initials(m.user.display_name||m.user.handle||'?');
+      const pct=Math.round(m.count/max*100);
+      const barColor=m.count>5?'var(--red)':m.count>2?'var(--yellow)':'var(--green)';
+      return`<div class="wl-row"><div class="av av-24" style="background:${esc(m.user.avatar_color||'#22c55e')}">${inits}</div><div class="wl-name">${esc(safe(m.user.display_name||m.user.handle||'',15))}</div><div class="wl-track"><div class="wl-fill" style="width:${pct}%;background:${barColor}"></div></div><div class="wl-count">${m.count}</div></div>`;
+    }).join('')||'<div class="panel-empty"><div class="panel-empty-text">No task data</div></div>';
+  }
+  // Approval queue
+  const aqTasks=S.tasks.filter(t=>t.status==='in_review');
+  const aqCount=el('aq-count');if(aqCount)aqCount.textContent=aqTasks.length||'';
+  if(el('mgr-approval'))el('mgr-approval').innerHTML=aqTasks.slice(0,4).map(t=>{const dev=S.users.find(u2=>u2.id===t.assigned_to);return`<div class="aq-item"><div class="attn-icon">⇄</div><div style="flex:1"><div class="attn-title">${esc(t.title||'')}</div><div class="attn-sub">by ${esc(dev?.display_name||dev?.handle||'')}${t.pr_url?` · <a href="${esc(t.pr_url)}" target="_blank" style="color:var(--blue)">PR ↗</a>`:''}</div></div><div class="aq-actions"><div class="attn-action" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="approveTask('${t.id}')">✓</div><div class="attn-action" style="background:var(--red-d);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="rejectTask('${t.id}')">✕</div></div></div>`;}).join('')||'<div class="panel-empty"><div class="panel-empty-text">No PRs awaiting review</div></div>';
+  // Velocity
+  if(el('vel-chart')){const days=[];for(let i=6;i>=0;i--){const d2=new Date();d2.setDate(d2.getDate()-i);d2.setHours(0,0,0,0);const nextD=new Date(d2);nextD.setDate(nextD.getDate()+1);const cnt=S.tasks.filter(t=>t.status==='done'&&new Date(t.updated_at||0)>=d2&&new Date(t.updated_at||0)<nextD).length;days.push({label:['Su','Mo','Tu','We','Th','Fr','Sa'][d2.getDay()],cnt});}const maxV=Math.max(...days.map(d=>d.cnt),1);el('vel-chart').innerHTML=days.map(d=>{const h=Math.max(4,Math.round(d.cnt/maxV*52));return`<div class="vel-col"><div class="vel-num">${d.cnt}</div><div class="vel-bar" style="height:${h}px;background:${d.cnt>0?'var(--blue)':'var(--s4)'}"></div><div class="vel-lbl">${d.label}</div></div>`;}).join('');}
+  // Team
+  if(el('mgr-team'))el('mgr-team').innerHTML=S.users.slice(0,8).map(u2=>{const isOnline=S.online[u2.id];const inits=initials(u2.display_name||u2.handle||'?');const myT=S.tasks.find(t=>t.assigned_to===u2.id&&t.status!=='done');return`<div class="team-row"><div style="position:relative"><div class="av av-28" style="background:${esc(u2.avatar_color||'#22c55e')}">${inits}</div><div class="status-dot" style="position:absolute;bottom:0;right:0;border:2px solid var(--s1);background:${isOnline?'var(--green)':'var(--s6)'}"></div></div><div class="team-row-info"><div class="team-row-name">${esc(u2.display_name||u2.github_username||u2.handle||'User')}</div>${myT?`<div class="team-row-task">📋 ${esc(myT.title.slice(0,40))}</div>`:'<div style="font-size:10px;color:var(--t4)">No active task</div>'}</div></div>`;}).join('')||'<div class="panel-empty"><div class="panel-empty-text">No team members</div></div>';
+  // Quick assign
+  const qaWho=el('qa-who');if(qaWho)qaWho.innerHTML=S.users.map(u2=>`<option value="${esc(u2.id)}">@${esc(u2.handle||u2.github_username||'')}</option>`).join('');
+}
+
+async function quickAssign() {
+  const title=safe(document.getElementById('qa-task')?.value||'',300);
+  const assigneeId=document.getElementById('qa-who')?.value;
+  const prio=document.getElementById('qa-prio')?.value||'medium';
+  if(!title||!assigneeId){toast('e','Error','Fill task title and select member');return;}
+  try{
+    if(!S.projects.length){toast('e','No project','Create a project first');return;}
+    await POST('/projects/'+S.projects[0].id+'/tasks',{title,priority:prio,assignedTo:assigneeId});
+    document.getElementById('qa-task').value='';
+    await GET('/tasks/mine').then(tasks=>{S.tasks=tasks||[];});
+    loadMgrDash(); toast('s','Task assigned! ✓','');
+  }catch(e){toast('e','Error',e.message);}
+}
+
+async function loadCollabDash() {
+  const u=S.user||{};
+  if(document.getElementById('col-name'))document.getElementById('col-name').textContent=safe(u.display_name||u.github_username||'Dev',25);
+  if(document.getElementById('col-sub'))document.getElementById('col-sub').textContent=(S.ws?.name||'Workspace')+' · '+new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const myTasks=S.tasks.filter(t=>t.assigned_to===S.user?.id&&t.status!=='done'&&t.status!=='approved');
+  // Focus
+  const sorted=[...myTasks].sort((a,b)=>{const po={urgent:0,medium:1,normal:2};const ap=po[a.priority||'normal']||2,bp=po[b.priority||'normal']||2;if(ap!==bp)return ap-bp;return (new Date(a.deadline||'9999')-new Date(b.deadline||'9999'));});
+  const focus=sorted.slice(0,3);
+  const focusEl=document.getElementById('col-focus');
+  if(focusEl){
+    if(!focus.length){focusEl.innerHTML=`<div class="focus-card" style="grid-column:span 3;text-align:center;padding:32px"><div style="font-size:36px;margin-bottom:8px">🎉</div><div style="font-size:16px;font-weight:700;color:var(--green)">All caught up!</div><div style="font-size:12px;color:var(--t4);margin-top:4px">No urgent tasks. Great work!</div></div>`;}
+    else focusEl.innerHTML=focus.map(t=>{const dl=deadline(t.deadline);return`<div class="focus-card ${esc(t.priority||'normal')}" onclick="showTasks()">
+      <div class="focus-card-prio" style="color:${prioColor(t.priority||'normal')}">${{urgent:'🔴 URGENT',medium:'🟡 MEDIUM',normal:'🟢 NORMAL'}[t.priority||'normal']}</div>
+      <div class="focus-card-title">${esc(t.title||'')}</div>
+      <div class="focus-card-dl" style="color:${dl.color}">📅 ${dl.label}</div>
+      ${t.branch_name?`<div class="focus-card-branch">🌿 ${esc(t.branch_name)}</div>`:''}
+      ${t.rejection_reason?`<div style="font-size:10px;color:var(--red);background:var(--red-d);border-radius:5px;padding:3px 8px;margin-bottom:8px">⚠ ${esc(t.rejection_reason)}</div>`:''}
+      <div class="focus-card-actions">
+        ${t.status==='not_started'?`<button class="focus-btn fb-start" onclick="event.stopPropagation();startTask('${t.id}')">▶ Start</button>`:''}
+        ${t.status==='in_progress'?`<button class="focus-btn fb-submit" onclick="event.stopPropagation();submitReview('${t.id}')">⇄ Submit</button>`:''}
+        <button class="focus-btn fb-timer" onclick="event.stopPropagation();startPomo('${esc(t.id)}','${esc(t.title||'').replace(/'/g,'').slice(0,30)}')" title="Start 25min Pomodoro">⏱</button>
+      </div>
+    </div>`;}).join('');}
+  // PRs
+  const prsEl=document.getElementById('col-prs');if(prsEl){const prTasks=S.tasks.filter(t=>t.assigned_to===S.user?.id&&t.pr_url);if(!prTasks.length)prsEl.innerHTML='<div class="panel-empty"><div class="panel-empty-text">No pull requests yet</div></div>';else prsEl.innerHTML=prTasks.slice(0,5).map(t=>{const sc={in_review:'badge-yellow',approved:'badge-green',done:'badge-purple'}[t.status]||'badge-blue';const sl={in_review:'Awaiting Review',approved:'✓ Approved',done:'Merged'}[t.status]||t.status;return`<div class="pr-row"><div class="pr-row-title">${esc(t.title||'')}</div><span class="badge ${sc}">${sl}</span>${t.pr_url?`<a href="${esc(t.pr_url)}" target="_blank" style="font-size:10px;color:var(--blue)">↗</a>`:''}</div>`;}).join('');}
+  // Tasks
+  renderCollabTasks(myTasks);
+  // Standup
+  const notes=localStorage.getItem('dc_standup_'+new Date().toDateString());
+  const ta=document.getElementById('standup-ta');if(ta&&notes)ta.value=notes;
+}
+
+function setTaskFilter(f,el) {
+  _taskFilter=f;
+  document.querySelectorAll('[id^="tf-"]').forEach(b=>{b.className='btn btn-xs btn-ghost';});
+  el.className='btn btn-xs btn-secondary';
+  const myTasks=S.tasks.filter(t=>t.assigned_to===S.user?.id&&t.status!=='done'&&t.status!=='approved');
+  renderCollabTasks(myTasks);
+}
+function renderCollabTasks(all) {
+  const el=document.getElementById('col-tasks');if(!el)return;
+  let tasks=all;
+  if(_taskFilter==='urgent')tasks=tasks.filter(t=>t.priority==='urgent');
+  else if(_taskFilter==='in_progress')tasks=tasks.filter(t=>t.status==='in_progress');
+  else if(_taskFilter==='in_review')tasks=tasks.filter(t=>t.status==='in_review');
+  const STATUS_COLORS={not_started:'var(--t4)',in_progress:'var(--blue)',in_review:'var(--yellow)',approved:'var(--green)',done:'var(--purple)',blocked:'var(--red)'};
+  el.innerHTML=tasks.map(t=>{const dl=deadline(t.deadline);const sc=STATUS_COLORS[t.status]||'var(--t4)';return`<div class="my-task-row"><div class="my-task-dot" style="background:${prioColor(t.priority||'normal')}"></div><div class="my-task-info"><div class="my-task-title">${esc(t.title||'')}</div><div class="my-task-meta"><span style="color:${sc}">${esc((t.status||'').replace(/_/g,' '))}</span><span style="color:${dl.color}">${dl.label}</span>${t.branch_name?`<span style="color:var(--blue);font-family:monospace;font-size:9px">🌿 ${esc(t.branch_name)}</span>`:''}</div></div><div class="my-task-actions">${t.status==='not_started'?`<button class="btn btn-xs" style="background:var(--green-d);color:var(--green)" onclick="startTask('${t.id}')">▶</button>`:''} ${t.status==='in_progress'?`<button class="btn btn-xs" style="background:var(--blue-d);color:var(--blue)" onclick="submitReview('${t.id}')">⇄</button>`:''}</div></div>`;}).join('')||'<div class="panel-empty"><div class="panel-empty-text">No tasks</div></div>';
+}
+
+function saveStandup() {
+  const notes=document.getElementById('standup-ta')?.value||'';
+  localStorage.setItem('dc_standup_'+new Date().toDateString(),notes);
+  const saved=document.getElementById('standup-saved');
+  if(saved){saved.textContent='✓ Saved '+fmtTime(Date.now());setTimeout(()=>{saved.textContent='';},3000);}
+}
+
+function startPomo(taskId,title) {
+  if(_pomRunning){stopPomo();return;}
+  _pomRunning=true;_pomSecs=25*60;
+  const disp=document.getElementById('pomo-display');if(disp){disp.style.display='flex';disp.classList.add('pomo-pulse');}
+  toast('i','Pomodoro started ⏱',title+' — 25 min');
+  _pomInterval=setInterval(()=>{
+    _pomSecs--;const m=Math.floor(_pomSecs/60).toString().padStart(2,'0');const s=(_pomSecs%60).toString().padStart(2,'0');
+    const d2=document.getElementById('pomo-display');if(d2)d2.textContent=m+':'+s;
+    if(_pomSecs<=0){stopPomo();toast('s','Pomodoro done! 🎉','Take a 5 minute break');}
+  },1000);
+}
+function stopPomo() {
+  clearInterval(_pomInterval);_pomRunning=false;_pomSecs=25*60;
+  const d=document.getElementById('pomo-display');if(d){d.style.display='none';d.classList.remove('pomo-pulse');d.textContent='25:00';}
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+async function openNotifs() {
+  document.getElementById('notif-dot').style.display='none';
+  try{const notifs=await GET('/notifications');toast('i','Notifications',notifs?.length?notifs.length+' notifications':'All caught up');}
+  catch{}
+}
+
+// ── PROFILE ───────────────────────────────────────────────────────────────
+function openProfile() { window.open('profile.html','_blank'); }
+
+// ── AUTH ──────────────────────────────────────────────────────────────────
+async function logout() {
+  try{await POST('/auth/logout',{});}catch{}
+  localStorage.removeItem('dc_token');
+  window.location.href='index.html';
+}
+
+// ── THEME ─────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const isLight=document.documentElement.classList.toggle('light');
+  localStorage.setItem('dc_theme',isLight?'light':'dark');
+  document.getElementById('theme-btn').textContent=isLight?'☀️':'🌙';
+}
+
+// ── MODAL HELPERS ─────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id)?.classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id)?.classList.add('hidden'); }
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') {
+    document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(m=>m.classList.add('hidden'));
+    closeAI();
+  }
+  if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();document.getElementById('nav-search')?.focus();}
+  if((e.metaKey||e.ctrlKey)&&e.key==='b'){e.preventDefault();toggleSidebar();}
+});
+
+// ── MOBILE SIDEBAR ────────────────────────────────────────────────────────
+function toggleSidebar() {
+  const sb=document.getElementById('sidebar');const ov=document.getElementById('sb-overlay');
+  const open=sb.classList.toggle('mobile-open');
+  ov.classList.toggle('visible',open);
+}
+function closeSidebar() {
+  if(window.innerWidth>768)return;
+  document.getElementById('sidebar')?.classList.remove('mobile-open');
+  document.getElementById('sb-overlay')?.classList.remove('visible');
+}
+
+// ── MISC ──────────────────────────────────────────────────────────────────
+function doSearch(q) { if(!q.trim())return; toast('i','Search','Results for: '+q); }
+function showAllPins() { toast('i','Pins','Pin management coming soon'); }
+
+// Apply saved theme
+if(localStorage.getItem('dc_theme')==='light'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='☀️';}
+</script>
+</body>
+</html>
