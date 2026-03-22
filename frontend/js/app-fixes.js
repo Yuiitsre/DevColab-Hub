@@ -81,7 +81,23 @@ function _appendDMMsg(m,target){
   const name=_safeName(u);
   const el=document.createElement('div');el.className='msg anim-fade-up';
   const txt=typeof fmtText==='function'?fmtText(m.content||m.text||''):_e(m.content||m.text||'');
-  el.innerHTML=`<div class="av av-32 msg-av" style="background:${_e(u?.avatar_color||'#22c55e')}">${_av(u,32)}</div><div class="msg-body"><div class="msg-meta"><span class="msg-name">${_e(name)}</span><span class="msg-ts">${time}</span><span style="font-size:9px;color:var(--t4);margin-left:4px">🔐</span></div><div class="msg-text">${txt}</div></div>`;
+  const isMyDM = fromId === S.user?.id;
+  el.innerHTML=`<div class="av av-32 msg-av" style="background:${_e(u?.avatar_color||'#22c55e')}">${_av(u,32)}</div><div class="msg-body" style="flex:1;min-width:0"><div class="msg-meta"><span class="msg-name">${_e(name)}</span><span class="msg-ts">${time}</span><span style="font-size:9px;color:var(--t4);margin-left:4px">🔐</span></div><div class="msg-text">${txt}</div></div>`;
+  if (isMyDM && m.id) {
+    el.oncontextmenu = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (typeof buildCtx === 'function') buildCtx(e, [
+        { label: 'Copy Text', icon: '📋', fn: () => navigator.clipboard.writeText(m.content||'') },
+        { sep: true },
+        { label: 'Delete Message', icon: '🗑️', danger: true, fn: () => {
+          el.style.opacity='0.4';
+          // DMs don't have a REST delete, just remove visually + mark locally
+          el.style.transition='opacity .3s';
+          setTimeout(() => { el.innerHTML='<div style="flex:1"><span style="font-size:11px;color:var(--t4);font-style:italic">Message deleted</span></div>'; el.style.opacity='1'; }, 300);
+        }},
+      ]);
+    };
+  }
   area.querySelector('.empty-state')?.remove();
   area.appendChild(el);
 }
@@ -100,6 +116,8 @@ function _appendDMMsg(m,target){
       // Send via socket or REST
       if(S.socket?.connected){
         S.socket.emit('dm:send',{toUserId:_DM.current.userId,content});
+        // Stop DM typing indicator
+        S.socket.emit('typing:stop',{channelId:'dm:'+_DM.current.userId});
       }else{
         POST('/messages/dm',{toUserId:_DM.current.userId,content}).catch(e=>toast('e','Send failed',e.message));
       }
@@ -165,7 +183,23 @@ function _initSearch(){
   wrap.appendChild(_sDrop);
   inp.addEventListener('input',e=>{clearTimeout(_sTimer);const q=e.target.value.trim();if(q.length<2){_sDrop.style.display='none';return;}_sTimer=setTimeout(()=>doSearch(q),260)});
   inp.addEventListener('focus',e=>{if(e.target.value.trim().length>=2)doSearch(e.target.value.trim())});
-  inp.addEventListener('keydown',e=>{if(e.key==='Escape'){_sDrop.style.display='none';inp.blur();}if(e.key==='Enter'){e.preventDefault();doSearch(inp.value.trim());}});
+  let _sActiveIdx = -1;
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){_sDrop.style.display='none';inp.blur();_sActiveIdx=-1;return;}
+    if(e.key==='Enter'){
+      const active = _sDrop.querySelector('[data-sactive]');
+      if(active){e.preventDefault();active.click();return;}
+      e.preventDefault();doSearch(inp.value.trim());return;
+    }
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault();
+      const items=[..._sDrop.querySelectorAll('[onclick*="_sClick"]')];
+      if(!items.length)return;
+      items.forEach(it=>{delete it.dataset.sactive;it.style.background='';});
+      _sActiveIdx=e.key==='ArrowDown'?Math.min(_sActiveIdx+1,items.length-1):Math.max(_sActiveIdx-1,0);
+      if(items[_sActiveIdx]){items[_sActiveIdx].dataset.sactive='1';items[_sActiveIdx].style.background='rgba(255,255,255,.06)';}
+    }
+  });
   document.addEventListener('click',e=>{if(_sDrop&&!_sDrop.contains(e.target)&&e.target!==inp)_sDrop.style.display='none'});
 }
 
@@ -474,7 +508,7 @@ window.searchUsers=function(query){
           <div class="status-dot" style="position:absolute;bottom:0;right:0;border:2px solid var(--s1);background:${isOnline?'var(--green)':'var(--s6)'}"></div>
         </div>
         <div class="rp-member-info" style="flex:1;min-width:0">
-          <div class="rp-member-name">${_e(name)}</div>
+          <div class="rp-member-name" title="${isOnline?'Online now':fixed.last_active?'Last seen '+_ago(fixed.last_active):'Offline'}">${_e(name)}</div>
           <div style="font-size:9px;color:var(--t4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${myTask?'📋 '+_e(myTask.title.slice(0,28)):'No active task'}</div>
         </div>
         <button onclick="event.stopPropagation();startDM('${_e(fixed.id)}')" style="font-size:10px;padding:3px 7px;border-radius:5px;background:transparent;border:1px solid rgba(255,255,255,.07);color:var(--t4);cursor:pointer;flex-shrink:0" onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background='transparent'">DM</button>
