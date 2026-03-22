@@ -97,52 +97,126 @@ async function startDM(userId){
   })();
 }
 
-function _appendDMMsg(m,target){
-  const area=document.getElementById('msgs-area');if(!area)return;
+function _appendDMMsg(m, target){
+  const area=document.getElementById('msgs-area');
+  if(!area)return;
   const fromId=m.from_user||m.fromUserId||m.userId;
   const isMe=fromId===S.user?.id;
   const rawU=isMe?S.user:(target||_fixUser((S.users||[]).find(u=>u.id===fromId)||{id:fromId}));
   const u=_fixUser(rawU||{});
   const time=new Date(m.created_at||m.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   const name=_safeName(u);
-  const el=document.createElement('div');el.className='msg anim-fade-up';
-  const txt=typeof fmtText==='function'?fmtText(m.content||m.text||''):_e(m.content||m.text||'');
-  const isMyDM = fromId === S.user?.id;
-  el.innerHTML=`<div class="av av-32 msg-av" style="background:${_e(u?.avatar_color||'#22c55e')}">${_av(u,32)}</div><div class="msg-body" style="flex:1;min-width:0"><div class="msg-meta"><span class="msg-name">${_e(name)}</span><span class="msg-ts">${time}</span><span style="font-size:9px;color:var(--t4);margin-left:4px">🔐</span></div><div class="msg-text">${txt}</div></div>`;
-  el.oncontextmenu = (e) => {
-    e.preventDefault(); e.stopPropagation();
-    if (typeof buildCtx === 'function') buildCtx(e, [
-      { label: 'React', icon: '😄', fn: () => {
-        // Simple DM reaction picker
-        if (typeof pickReact === 'function') {
-          // Temporarily add data-mid so pickReact can find element
-          el.dataset.mid = m.id || ('dm-'+Date.now());
-          pickReact(el.dataset.mid);
-        }
-      }},
-      { label: 'Copy Text', icon: '📋', fn: () => navigator.clipboard.writeText(m.content||'').then(()=>{ if(typeof toast==='function')toast('s','Copied',''); }) },
-      ...(isMyDM ? [
-        { label: 'Edit', icon: '✏️', fn: () => {
-          const newContent = prompt('Edit message:', m.content||'');
-          if (newContent && newContent.trim() && newContent !== m.content) {
-            m.content = newContent.trim();
-            el.querySelector('.msg-text').innerHTML = typeof fmtText==='function'?fmtText(newContent):_e(newContent);
-            if(typeof toast==='function')toast('s','Updated','');
-          }
-        }},
-      ] : []),
-      { sep: true },
-      ...(isMyDM ? [{ label: 'Delete Message', icon: '🗑️', danger: true, fn: () => {
-          el.style.opacity='0.4';
-          // DMs don't have a REST delete, just remove visually + mark locally
-          el.style.transition='opacity .3s';
-          el.style.opacity='0.4';
-          setTimeout(() => { el.innerHTML='<div style="flex:1"><span style="font-size:11px;color:var(--t4);font-style:italic">Message deleted</span></div>'; el.style.opacity='1'; }, 300);
-        }}] : []),
-    ]);
-  };
+  const content=m.content||m.text||'';
+  const txt=typeof fmtText==='function'?fmtText(content):_e(content);
+
+  const el=document.createElement('div');
+  el.className='msg anim-fade-up';
+  el.style.position='relative';
+  if(m.id) el.dataset.mid=m.id;
+
+  // Message HTML — own messages aligned right-ish, others left
+  el.innerHTML=`
+    <div class="av av-32 msg-av" style="background:${_e(u?.avatar_color||'#22c55e')};flex-shrink:0">
+      ${_av(u,32)}
+    </div>
+    <div class="msg-body" style="flex:1;min-width:0">
+      <div class="msg-meta">
+        <span class="msg-name">${_e(name)}</span>
+        <span class="msg-ts">${time}</span>
+        <span style="font-size:9px;color:var(--t4);margin-left:4px">🔐</span>
+      </div>
+      <div class="msg-text">${txt}</div>
+    </div>
+    <div class="dm-hover-actions" style="display:none;align-items:center;gap:2px;flex-shrink:0;position:absolute;right:8px;top:4px;background:var(--s2);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:2px;box-shadow:0 2px 8px rgba(0,0,0,.3)">
+      <button class="msg-act-btn" title="React" onclick="event.stopPropagation();_dmQuickReact(this,${m.id?`'${_e(m.id)}'`:'null'})">😄</button>
+      <button class="msg-act-btn" title="More" onclick="event.stopPropagation();_dmCtx(event,this)">···</button>
+    </div>`;
+
+  // Hover show/hide
+  el.addEventListener('mouseenter',()=>{
+    const ha=el.querySelector('.dm-hover-actions');
+    if(ha) ha.style.display='flex';
+  });
+  el.addEventListener('mouseleave',()=>{
+    const ha=el.querySelector('.dm-hover-actions');
+    if(ha) ha.style.display='none';
+  });
+
+  // Right-click context menu
+  el.addEventListener('contextmenu',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    _dmCtxFull(e, m, el, isMe, content);
+  });
+
   area.querySelector('.empty-state')?.remove();
   area.appendChild(el);
+}
+
+function _dmQuickReact(btn, msgId) {
+  // Quick emoji picker for DM reactions
+  const container = btn.closest('[data-mid]') || btn.closest('.msg');
+  if(typeof pickReact==='function' && msgId) {
+    if(container) container.dataset.mid = msgId;
+    pickReact(msgId);
+  }
+}
+
+function _dmCtx(event, btn) {
+  // Called from hover ··· button
+  const el = btn.closest('.msg');
+  const content = el?.querySelector('.msg-text')?.textContent || '';
+  const mid = el?.dataset?.mid;
+  const fromId = el?.querySelector('.msg-name')?.closest('.msg-body') ? null : null;
+  // Get message data from DOM context
+  _dmCtxFull(event, { id: mid, content }, el, true, content);
+}
+
+function _dmCtxFull(e, m, el, isMe, content) {
+  if(typeof buildCtx!=='function') return;
+  e.preventDefault();
+
+  const items = [
+    // ── QUICK REACT ──
+    { label: 'React', icon: '😄', fn: () => {
+      if(m.id && el) { el.dataset.mid=m.id; if(typeof pickReact==='function') pickReact(m.id); }
+    }},
+    { sep: true },
+    // ── FOR EVERYONE ──
+    { label: 'Copy Text', icon: '📋', fn: () => navigator.clipboard.writeText(content||'').then(()=>{ if(typeof toast==='function')toast('s','Copied',''); }) },
+    { label: 'Reply', icon: '↩', fn: () => {
+      const ta=document.getElementById('msg-input');
+      if(!ta) return;
+      const sender=el?.querySelector('.msg-name')?.textContent||'';
+      ta.value='> '+content.slice(0,80).replace(/\n/g,'\n> ')+'\n';
+      ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
+      if(typeof autoGrow==='function')autoGrow(ta);
+    }},
+    // ── ONLY OWN MESSAGES ──
+    ...(isMe ? [
+      { sep: true },
+      { label: 'Edit Message', icon: '✏️', fn: () => {
+        const newContent=prompt('Edit message:',content);
+        if(newContent&&newContent.trim()&&newContent!==content){
+          const textEl=el?.querySelector('.msg-text');
+          if(textEl) textEl.innerHTML=typeof fmtText==='function'?fmtText(newContent.trim()):_e(newContent.trim());
+          if(m) m.content=newContent.trim();
+          if(typeof toast==='function')toast('s','Message updated','');
+        }
+      }},
+      { label: 'Delete Message', icon: '🗑️', danger: true, fn: () => {
+        if(!confirm('Delete this message?')) return;
+        if(el){
+          el.style.transition='opacity .3s,transform .3s';
+          el.style.opacity='0'; el.style.transform='translateX(-8px)';
+          setTimeout(()=>el.remove(), 320);
+        }
+        if(typeof toast==='function')toast('s','Deleted','');
+      }},
+    ] : []),
+  ];
+
+  buildCtx(e, items);
 }
 
 // Patch sendMsg to handle DM mode
