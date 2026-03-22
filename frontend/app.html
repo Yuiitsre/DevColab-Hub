@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/layout.css">
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script src="js/utils.js" defer></script>
+<script src="js/app-fixes.js" defer></script>
 <style>
 /* App-specific overrides using Plus Jakarta Sans */
 body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
@@ -871,7 +872,8 @@ function renderSBChannels() {
 function renderSBDMs() {
   const el = document.getElementById('sb-dms');
   if (!el) return;
-  el.innerHTML = ''; // TODO: load DMs
+  // Delegated to app-fixes.js renderSBDMs() override
+  el.innerHTML = '<div style="padding:4px 14px;font-size:11px;color:var(--t4)">Loading...</div>';
 }
 
 // ── CHANNEL CONTEXT MENU (fixed - ID only approach) ──────────────────────
