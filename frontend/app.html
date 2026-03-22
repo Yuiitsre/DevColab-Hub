@@ -1335,20 +1335,61 @@ function appendMsg(m, cont=false, animate=false) {
   const area = document.getElementById('msgs-area');
   if (!area) return;
   const uid = m.user_id || m.userId || m.from_user || m.fromUserId;
-  // Try socket-included user data first, then local cache
   const cachedUser = S.users.find(x => x.id === uid);
-  const msgUser = m.user || m.from_user_obj || {};
-  const u = { ...msgUser, ...( cachedUser || {}) };
+  const msgUser = m.user || {};
+  const u = { ...msgUser, ...(cachedUser || {}) };
   const color = u.avatar_color || '#22c55e';
   const inits = initials(u.display_name || u.github_username || u.handle || 'User');
   const time = fmtTime(m.ts || m.created_at);
   const name = safe(u.display_name || u.github_username || u.handle || uid || 'Unknown', 40);
+  const isOwnMsg = uid === S.user?.id;
+  const isDM = !!S._dmMode;
+  const txt = m.deleted ? '<span class="msg-deleted">[deleted]</span>' : fmtText(m.content || '');
+
   const el = document.createElement('div');
   el.className = 'msg' + (cont ? ' msg-cont' : '') + (animate ? ' anim-fade-up' : '');
-  el.dataset.mid = m.id;
-  el.oncontextmenu = (e) => msgCtx(e, m.id);
-  // Long message collapse
-  if (txt && txt.length > 700) {
+  if (m.id) el.dataset.mid = m.id;
+
+  el.innerHTML = `
+    <div class="av av-32 msg-av" style="background:${color};flex-shrink:0">
+      ${u.avatar_url ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : inits}
+    </div>
+    <div class="msg-body" style="flex:1;min-width:0">
+      <div class="msg-meta" style="${cont ? 'display:none' : ''}">
+        <span class="msg-name" onclick="showUserHover(event,'${esc(uid)}')" style="cursor:pointer">${esc(name)}</span>
+        <span class="msg-ts" title="${new Date(m.ts||m.created_at).toLocaleString()}">${time}</span>
+        ${isDM ? '<span style="font-size:9px;color:var(--t4);margin-left:4px">🔐</span>' : ''}
+        ${m.edited ? '<span style="font-size:9px;color:var(--t4);margin-left:4px">(edited)</span>' : ''}
+      </div>
+      <div class="msg-text" id="msg-text-${m.id ? esc(m.id) : ''}">${txt}</div>
+    </div>
+    <div class="msg-hover-actions" style="display:none;align-items:center;gap:2px;flex-shrink:0;position:absolute;right:8px;top:4px;background:var(--s2);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:2px;box-shadow:var(--sh1)">
+      <button class="msg-act-btn" title="React (R)" onclick="event.stopPropagation();pickReact('${m.id ? esc(m.id) : ''}')">😄</button>
+      <button class="msg-act-btn" title="Reply in thread" onclick="event.stopPropagation();openThreadPanel('${m.id ? esc(m.id) : ''}')">↩</button>
+      ${isOwnMsg ? `<button class="msg-act-btn" title="Edit" onclick="event.stopPropagation();startInlineEdit('${m.id ? esc(m.id) : ''}')">✏️</button>` : ''}
+      <button class="msg-act-btn" title="More options" onclick="event.stopPropagation();msgCtx(event,'${m.id ? esc(m.id) : ''}')">···</button>
+    </div>`;
+
+  // Hover show/hide actions
+  el.style.position = 'relative';
+  el.addEventListener('mouseenter', () => {
+    const ha = el.querySelector('.msg-hover-actions');
+    if (ha) ha.style.display = 'flex';
+  });
+  el.addEventListener('mouseleave', () => {
+    const ha = el.querySelector('.msg-hover-actions');
+    if (ha && !el.querySelector('.msg-edit-active')) ha.style.display = 'none';
+  });
+
+  // Right-click context menu
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    msgCtx(e, m.id);
+  });
+
+  // Long message collapse (after innerHTML set)
+  if (txt && txt.length > 700 && !m.deleted) {
     const textEl2 = el.querySelector('.msg-text');
     if (textEl2) {
       const fullHTML = textEl2.innerHTML;
@@ -1358,42 +1399,12 @@ function appendMsg(m, cont=false, animate=false) {
       const showMore = document.createElement('a');
       showMore.href = '#'; showMore.style.cssText = 'color:var(--blue);font-size:11px;font-weight:600';
       showMore.textContent = 'Show more';
-      showMore.onclick = (ev) => {
-        ev.preventDefault();
-        textEl2.innerHTML = fullHTML;
-      };
+      showMore.onclick = (ev) => { ev.preventDefault(); textEl2.innerHTML = fullHTML; };
       textEl2.appendChild(ellipsis); textEl2.appendChild(showMore);
     }
   }
-  const txt = m.deleted ? '<span class="msg-deleted">[deleted]</span>' : fmtText(m.content || '');
-  const isOwnMsg = (m.user_id || m.userId) === S.user?.id;
-  el.innerHTML = `
-    <div class="av av-32 msg-av" style="background:${color}">
-      ${u.avatar_url ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : inits}
-    </div>
-    <div class="msg-body" style="flex:1;min-width:0">
-      <div class="msg-meta">
-        <span class="msg-name" onclick="showUserHover(event,'${esc(uid)}')" style="cursor:pointer" title="View profile">${esc(name)}</span>
-        <span class="msg-ts" title="${new Date(m.ts||m.created_at).toLocaleString()}">${time}</span>
-        ${m.edited ? '<span style="font-size:9px;color:var(--t4)">(edited)</span>' : ''}
-      </div>
-      <div class="msg-text" id="msg-text-${esc(m.id)}">${txt}</div>
-    </div>
-    <div class="msg-hover-actions" style="display:none;align-items:center;gap:2px;flex-shrink:0">
-      <button onclick="pickReact('${esc(m.id)}')" class="msg-act-btn" title="React">😄</button>
-      ${isOwnMsg ? `<button onclick="startInlineEdit('${esc(m.id)}')" class="msg-act-btn" title="Edit">✏️</button>` : ''}
-      <button onclick="msgCtx(event,'${esc(m.id)}')" class="msg-act-btn" title="More">···</button>
-    </div>`;
-  el.addEventListener('mouseenter', () => {
-    const ha = el.querySelector('.msg-hover-actions');
-    if (ha) ha.style.display = 'flex';
-  });
-  el.addEventListener('mouseleave', () => {
-    const ha = el.querySelector('.msg-hover-actions');
-    if (ha && !el.querySelector('.msg-edit-active')) ha.style.display = 'none';
-  });
-  const emp = area.querySelector('.empty-state');
-  if (emp) emp.remove();
+
+  area.querySelector('.empty-state')?.remove();
   area.appendChild(el);
 }
 
@@ -1423,45 +1434,67 @@ async function loadChannelPins(channelId) {
 
 function msgCtx(e, msgId) {
   e.preventDefault();
-  const m = Object.values(S.messages).flat().find(x => x.id === msgId);
-  const isOwnMsg = (m?.user_id || m?.userId) === S.user?.id;
+  e.stopPropagation();
+  if (!msgId) return;
+  // Find message in all loaded messages
+  const allMsgs = Object.values(S.messages).flat();
+  const m = allMsgs.find(x => x.id === msgId);
+  const uid = m?.user_id || m?.userId;
+  const isOwnMsg = uid === S.user?.id;
+  const canDelete = isOwnMsg || S.isOwner || ['admin','manager'].includes(S.myRole);
+  const content = m?.content || '';
+
+  // ── OWN MESSAGE options ──
+  const ownItems = isOwnMsg ? [
+    { sep: true },
+    { label: 'Edit Message', icon: '✏️', fn: () => startInlineEdit(msgId) },
+    { label: 'Delete Message', icon: '🗑️', danger: true, fn: () => {
+      if (!confirm('Delete this message?')) return;
+      if (S.socket?.connected) S.socket.emit('msg:delete', { messageId: msgId });
+      else { const el = document.querySelector('[data-mid="'+msgId+'"]'); if(el) el.remove(); }
+    }},
+  ] : (canDelete ? [
+    { sep: true },
+    { label: 'Delete Message', icon: '🗑️', danger: true, fn: () => {
+      if (!confirm('Delete this message?')) return;
+      if (S.socket?.connected) S.socket.emit('msg:delete', { messageId: msgId });
+    }},
+  ] : []);
+
   const items = [
-    { label: '😄 React', icon: '😄', fn: () => pickReact(msgId) },
+    // ── REACTIONS QUICK ROW ── (shown at top as emoji quick-pick)
+    { label: 'React', icon: '😄', fn: () => pickReact(msgId) },
+    // ── REPLY ──
     { label: 'Reply in Thread', icon: '↩', fn: () => openThreadPanel(msgId) },
     { label: 'Quote Reply', icon: '❝', fn: () => {
       const ta = document.getElementById('msg-input');
       if (!ta) return;
-      const quoted = '> ' + (m?.content||'').slice(0, 80).replace(/\n/g,'\n> ') + '\n';
+      const quoted = '> ' + content.slice(0, 80).replace(/\n/g,'\n> ') + '\n';
       ta.value = quoted + ta.value;
-      autoGrow(ta);
+      autoGrow && autoGrow(ta);
       ta.focus();
       ta.setSelectionRange(ta.value.length, ta.value.length);
     }},
-    { label: 'Copy Text', icon: '📋', fn: () => navigator.clipboard.writeText(m?.content||'').then(()=>toast('s','Copied','')) },
+    { sep: true },
+    // ── MESSAGE ACTIONS ──
+    { label: 'Copy Text', icon: '📋', fn: () => navigator.clipboard.writeText(content).then(() => toast('s','Copied','')) },
+    { label: 'Copy Message Link', icon: '🔗', fn: () => {
+      const link = location.origin + '/app.html?ch=' + S.currentChannel + '&msg=' + msgId;
+      navigator.clipboard.writeText(link).then(() => toast('s','Link copied',''));
+    }},
     { label: 'Pin Message', icon: '📌', fn: () => {
       if (S.socket?.connected) S.socket.emit('msg:pin', { messageId: msgId, channelId: S.currentChannel });
-      else POST('/channels/'+S.currentChannel+'/messages/pin',{messageId:msgId}).then(()=>toast('s','Pinned','')).catch(e2=>toast('e','Error',e2.message));
+      else POST('/channels/'+S.currentChannel+'/messages/pin',{messageId:msgId}).catch(()=>{});
+      toast('s','📌 Pinned','');
     }},
     { label: 'Mark as Unread', icon: '🔵', fn: () => {
       const ch = S.channels.find(c => c.id === S.currentChannel);
       if (ch) { ch.unread = (ch.unread||0) + 1; renderSBChannels(); }
       toast('i','Marked unread','');
     }},
-    { label: 'Copy Link', icon: '🔗', fn: () => {
-      const link = location.origin + '/app.html?ch=' + S.currentChannel + '&msg=' + msgId;
-      navigator.clipboard.writeText(link).then(() => toast('s','Link copied',''));
-    }},
+    ...ownItems,
   ];
-  if (isOwnMsg || S.isOwner) {
-    items.push({ sep: true });
-    if (isOwnMsg) items.push({ label: 'Edit', icon: '✏️', fn: () => {
-      const txt = prompt('Edit message:', m?.content||'');
-      if (txt !== null && S.socket?.connected) S.socket.emit('msg:edit', { messageId:msgId, content:txt });
-    }});
-    items.push({ label: 'Delete', icon: '🗑️', danger: true, fn: () => {
-      if (S.socket?.connected) S.socket.emit('msg:delete', { messageId: msgId });
-    }});
-  }
+
   buildCtx(e, items);
 }
 
@@ -3284,7 +3317,7 @@ function showAllPins() { toast('i','Pins','Pin management coming soon'); }
   s.textContent = `
     .msg { position: relative; }
     .msg-hover-actions { position: absolute; right: 8px; top: 4px; background: var(--s2); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 2px; box-shadow: var(--sh2); z-index: 10; }
-    .msg-act-btn { width: 26px; height: 26px; border-radius: 6px; font-size: 13px; cursor: pointer; background: none; border: none; color: var(--t3); transition: all .1s; display: flex; align-items: center; justify-content: center; }
+    .msg-act-btn { width: 26px; height: 26px; border-radius: 6px; font-size: 13px; cursor: pointer; background: none; border: none; color: var(--t3); transition: all .1s; display: flex; align-items: center; justify-content: center; font-family: inherit; }
     .msg-act-btn:hover { background: rgba(255,255,255,.08); color: var(--t1); }
     .msg-edit-area { width: 100%; padding: 7px 10px; background: rgba(0,0,0,.3); border: 1px solid var(--green); border-radius: 8px; color: var(--t1); font-size: 13px; font-family: inherit; resize: none; margin-top: 4px; min-height: 36px; max-height: 120px; line-height: 1.55; }
     .msg-edit-area:focus { outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,.1); }
