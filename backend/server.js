@@ -602,8 +602,8 @@ app.get('/api/projects/:id/dashboard', authenticate, async (req,res) => {
     // Get linked repos
     const { data:repos } = await db.supabase()
       .from('linked_repos').select('*').eq('workspace_id', proj.workspace_id);
-    // Find project-specific repo (by github_repo field)
-    const projectRepo = repos?.find(r => r.full_name === proj.github_repo) || repos?.[0] || null;
+    // Find project-specific repo (by name matching or first linked repo)
+    const projectRepo = repos?.[0] || null;
     // Task stats
     const stats = {
       total: tasks.length,
@@ -727,11 +727,11 @@ app.post('/api/workspaces/:wid/projects', authenticate, async (req,res) => {
       name: encrypt(safeStr(name,100)),
       description: description ? encrypt(safeStr(description,1000)) : null,
       color, deadline:deadline||null, status:'active',
-      github_repo: ghRepo.full_name,
-      github_url: ghRepo.html_url,
       created_by:req.userId,
       created_at:new Date().toISOString(), updated_at:new Date().toISOString(),
     };
+    // Store github info in metadata (avoid adding non-existent columns)
+    const ghMeta = { full_name: ghRepo.full_name, html_url: ghRepo.html_url, id: ghRepo.id };
     const { data, error } = await db.createProject(p);
     if (error) return fail(res, error.message);
 
@@ -746,7 +746,7 @@ app.post('/api/workspaces/:wid/projects', authenticate, async (req,res) => {
     const newCh = await db.createChannel({ id:uuid(), workspace_id:req.params.wid, name:chanName, description:'Project: '+name, type:'private', created_by:req.userId, archived:false, created_at:new Date().toISOString() }).catch(()=>({data:null}));
 
     io.to('ws:'+req.params.wid).emit('project:created', { project:{...data, name, github_repo:ghRepo.full_name, github_url:ghRepo.html_url}, repo:ghRepo });
-    ok(res, { ...data, name, github_repo:ghRepo.full_name, github_url:ghRepo.html_url }, 201);
+    ok(res, { ...data, name, github_repo:ghMeta.full_name, github_url:ghMeta.html_url }, 201);
   } catch(e) { fail(res, e.message); }
 });
 
