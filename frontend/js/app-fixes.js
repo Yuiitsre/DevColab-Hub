@@ -33,10 +33,15 @@ function renderSBDMs(){
     const unread=_DM.unread[fixed.id]||0;
     const name=_safeName(fixed);
     const active=_DM.current?.userId===fixed.id;
+    const lastMsg=_DM.lastMessages?.[fixed.id];
+    const lastPreview=lastMsg?(' · '+lastMsg.slice(0,22)+(lastMsg.length>22?'…':'')):'';
     return`<div class="sb-item${active?' active':''}" data-uid="${_e(fixed.id)}" onclick="startDM('${_e(fixed.id)}')" style="position:relative">
       <span class="sb-item-bar"></span>
       <div style="position:relative;flex-shrink:0;display:flex;align-items:center">${_av(fixed,22)}<div style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:${isOnline?'var(--green)':'var(--s6)'};border:2px solid var(--bg)"></div></div>
-      <span class="sb-item-text" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_e(name)}</span>
+      <div style="flex:1;min-width:0;overflow:hidden">
+        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:${unread?'600':'400'}">${_e(name)}</div>
+        ${lastPreview?`<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--t4)">${_e(lastPreview)}</div>`:''}
+      </div>
       ${unread?`<span class="sb-item-badge">${unread}</span>`:''}
     </div>`
   }).join('')
@@ -52,7 +57,11 @@ async function startDM(userId){
   showView('chat-view');
   S.currentChannel=null;S._dmMode=true;
   const ic=document.getElementById('ch-icon'),nm=document.getElementById('ch-name'),ds=document.getElementById('ch-desc'),inp=document.getElementById('msg-input');
-  if(ic)ic.textContent='🔐';if(nm)nm.textContent=name;if(ds)ds.textContent='End-to-end encrypted';if(inp)inp.placeholder='Message '+_e(name)+'…';
+  const isOnlineNow = S.online?.[userId];
+  if(ic)ic.textContent=isOnlineNow?'🟢':'🔐';
+  if(nm){nm.textContent=name;nm.title=isOnlineNow?'Online now':'Offline';}
+  if(ds)ds.textContent=isOnlineNow?'🟢 Online · End-to-end encrypted':'End-to-end encrypted';
+  if(inp)inp.placeholder='Message '+_e(name)+'…';
   document.querySelectorAll('[data-uid]').forEach(e=>e.classList.toggle('active',e.dataset.uid===userId));
   document.querySelectorAll('[data-chid]').forEach(e=>e.classList.remove('active'));
   const area=document.getElementById('msgs-area');
@@ -69,6 +78,23 @@ async function startDM(userId){
     }
   }catch(e){console.warn('[dm]',e)}
   if(typeof closeSidebar==='function')closeSidebar();
+  // Wire up typing indicator for DM input
+  ;(function() {
+    let _dmTypingTimer = null;
+    const _dmInput = document.getElementById('msg-input');
+    if (_dmInput) {
+      const _origOninput = _dmInput.oninput;
+      _dmInput.addEventListener('input', function() {
+        if(S._dmMode && _DM.current?.userId && S.socket?.connected) {
+          clearTimeout(_dmTypingTimer);
+          S.socket.emit('typing:start',{channelId:'dm_'+_DM.current.userId});
+          _dmTypingTimer = setTimeout(()=>{
+            S.socket.emit('typing:stop',{channelId:'dm_'+_DM.current.userId});
+          }, 2500);
+        }
+      });
+    }
+  })();
 }
 
 function _appendDMMsg(m,target){
@@ -83,21 +109,38 @@ function _appendDMMsg(m,target){
   const txt=typeof fmtText==='function'?fmtText(m.content||m.text||''):_e(m.content||m.text||'');
   const isMyDM = fromId === S.user?.id;
   el.innerHTML=`<div class="av av-32 msg-av" style="background:${_e(u?.avatar_color||'#22c55e')}">${_av(u,32)}</div><div class="msg-body" style="flex:1;min-width:0"><div class="msg-meta"><span class="msg-name">${_e(name)}</span><span class="msg-ts">${time}</span><span style="font-size:9px;color:var(--t4);margin-left:4px">🔐</span></div><div class="msg-text">${txt}</div></div>`;
-  if (isMyDM && m.id) {
-    el.oncontextmenu = (e) => {
-      e.preventDefault(); e.stopPropagation();
-      if (typeof buildCtx === 'function') buildCtx(e, [
-        { label: 'Copy Text', icon: '📋', fn: () => navigator.clipboard.writeText(m.content||'') },
-        { sep: true },
-        { label: 'Delete Message', icon: '🗑️', danger: true, fn: () => {
+  el.oncontextmenu = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (typeof buildCtx === 'function') buildCtx(e, [
+      { label: 'React', icon: '😄', fn: () => {
+        // Simple DM reaction picker
+        if (typeof pickReact === 'function') {
+          // Temporarily add data-mid so pickReact can find element
+          el.dataset.mid = m.id || ('dm-'+Date.now());
+          pickReact(el.dataset.mid);
+        }
+      }},
+      { label: 'Copy Text', icon: '📋', fn: () => navigator.clipboard.writeText(m.content||'').then(()=>{ if(typeof toast==='function')toast('s','Copied',''); }) },
+      ...(isMyDM ? [
+        { label: 'Edit', icon: '✏️', fn: () => {
+          const newContent = prompt('Edit message:', m.content||'');
+          if (newContent && newContent.trim() && newContent !== m.content) {
+            m.content = newContent.trim();
+            el.querySelector('.msg-text').innerHTML = typeof fmtText==='function'?fmtText(newContent):_e(newContent);
+            if(typeof toast==='function')toast('s','Updated','');
+          }
+        }},
+      ] : []),
+      { sep: true },
+      ...(isMyDM ? [{ label: 'Delete Message', icon: '🗑️', danger: true, fn: () => {
           el.style.opacity='0.4';
           // DMs don't have a REST delete, just remove visually + mark locally
           el.style.transition='opacity .3s';
+          el.style.opacity='0.4';
           setTimeout(() => { el.innerHTML='<div style="flex:1"><span style="font-size:11px;color:var(--t4);font-style:italic">Message deleted</span></div>'; el.style.opacity='1'; }, 300);
-        }},
-      ]);
-    };
-  }
+        }}] : []),
+    ]);
+  };
   area.querySelector('.empty-state')?.remove();
   area.appendChild(el);
 }
@@ -111,13 +154,13 @@ function _appendDMMsg(m,target){
       const content=ta?.value?.trim();if(!content)return;
       ta.value='';ta.style.height='auto';
       // Append locally immediately (optimistic)
+      if(!_DM.lastMessages)_DM.lastMessages={};
+      _DM.lastMessages[_DM.current.userId]=content.slice(0,40);
       _appendDMMsg({from_user:S.user?.id,content,created_at:new Date().toISOString()},null);
       const area=document.getElementById('msgs-area');if(area)area.scrollTop=area.scrollHeight;
       // Send via socket or REST
       if(S.socket?.connected){
         S.socket.emit('dm:send',{toUserId:_DM.current.userId,content});
-        // Stop DM typing indicator
-        S.socket.emit('typing:stop',{channelId:'dm:'+_DM.current.userId});
       }else{
         POST('/messages/dm',{toUserId:_DM.current.userId,content}).catch(e=>toast('e','Send failed',e.message));
       }
@@ -245,11 +288,11 @@ async function openNotifs(){
     document.addEventListener('click',e=>{if(_nPanel&&!_nPanel.contains(e.target)&&!e.target.closest('[onclick*="openNotifs"]'))_nPanel.style.display='none'});
   }
   _nPanel.style.display='flex';_nPanel.style.animation='scaleIn .18s cubic-bezier(.16,1,.3,1)';
-  _nPanel.innerHTML=`<div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;flex-shrink:0"><div style="font-size:14px;font-weight:700">Notifications</div><div style="display:flex;gap:8px;align-items:center"><button onclick="_markAllRead()" style="font-size:10px;font-weight:600;color:var(--blue);background:none;border:none;cursor:pointer;padding:3px 8px;border-radius:5px" onmouseover="this.style.background='rgba(59,130,246,.1)'" onmouseout="this.style.background=''">Mark all read</button><div onclick="_nPanel.style.display='none'" style="cursor:pointer;color:var(--t4);font-size:14px;padding:2px 6px;border-radius:5px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''">✕</div></div></div><div id="_nlist" style="flex:1;overflow-y:auto"><div style="padding:24px;text-align:center;font-size:11px;color:var(--t4)">Loading…</div></div>`;
+  _nPanel.innerHTML=`<div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;flex-shrink:0"><div style="font-size:14px;font-weight:700">Notifications</div><div style="display:flex;gap:8px;align-items:center"><button onclick="_markAllRead()" style="font-size:10px;font-weight:600;color:var(--blue);background:none;border:none;cursor:pointer;padding:3px 8px;border-radius:5px" onmouseover="this.style.background='rgba(59,130,246,.1)'" onmouseout="this.style.background=''">Mark all read</button><button onclick="toggleNotifSound()" title="${_notifSoundEnabled?'Mute sounds':'Enable sounds'}" style="font-size:12px;color:var(--t4);background:none;border:none;cursor:pointer;padding:3px 6px;border-radius:5px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''">🔔</button><div onclick="_nPanel.style.display='none'" style="cursor:pointer;color:var(--t4);font-size:14px;padding:2px 6px;border-radius:5px" onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''">✕</div></div></div><div id="_nlist" style="flex:1;overflow-y:auto"><div style="padding:24px;text-align:center;font-size:11px;color:var(--t4)">Loading…</div></div>`;
   try{
     const notifs=await GET('/notifications');
     const el=document.getElementById('_nlist');if(!el)return;
-    const dot=document.getElementById('notif-dot');if(dot)dot.style.display='none';
+    const dot=document.getElementById('notif-dot');if(dot){dot.style.display='none';dot.dataset.count='0';dot.textContent='';}
     if(!notifs?.length){el.innerHTML='<div style="padding:32px;text-align:center"><div style="font-size:28px;margin-bottom:8px">🎉</div><div style="font-size:12px;color:var(--t4)">All caught up!</div></div>';return}
     const ICONS={task_assigned:'📋',pr_review:'🔀',pr_merged:'✅',pr_approved:'✅',mention:'@',dm:'💬',code_assigned:'⌨',system:'🔔',task_due:'⏰'};
     el.innerHTML=notifs.slice(0,25).map((n,i)=>`<div id="_ni${i}" onclick="_clickNotif('${_e(n.id)}',${i})" style="display:flex;align-items:flex-start;gap:10px;padding:11px 14px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);background:${!n.read?'rgba(59,130,246,.04)':'transparent'}" onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background='${!n.read?'rgba(59,130,246,.04)':'transparent'}'"><div style="width:32px;height:32px;border-radius:9px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${ICONS[n.type]||'🔔'}</div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:${!n.read?700:500};line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_e(n.title||'Notification')}</div>${n.body?`<div style="font-size:11px;color:var(--t3);margin-top:1px">${_e(n.body)}</div>`:''}<div style="font-size:9px;color:var(--t4);margin-top:3px">${_ago(n.created_at)}</div></div>${!n.read?`<div style="width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:4px" id="_nd${i}"></div>`:''}</div>`).join('');
@@ -259,6 +302,25 @@ function _clickNotif(id,i){
   PATCH('/notifications/'+id+'/read',{}).catch(()=>{});
   const el=document.getElementById('_ni'+i);if(el)el.style.background='transparent';
   document.getElementById('_nd'+i)?.remove();
+}
+let _notifSoundEnabled = localStorage.getItem('dc_notif_sound') !== 'off';
+function toggleNotifSound() {
+  _notifSoundEnabled = !_notifSoundEnabled;
+  localStorage.setItem('dc_notif_sound', _notifSoundEnabled ? 'on' : 'off');
+  toast('i', _notifSoundEnabled ? '🔔 Sounds On' : '🔕 Sounds Off', '');
+}
+function playNotifSound() {
+  if (!_notifSoundEnabled) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.3);
+  } catch {}
 }
 async function _markAllRead(){
   await POST('/notifications/read-all',{}).catch(()=>{});
@@ -331,6 +393,8 @@ function _patchSocket(){
     if(fromId===S.user?.id)return;
     // Recipient getting a new DM
     const sender=_fixUser((S.users||[]).find(u=>u.id===fromId)||{id:fromId});
+    if(!_DM.lastMessages)_DM.lastMessages={};
+    _DM.lastMessages[fromId]=(dm.content||'').slice(0,40);
     if(_DM.current?.userId===fromId){
       // DM chat open with this sender — append
       _appendDMMsg(dm,sender);
@@ -338,6 +402,7 @@ function _patchSocket(){
     }else{
       // DM chat not open — show unread badge + toast
       _DM.unread[fromId]=(_DM.unread[fromId]||0)+1;renderSBDMs();
+      if(typeof playNotifSound==='function')playNotifSound();
       toast('i','💬 '+_e(_safeName(sender)),(dm.content||'').slice(0,70));
       const dot=document.getElementById('notif-dot');if(dot)dot.style.display='block';
     }
