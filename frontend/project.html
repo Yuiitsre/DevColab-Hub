@@ -750,7 +750,7 @@ function renderKanban(){
   COLS.forEach(col=>{
     const tasks=S.tasks.filter(t=>t.status===col.id);
     if(!tasks.length&&!['not_started','in_progress'].includes(col.id))return;
-    html+='<div class="kp-col"><div class="kp-col-hdr" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">'+
+    html+='<div class="kp-col" data-status="'+col.id+'" ondragover="event.preventDefault();kpColHover(event,true)" ondragleave="kpColHover(event,false)" ondrop="kpDrop(event,\''+col.id+'\')">'+'<div class="kp-col-hdr" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">'+
       '<div class="kp-col-title"><div style="width:7px;height:7px;border-radius:50%;background:'+col.dot+'"></div>'+col.label+'</div>'+
       '<span class="kp-col-count">'+tasks.length+'</span>'+
     '</div><div class="kp-col-body">'+
@@ -819,6 +819,24 @@ function openTaskDetail(taskId){
   }
   ftr+='<button class="btn btn-secondary" onclick="closeTaskModal()">Close</button>';
   document.getElementById('tm-ftr').innerHTML=ftr;
+  // Add comments section to modal body
+  const body = document.getElementById('tm-body');
+  if (body) {
+    // Remove existing comments section if any
+    body.querySelector('.task-comments-section')?.remove();
+    const commentSection = document.createElement('div');
+    commentSection.className = 'task-comments-section';
+    commentSection.style.cssText = 'margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06)';
+    commentSection.innerHTML = `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx4);margin-bottom:10px">💬 Comments</div>
+      <div id="task-comments-${esc(taskId)}" style="max-height:200px;overflow-y:auto;margin-bottom:10px"></div>
+      <div style="display:flex;gap:6px">
+        <input id="task-comment-inp-${esc(taskId)}" placeholder="Add a comment..." style="flex:1;padding:7px 10px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.07);border-radius:8px;color:var(--tx1);font-size:12px;font-family:inherit" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addTaskComment('${esc(taskId)}',this,document.getElementById('task-comments-${esc(taskId)}'))}">
+        <button onclick="addTaskComment('${esc(taskId)}',document.getElementById('task-comment-inp-${esc(taskId)}'),document.getElementById('task-comments-${esc(taskId)}'))" style="padding:7px 14px;border-radius:8px;background:var(--blue);color:#fff;border:none;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">Send</button>
+      </div>`;
+    body.appendChild(commentSection);
+    // Load existing comments
+    loadTaskComments(taskId, document.getElementById('task-comments-'+taskId));
+  }
   const mo=document.getElementById('task-modal');mo.style.display='flex';
 }
 function closeTaskModal(){ document.getElementById('task-modal').style.display='none'; }
@@ -998,14 +1016,60 @@ async function loadRPPRs(){
   try{
     const prs=await GET('/repos/'+S.repo.id+'/prs?state=open');
     if(!(prs||[]).length){el.innerHTML='<div style="font-size:10px;color:var(--tx4)">No open PRs</div>';return;}
-    el.innerHTML=prs.slice(0,4).map(pr=>'<div class="pr-sm">'+
-      '<div class="pr-sm-title">'+esc(pr.title||'')+'</div>'+
-      '<div class="pr-sm-meta">'+
-        '<span class="pr-badge-sm pr-open">open</span>'+
-        '<span style="font-size:9px;color:var(--tx4)">#'+pr.number+'</span>'+
-        (pr.html_url?'<a href="'+esc(pr.html_url)+'" target="_blank" style="font-size:9px;color:var(--blue);margin-left:auto">View ↗</a>':'')+
-      '</div></div>').join('');
+    el.innerHTML=prs.slice(0,6).map(pr=>`<div class="pr-sm" style="cursor:pointer" onclick="openPRDiff(${pr.number})">
+      <div class="pr-sm-title">${esc(pr.title||'')}</div>
+      <div class="pr-sm-meta">
+        <span class="pr-badge-sm pr-open">open</span>
+        <span style="font-size:9px;color:var(--tx4)">#${pr.number}</span>
+        ${pr.additions!==undefined?`<span style="font-size:9px;color:var(--green)">+${pr.additions||0}</span><span style="font-size:9px;color:var(--red)">-${pr.deletions||0}</span>`:''}
+        ${pr.html_url?`<a href="${esc(pr.html_url)}" target="_blank" style="font-size:9px;color:var(--blue);margin-left:auto" onclick="event.stopPropagation()">↗</a>`:''}
+        <span onclick="event.stopPropagation();openPRDiff(${pr.number})" style="font-size:9px;color:var(--purple);cursor:pointer">diff</span>
+      </div>
+    </div>`).join('');
   }catch{el.innerHTML='<div style="font-size:10px;color:var(--tx4)">No repo linked</div>';}
+}
+
+async function openPRDiff(prNum) {
+  if (!S.repo || !S.repo.id) { toast('i','No repo','Link a repository first'); return; }
+  document.getElementById('pr-diff-modal')?.remove();
+  var mo = document.createElement('div');
+  mo.id = 'pr-diff-modal';
+  mo.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  mo.onclick = function(e) { if(e.target===mo) mo.remove(); };
+  var inner = document.createElement('div');
+  inner.style.cssText = 'background:var(--bg);border:1px solid rgba(255,255,255,.08);border-radius:16px;width:800px;max-width:100%;overflow:hidden';
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕'; closeBtn.onclick = function(){ mo.remove(); };
+  closeBtn.style.cssText = 'font-size:16px;color:var(--tx3);background:none;border:none;cursor:pointer;padding:2px 8px;border-radius:5px';
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:1';
+  hdr.innerHTML = '<div style="font-size:14px;font-weight:700">&#x21C4; PR #' + prNum + ' Diff</div>';
+  hdr.appendChild(closeBtn);
+  var content = document.createElement('div');
+  content.id = 'pr-diff-content'; content.style.cssText = 'padding:16px';
+  content.innerHTML = '<div style="display:flex;justify-content:center;padding:40px"><div class="spinner spinner-lg"></div></div>';
+  inner.appendChild(hdr); inner.appendChild(content); mo.appendChild(inner); document.body.appendChild(mo);
+  try {
+    var diff = await api('GET', '/repos/' + S.repo.id + '/prs/' + prNum + '/diff');
+    var NL='\n'; var diffText = (diff && diff.diff) ? diff.diff : (diff && diff.files ? diff.files.map(function(f){return f.patch||'';}).join(NL) : '');
+    if (!diffText) { content.innerHTML = '<div style="padding:24px;text-align:center;font-size:12px;color:var(--tx4)">No diff available</div>'; return; }
+    var lines = diffText.split(NL);
+    var frag = document.createDocumentFragment();
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'font-family:JetBrains Mono,monospace;font-size:11px;line-height:1.6';
+    lines.forEach(function(line) {
+      var row = document.createElement('div');
+      var c0 = line.charAt(0);
+      row.style.padding = '1px 12px'; row.style.whiteSpace = 'pre'; row.style.overflowX = 'auto';
+      if (c0==='+') { row.style.background='rgba(34,197,94,.12)'; row.style.color='#86efac'; }
+      else if (c0==='-') { row.style.background='rgba(239,68,68,.12)'; row.style.color='#fca5a5'; }
+      else if (line.substr(0,2)==='@@') { row.style.background='rgba(59,130,246,.12)'; row.style.color='#93c5fd'; }
+      else { row.style.color='#a1a1aa'; }
+      row.textContent = line;
+      wrap.appendChild(row);
+    });
+    frag.appendChild(wrap); content.innerHTML=''; content.appendChild(frag);
+  } catch(e) { content.innerHTML = '<div style="padding:24px;text-align:center;font-size:12px;color:var(--red)">' + esc(e.message) + '</div>'; }
 }
 
 // ── FULL TEAM TAB ─────────────────────────────────────────────────────────
