@@ -350,3 +350,259 @@ function _patchSocket(){
     if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();const inp=document.getElementById('nav-search');if(inp){inp.focus();inp.select();}}
   });
 })();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CRITICAL BUG FIXES — Invite / display_name / toLowerCase crash
+═══════════════════════════════════════════════════════════════════════════
+
+  ROOT CAUSES:
+  1. display_name stored AES-encrypted in DB → shows as "9546acc22b140f..."
+     Fix: _safeDisplayName() falls back to github_username when name looks encrypted
+  2. sendInvite() posts { userId } but backend /invite expects { handle }
+     Fix: override sendInvite() to send { handle } correctly
+  3. createTask() uses handle lookup that crashes when user not in S.users
+     Fix: override createTask() to use userId directly from the member list
+  4. S.users has encrypted display_name → crashes initials() / safe() / toLowerCase()
+     Fix: sanitize S.users after loadAll()
+════════════════════════════════════════════════════════════════════════════ */
+
+/** Detect AES-encrypted string — format: "hexhex:hexhex:hexhex" */
+function _isEncrypted(s) {
+  if (typeof s !== 'string') return false;
+  // AES-GCM format: 32hex:32hex:anyhex  (iv:tag:data)
+  return /^[0-9a-f]{32}:[0-9a-f]{32}:[0-9a-f]+$/i.test(s);
+}
+
+/** Return a safe display name — never returns encrypted garbage */
+function _safeName(u) {
+  if (!u) return 'User';
+  const candidates = [u.display_name, u.name, u.github_username, u.handle];
+  for (const c of candidates) {
+    if (c && typeof c === 'string' && !_isEncrypted(c) && c.trim().length > 0) {
+      return c.trim().slice(0, 60);
+    }
+  }
+  return u.github_username || u.handle || 'User';
+}
+
+/** Sanitize a single user object — fix encrypted / null display_name */
+function _fixUser(u) {
+  if (!u) return u;
+  u.display_name = _safeName(u);
+  // Also fix name, bio if encrypted
+  if (_isEncrypted(u.name)) u.name = u.github_username || u.handle || 'User';
+  return u;
+}
+
+/** Sanitize all users in S.users after load */
+function _fixAllUsers() {
+  if (!S.users?.length) return;
+  S.users = S.users.map(u => _fixUser({ ...u, ...(u.user || {}) }));
+}
+
+/* ── Patch loadAll to fix users after loading ── */
+;(() => {
+  const _orig = window.loadAll;
+  window.loadAll = async function () {
+    await _orig.apply(this, arguments);
+    _fixAllUsers();
+    // Also fix current user
+    if (S.user) S.user = _fixUser(S.user);
+  };
+})();
+
+/* ── Also fix users returned from /users/search ── */
+;(() => {
+  const _origSearch = window.searchUsers;
+  window.searchUsers = function (query) {
+    clearTimeout(window._inviteSearchTimer);
+    const q = (query || '').trim();
+    if (q.length < 2) { document.getElementById('invite-results').innerHTML = ''; return; }
+    window._inviteSearchTimer = setTimeout(async () => {
+      try {
+        const users = await GET('/users/search?q=' + encodeURIComponent(q));
+        renderInviteResults((users || []).map(_fixUser));
+      } catch(e) {
+        console.warn('[search]', e);
+        document.getElementById('invite-no-results').style.display = 'block';
+      }
+    }, 300);
+  };
+})();
+
+/* ── Fix renderInviteResults — safe name, never encrypted blob ── */
+window.renderInviteResults = function (users) {
+  const el = document.getElementById('invite-results');
+  const noRes = document.getElementById('invite-no-results');
+  if (!el) return;
+  if (!users.length) {
+    el.innerHTML = '';
+    if (noRes) noRes.style.display = 'block';
+    return;
+  }
+  if (noRes) noRes.style.display = 'none';
+  el.innerHTML = users.slice(0, 8).map(u => {
+    const fixed = _fixUser(u);
+    const name   = fixed.display_name || fixed.github_username || fixed.handle || 'User';
+    const handle = fixed.handle || fixed.github_username || '';
+    const color  = fixed.avatar_color || '#22c55e';
+    const inits  = (name.replace(/[^A-Za-z0-9 ]/g, '').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()) || '?';
+    return `<div class="invite-result" onclick="selectInviteUser('${_e(u.id)}','${_e(name)}','${_e(handle)}','${_e(u.id)}')">
+      <div class="av av-32" style="background:${_e(color)}">
+        ${u.avatar_url ? `<img src="${_e(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">` : inits}
+      </div>
+      <div class="invite-result-info">
+        <div class="invite-result-name">${_e(name)}</div>
+        <div class="invite-result-handle">${handle ? '@' + _e(handle) : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+};
+
+/* ── Fix selectInviteUser — store userId AND handle separately ── */
+window._inviteSelectedId = null;
+window._inviteSelectedHandle = null;
+
+window.selectInviteUser = function (userId, name, handle, id) {
+  window._inviteSelected = userId;        // keep compat
+  window._inviteSelectedId = id || userId;
+  window._inviteSelectedHandle = handle;
+  document.querySelectorAll('.invite-result').forEach(el => el.classList.remove('selected'));
+  const sel  = document.getElementById('invite-selected');
+  const disp = document.getElementById('invite-selected-display');
+  if (sel)  sel.style.display = 'block';
+  if (disp) disp.innerHTML = `<strong>${_e(name)}</strong>${handle ? ' <span style="color:var(--t4)">@' + _e(handle) + '</span>' : ''}`;
+  // Highlight clicked result
+  document.querySelectorAll('.invite-result').forEach(el => {
+    if (el.getAttribute('onclick')?.includes(userId)) el.classList.add('selected');
+  });
+};
+
+/* ── Fix sendInvite — backend expects { handle }, not { userId } ── */
+window.sendInvite = async function () {
+  const id     = window._inviteSelectedId || window._inviteSelected;
+  const handle = window._inviteSelectedHandle;
+  if (!id && !handle) { toast('e', 'Select a user', 'Search and click a user first'); return; }
+  const role = document.getElementById('invite-role')?.value || 'developer';
+  try {
+    // Try handle first (what backend /invite expects)
+    if (handle) {
+      await POST('/workspaces/' + S.ws.id + '/invite', { handle, role });
+    } else {
+      // Fallback: try userId
+      await POST('/workspaces/' + S.ws.id + '/invite', { userId: id, role });
+    }
+    if (typeof closeModal === 'function') closeModal('invite-modal');
+    toast('s', 'Invited! ✓', '');
+    // Refresh member list
+    const members = await GET('/workspaces/' + S.ws.id + '/members').catch(() => []);
+    S.users = (members || []).map(m => _fixUser({ ...m, ...(m.user || {}) }));
+    if (typeof renderRPMembers === 'function') renderRPMembers();
+    if (typeof renderSBDMs === 'function') renderSBDMs();
+  } catch(e) { toast('e', 'Invite Error', e.message); }
+};
+
+/* ── Fix createTask — handle lookup crash when user not in S.users ── */
+;(() => {
+  const _orig = window.createTask;
+  window.createTask = async function () {
+    const title  = (typeof safe === 'function' ? safe : (s) => (s||'').slice(0,300))(document.getElementById('nt-title')?.value || '', 300);
+    const desc   = (typeof safe === 'function' ? safe : (s) => (s||'').slice(0,5000))(document.getElementById('nt-desc')?.value  || '', 5000);
+    const prio   = document.getElementById('nt-prio')?.value    || 'medium';
+    const dl     = document.getElementById('nt-deadline')?.value || '';
+    const raw    = (document.getElementById('nt-assign')?.value || '').replace('@', '').trim();
+    if (!title) { toast('e', 'Error', 'Title required'); return; }
+
+    // Resolve assignee — try by handle OR github_username, safely
+    let assignedTo = S.user?.id;
+    if (raw) {
+      const rawLow = raw.toLowerCase();
+      const found = (S.users || []).find(u => {
+        // Safe toLowerCase — skip if undefined
+        const h  = typeof u.handle === 'string'         ? u.handle.toLowerCase()          : null;
+        const gh = typeof u.github_username === 'string' ? u.github_username.toLowerCase() : null;
+        const dn = typeof u.display_name === 'string' && !_isEncrypted(u.display_name)
+                   ? u.display_name.toLowerCase() : null;
+        return h === rawLow || gh === rawLow || dn === rawLow;
+      });
+      if (found?.id) assignedTo = found.id;
+      // else: just assign to self, toast a note
+    }
+
+    if (!S.projects?.length) { toast('e', 'No project', 'Create a project first'); return; }
+    try {
+      const task = await POST('/projects/' + S.projects[0].id + '/tasks', {
+        title, description: desc, priority: prio, assignedTo, deadline: dl || null,
+      });
+      S.tasks.unshift(task);
+      if (typeof closeModal === 'function') closeModal('task-modal');
+      toast('s', 'Task created', raw && assignedTo !== S.user?.id ? 'Assigned to @' + raw : '');
+      if (typeof loadCollabDash === 'function') loadCollabDash();
+      if (typeof loadMgrDash === 'function' && S.dashMode === 'manager') loadMgrDash();
+    } catch(e) { toast('e', 'Error', e.message); }
+  };
+})();
+
+/* ── Fix renderRPMembers — safe name, no crashes ── */
+;(() => {
+  const _orig = window.renderRPMembers;
+  window.renderRPMembers = function () {
+    const el = document.getElementById('rp-members');
+    if (!el) { if (_orig) return _orig.apply(this, arguments); return; }
+    if (!S.users?.length) {
+      el.innerHTML = '<div style="font-size:11px;color:var(--t4);padding:8px">No members yet</div>';
+      return;
+    }
+    el.innerHTML = S.users.slice(0, 12).map(u => {
+      const fixed = _fixUser(u);
+      const name  = fixed.display_name || fixed.github_username || fixed.handle || 'User';
+      const color = fixed.avatar_color || '#22c55e';
+      const inits = (name.replace(/[^A-Za-z0-9 ]/g,'').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase())||'?';
+      const isOnline = S.online?.[fixed.id];
+      const myTask = (S.tasks||[]).find(t=>t.assigned_to===fixed.id&&t.status!=='done');
+      return `<div class="rp-member" oncontextmenu="typeof memberCtx==='function'&&memberCtx(event,'${_e(fixed.id)}')">
+        <div style="position:relative;flex-shrink:0">
+          <div class="av av-28" style="background:${_e(color)}">
+            ${fixed.avatar_url ? `<img src="${_e(fixed.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : inits}
+          </div>
+          <div class="status-dot" style="position:absolute;bottom:0;right:0;border:2px solid var(--s1);background:${isOnline?'var(--green)':'var(--s6)'}"></div>
+        </div>
+        <div class="rp-member-info" style="flex:1;min-width:0">
+          <div class="rp-member-name" style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_e(name)}</div>
+          <div style="font-size:9px;color:var(--t4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${myTask?'📋 '+_e(myTask.title.slice(0,30)):'No active task'}</div>
+        </div>
+        <button onclick="startDM('${_e(fixed.id)}')" style="font-size:11px;padding:3px 7px;border-radius:5px;background:transparent;border:1px solid rgba(255,255,255,.07);color:var(--t4);cursor:pointer;transition:all .1s;flex-shrink:0" onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background='transparent'">DM</button>
+      </div>`;
+    }).join('');
+  };
+})();
+
+/* ── Fix renderApp — safe display_name on boot ── */
+;(() => {
+  const _orig = window.renderApp;
+  window.renderApp = function () {
+    if (S.user) S.user = _fixUser(S.user);
+    _fixAllUsers();
+    if (_orig) _orig.apply(this, arguments);
+  };
+})();
+
+/* ── Fix loadCollabDash / loadMgrDash — safe name display ── */
+;(() => {
+  const _origCollab = window.loadCollabDash;
+  if (_origCollab) {
+    window.loadCollabDash = async function () {
+      if (S.user) S.user.display_name = _safeName(S.user);
+      return _origCollab.apply(this, arguments);
+    };
+  }
+})();
+
+/* ── On DOMContentLoaded: run fixes once app data is loaded ── */
+const _fixInterval = setInterval(() => {
+  if (!S.users?.length) return;
+  clearInterval(_fixInterval);
+  _fixAllUsers();
+  if (S.user) S.user = _fixUser(S.user);
+  if (typeof renderSBDMs === 'function') renderSBDMs();
+}, 500);
