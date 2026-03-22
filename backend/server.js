@@ -80,6 +80,19 @@ function safeStr(s,max=500) { return typeof s==='string' ? esc(s.trim()).slice(0
 function safeUser(u) {
   if (!u) return null;
   const { github_access_token, ...rest } = u;
+  // Decrypt display_name and bio if they were encrypted (legacy records)
+  function _safeField(v, fallback) {
+    if (!v || typeof v !== 'string') return v;
+    // AES-GCM iv:tag:ciphertext hex format
+    if (/^[0-9a-f]{32}:[0-9a-f]{32}:[0-9a-f]+$/i.test(v)) {
+      try { return decrypt(v); } catch { return fallback || null; }
+    }
+    return v;
+  }
+  if (rest.display_name) rest.display_name = _safeField(rest.display_name, rest.github_username || rest.handle);
+  if (rest.bio) rest.bio = _safeField(rest.bio, null);
+  if (rest.location) rest.location = _safeField(rest.location, null);
+  if (rest.company) rest.company = _safeField(rest.company, null);
   return rest;
 }
 
@@ -148,6 +161,7 @@ io.on('connection', async (socket) => {
       };
       const { data:saved } = await db.createMessage(msg);
       const out = formatMsg(saved);
+      if (out?.user) out.user = safeUser(out.user);
       io.to(`ch:${channelId}`).emit('msg:new', out);
     } catch(e) { socket.emit('error', { message:e.message }); }
   });
@@ -241,7 +255,8 @@ io.on('connection', async (socket) => {
     socket.join(`ch:${channelId}`);
     try {
       const { data:msgs } = await db.messagesByChannel(channelId, 50);
-      socket.emit('channel:history', { channelId, messages: (msgs||[]).reverse().map(formatMsg) });
+      const history = (msgs||[]).reverse().map(m => { const f = formatMsg(m); if (f?.user) f.user = safeUser(f.user); return f; });
+      socket.emit('channel:history', { channelId, messages: history });
     } catch(e) {}
   });
 
@@ -1618,6 +1633,51 @@ app.post('/api/tasks/:id/reject', authenticate, async (req,res) => {
 });
 
 // ── SEARCH ────────────────────────────────────────────────────────────────────
+
+// ── DM REST ENDPOINTS ─────────────────────────────────────────────────────
+app.get('/api/messages/dm/:roomId', authenticate, async (req, res) => {
+  try {
+    const roomId = req.params.roomId;
+    // Verify user is a participant
+    const { data: room } = await db.dmRoomById(roomId);
+    if (!room || !room.participants?.includes(req.userId)) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    const { data: msgs } = await db.dmsByRoom(roomId, 50);
+    const decrypted = (msgs || []).reverse().map(m => ({
+      id: m.id,
+      roomId: m.room_id,
+      fromUserId: m.from_user,
+      from_user: m.from_user,
+      user: m['from_user:users!direct_messages_from_user_fkey'] || m.from_user_obj || null,
+      content: m.content_encrypted ? (() => { try { return decrypt(m.content_encrypted); } catch { return '[encrypted]'; } })() : '',
+      ts: m.created_at,
+      created_at: m.created_at,
+    }));
+    ok(res, decrypted);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/messages/dm', authenticate, async (req, res) => {
+  try {
+    const { toUserId, content } = req.body;
+    if (!toUserId || !content) return res.status(400).json({ error: 'Missing fields' });
+    const { data: room } = await db.createDMRoom(req.userId, toUserId);
+    const enc = encrypt(safeStr(content, 5000));
+    const dm = { id: uuid(), room_id: room.id, from_user: req.userId, content_encrypted: enc, created_at: new Date().toISOString() };
+    const { data: saved } = await db.createDM(dm);
+    const out = { id: saved.id, roomId: room.id, fromUserId: req.userId, from_user: req.userId, content: safeStr(content, 5000), ts: saved.created_at, created_at: saved.created_at };
+    ok(res, out);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/dms/rooms', authenticate, async (req, res) => {
+  try {
+    const { data: rooms } = await db.dmRoomsByUser(req.userId);
+    ok(res, rooms || []);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/search', authenticate, async (req,res) => {
   const q = (req.query.q||'').trim();
   if (q.length < 2) return ok(res, { users:[], channels:[] });
