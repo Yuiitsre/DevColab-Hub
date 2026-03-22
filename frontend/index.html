@@ -6291,7 +6291,8 @@ function renderSidebarProjects(){
   }
   list.innerHTML = S.projects.map(p => {
     const progress = p._progress || 0;
-    return '<div class="sb-proj-item'+(S.currentProject?.id===p.id?' active':'')+'" onclick="openProject(\''+p.id+'\')" data-pid="'+p.id+'">'+
+    const pid = p.id;
+    return '<div class="sb-proj-item'+(S.currentProject?.id===pid?' active':'')+'" onclick="openProject(this.dataset.pid)" oncontextmenu="showProjectCtx(event,this.dataset.pid)" data-pid="'+esc(pid)+'">'+
       '<div class="sb-proj-dot" style="background:'+esc(p.color||'#22c55e')+'"></div>'+
       '<span class="sb-proj-name">'+esc(p.name)+'</span>'+
       (progress?'<span class="sb-proj-progress">'+progress+'%</span>':'')+
@@ -6300,45 +6301,6 @@ function renderSidebarProjects(){
 }
 
 // ── OPEN PROJECT PAGE ──────────────────────────────────────────────────────
-async function openProject(projectId){
-  const proj = S.projects.find(p => p.id === projectId);
-  if (!proj && projectId) {
-    // Try loading directly
-    try {
-      const p = await GET('/projects/'+projectId);
-      if (p) { S.projects.push(p); }
-    } catch{}
-  }
-  S.currentProject = S.projects.find(p => p.id === projectId) || null;
-  if (!S.currentProject) return;
-
-  // Switch to project view
-  ['home-view','chat-view','tasks-view','repo-view'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.classList.add('hidden'); el.style.display=''; }
-  });
-  const pv = document.getElementById('project-view');
-  if (pv) { pv.classList.remove('hidden'); pv.style.display='flex'; }
-
-  // Update sidebar active state
-  document.querySelectorAll('.sb-proj-item').forEach(el => el.classList.toggle('active', el.dataset.pid === projectId));
-  ['sb-home','sb-tasks','sb-repos'].forEach(id => document.getElementById(id)?.classList.remove('active'));
-
-  // Load project dashboard data
-  try {
-    const data = await GET('/projects/'+projectId+'/dashboard');
-    renderProjectHeader(data);
-    renderProjectOverview(data);
-    renderKanban(data.tasks||[], data.members||[]);
-    renderProjectTeam(data.members||[]);
-    renderProjectRepo(data.repo);
-    renderProjectTimeline(data.tasks||[]);
-    // Cache progress
-    const pIdx = S.projects.findIndex(p=>p.id===projectId);
-    if (pIdx>=0) S.projects[pIdx]._progress = data.progress||0;
-    renderSidebarProjects();
-  } catch(e) { toast('e','Error loading project',e.message); }
-}
 
 function renderProjectHeader(data){
   const proj = data.project || {};
@@ -6775,6 +6737,44 @@ window.createProject = async function(){
 };
 
 // ── CHANNEL CONTEXT MENU ─────────────────────────────────────────────────
+function showProjectCtx(e, projectId){
+  e.preventDefault(); e.stopPropagation();
+  const p = S.projects.find(x => x.id === projectId);
+  if (!p) return;
+  const canManage = S.myPermissions?.CREATE_PROJECT || S.isOwner;
+  const items = [
+    { label: esc(p.name||'Project'), disabled:true },
+    { sep:true },
+    { label:'▶ Open Overview', fn:()=>openProject(projectId) },
+    { label:'🚀 Begin Workspace', fn:()=>beginProject(projectId) },
+    { sep:true },
+    ...(canManage ? [
+      { label:'✏️ Rename project', fn:()=>{
+        const n=prompt('New project name:',p.name||'');
+        if(!n||!n.trim())return;
+        PATCH('/projects/'+projectId,{name:n.trim()}).then(()=>{
+          const idx=S.projects.findIndex(x=>x.id===projectId);
+          if(idx>=0)S.projects[idx].name=n.trim();
+          renderSidebarProjects();toast('s','Renamed','');
+          if(S.currentProject?.id===projectId){S.currentProject.name=n.trim();openProject(projectId);}
+        }).catch(err=>toast('e','Error',err.message));
+      }},
+      { label:'🐙 Open on GitHub', fn:()=>{ const pr=S.projects.find(x=>x.id===projectId); if(pr?.github_url)window.open(pr.github_url,'_blank'); else toast('i','No GitHub repo linked',''); }},
+      { sep:true },
+      { label:'🗑️ Delete project', danger:true, fn:()=>{
+        if(!confirm('Delete project "'+( p.name||'')+'"? All tasks will be removed. The GitHub repo will stay.'))return;
+        DEL('/projects/'+projectId).then(()=>{
+          S.projects=S.projects.filter(x=>x.id!==projectId);
+          renderSidebarProjects();
+          if(S.currentProject?.id===projectId){S.currentProject=null;showHome();}
+          toast('s','Deleted','Project removed');
+        }).catch(err=>toast('e','Error',err.message));
+      }},
+    ]:[]),
+  ];
+  buildCtx(e, items);
+}
+
 function showChannelCtx(e, ch){
   e.preventDefault();e.stopPropagation();
   if (!ch || !ch.id) return;
