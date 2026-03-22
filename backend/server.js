@@ -1,1198 +1,1840 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>DevCollab — Project</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
-<style>
-:root {
-  --c0:#09090b;--c1:#111113;--c2:#18181b;--c3:#1f1f23;--c4:#27272a;--c5:#3f3f46;
-  --tx1:#fafafa;--tx2:#a1a1aa;--tx3:#71717a;--tx4:#52525b;
-  --gr:#22c55e;--gr2:#16a34a;--gr-glow:rgba(34,197,94,.15);
-  --blue:#3b82f6;--blue-dim:rgba(59,130,246,.12);
-  --purple:#a855f7;--purple-dim:rgba(168,85,247,.1);
-  --red:#ef4444;--red-dim:rgba(239,68,68,.1);
-  --yellow:#eab308;--orange:#f97316;
-  --r6:6px;--r8:8px;--r10:10px;--r12:12px;--r16:16px;
-  --sh1:0 1px 3px rgba(0,0,0,.4);--sh2:0 4px 12px rgba(0,0,0,.5);--sh3:0 12px 40px rgba(0,0,0,.6);
-  --t1:100ms;--t2:150ms;--spring:cubic-bezier(.16,1,.3,1);
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--c0);color:var(--tx1);font-family:'Inter',sans-serif;font-size:13px;-webkit-font-smoothing:antialiased;overflow:hidden}
-button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
-input,textarea,select{font-family:inherit;font-size:inherit;color:inherit;background:none;border:none;outline:none}
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--c4);border-radius:99px}
-.hidden{display:none!important}
-
-/* ── LOADING SCREEN ── */
-#loading{position:fixed;inset:0;background:var(--c0);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999}
-.loading-mark{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--gr),var(--gr2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#000;animation:pulse 1.5s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
-#loading-status{font-size:13px;color:var(--tx3)}
-
-/* ── TOP BAR ── */
-.topbar{
-  height:52px;background:rgba(10,10,11,.9);backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--c4);
-  display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:100;
-}
-.proj-mark{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#000;flex-shrink:0}
-.proj-name{font-size:15px;font-weight:700;letter-spacing:-.3px}
-.proj-gh-badge{font-size:10px;color:var(--blue);background:var(--blue-dim);padding:2px 8px;border-radius:99px;border:1px solid rgba(59,130,246,.2);text-decoration:none;cursor:pointer;transition:all var(--t2)}
-.proj-gh-badge:hover{background:rgba(59,130,246,.2)}
-.topbar-tabs{display:flex;gap:0;margin-left:16px}
-.topbar-tab{padding:14px 16px;font-size:12px;font-weight:600;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;transition:all var(--t2);display:flex;align-items:center;gap:5px;white-space:nowrap}
-.topbar-tab:hover{color:var(--tx2)}
-.topbar-tab.active{color:var(--tx1);border-bottom-color:var(--gr)}
-.topbar-acts{margin-left:auto;display:flex;gap:6px;align-items:center}
-
-/* ── BUTTONS ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r8);font-size:12px;font-weight:600;cursor:pointer;transition:all var(--t2)}
-.btn-primary{background:var(--gr);color:#000;border:1px solid var(--gr2);box-shadow:0 1px 2px rgba(0,0,0,.3)}
-.btn-primary:hover{background:var(--gr2);box-shadow:0 4px 12px var(--gr-glow)}
-.btn-secondary{background:var(--c3);color:var(--tx2);border:1px solid var(--c4)}
-.btn-secondary:hover{background:var(--c4);color:var(--tx1)}
-.btn-ghost{background:transparent;color:var(--tx3);border:1px solid transparent;padding:6px 10px}
-.btn-ghost:hover{background:var(--c3);color:var(--tx1)}
-.btn-sm{padding:5px 10px;font-size:11px}
-.btn-icon{width:30px;height:30px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:var(--r6)}
-.btn-icon:hover{background:var(--c3)}
-.btn:active{transform:scale(.98)}
-
-/* ── SHELL ── */
-.shell{display:flex;height:calc(100vh - 52px);overflow:hidden}
-
-/* ── LEFT PANEL: KANBAN ── */
-.kanban-panel{
-  width:320px;flex-shrink:0;background:var(--c1);border-right:1px solid var(--c4);
-  display:flex;flex-direction:column;overflow:hidden;
-}
-.kanban-hdr{padding:14px;border-bottom:1px solid var(--c4);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.kanban-hdr-title{font-size:12px;font-weight:700;letter-spacing:.2px}
-.kanban-scroll{flex:1;overflow-y:auto;padding:8px}
-/* Kanban cols stacked vertically in left panel */
-.kp-col{margin-bottom:12px;background:var(--c2);border:1px solid var(--c4);border-radius:var(--r10);overflow:hidden}
-.kp-col-hdr{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--c4);cursor:pointer}
-.kp-col-title{font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px}
-.kp-col-count{font-size:10px;background:var(--c3);color:var(--tx4);padding:1px 6px;border-radius:99px;font-weight:600}
-.kp-col-body{padding:6px}
-.kp-card{
-  background:var(--c0);border:1px solid var(--c4);border-radius:var(--r8);
-  padding:10px;margin-bottom:5px;cursor:pointer;transition:all var(--t2);
-}
-.kp-card:hover{border-color:var(--c5);box-shadow:var(--sh1)}
-.kp-card.mine{border-left:2px solid var(--gr)}
-.kp-card.urgent{border-left:2px solid var(--red)}
-.kp-card.deadline-soon{border-left:2px solid var(--yellow)}
-.kp-card-title{font-size:11px;font-weight:600;line-height:1.4;margin-bottom:6px}
-.kp-card-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-.kp-prio{font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px}
-.kp-urgent{background:rgba(239,68,68,.12);color:var(--red)}
-.kp-medium{background:rgba(234,179,8,.1);color:var(--yellow)}
-.kp-normal{background:rgba(34,197,94,.08);color:var(--gr)}
-.kp-deadline{font-size:9px;margin-left:auto}
-.kp-dl-over{color:var(--red)}.kp-dl-soon{color:var(--yellow)}.kp-dl-ok{color:var(--tx4)}
-.kp-branch{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--blue);background:var(--blue-dim);padding:1px 5px;border-radius:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
-.kp-add-btn{padding:7px;text-align:center;font-size:10px;color:var(--tx4);cursor:pointer;border:1px dashed var(--c4);border-radius:var(--r6);margin-top:4px;transition:all var(--t1)}
-.kp-add-btn:hover{border-color:var(--c5);color:var(--tx2);background:var(--c3)}
-/* Urgent tasks section */
-.urgent-section{padding:8px;border-bottom:1px solid rgba(239,68,68,.15);background:rgba(239,68,68,.03)}
-.urgent-label{font-size:9px;font-weight:700;color:var(--red);letter-spacing:.5px;text-transform:uppercase;padding:2px 4px;margin-bottom:5px;display:flex;align-items:center;gap:5px}
-
-/* ── CENTER PANEL: CHAT ── */
-.chat-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.chat-hdr{height:52px;background:var(--c1);border-bottom:1px solid var(--c4);display:flex;align-items:center;padding:0 16px;gap:8px;flex-shrink:0}
-.chat-hdr-name{font-size:14px;font-weight:600;letter-spacing:-.2px}
-.chat-hdr-desc{font-size:11px;color:var(--tx3)}
-.msgs-area{flex:1;overflow-y:auto;padding:16px}
-.msg{display:flex;gap:10px;padding:2px 0;margin-top:10px}
-.msg.cont{margin-top:1px}
-.msg-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000;margin-top:2px}
-.msg.cont .msg-av{visibility:hidden}
-.msg-body{flex:1;min-width:0}
-.msg-meta{display:flex;align-items:baseline;gap:8px;margin-bottom:2px}
-.msg-name{font-size:12px;font-weight:600}
-.msg-ts{font-size:10px;color:var(--tx4)}
-.msg.cont .msg-meta{display:none}
-.msg-text{font-size:13px;color:var(--tx2);line-height:1.6;word-break:break-word}
-.msg:hover{background:rgba(255,255,255,.015);border-radius:var(--r6)}
-.msg-code-block{margin-top:6px;background:var(--c0);border:1px solid var(--c4);border-radius:var(--r8);overflow:hidden}
-.msg-code-hdr{padding:5px 10px;background:var(--c2);border-bottom:1px solid var(--c4);display:flex;align-items:center;justify-content:space-between;font-size:10px}
-.code-lang{color:var(--tx3);font-weight:700;letter-spacing:.3px;text-transform:uppercase}
-.code-copy{color:var(--tx3);cursor:pointer;padding:1px 6px;border-radius:3px;transition:all var(--t1)}
-.code-copy:hover{background:var(--c3);color:var(--tx1)}
-.code-body{padding:10px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;color:#d4d4d8;overflow-x:auto}
-.msgs-date-sep{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:9px;font-weight:700;color:var(--tx4);letter-spacing:.5px;text-transform:uppercase}
-.msgs-date-sep::before,.msgs-date-sep::after{content:'';flex:1;height:1px;background:var(--c4)}
-.typing-bar{height:20px;padding:0 16px;font-size:10px;color:var(--tx3);display:flex;align-items:center;gap:6px;flex-shrink:0}
-.typing-dots{display:flex;gap:2px}
-.typing-dots span{width:3px;height:3px;border-radius:50%;background:var(--tx3);animation:tdot 1.2s infinite}
-.typing-dots span:nth-child(2){animation-delay:.2s}
-.typing-dots span:nth-child(3){animation-delay:.4s}
-@keyframes tdot{0%,80%,100%{opacity:.2}40%{opacity:1}}
-/* Input area */
-.input-area{padding:8px 14px 12px;flex-shrink:0;background:var(--c1);border-top:1px solid var(--c4)}
-.input-box{background:var(--c2);border:1px solid var(--c4);border-radius:var(--r12);overflow:hidden;transition:border-color var(--t2)}
-.input-box:focus-within{border-color:var(--c5)}
-.input-row{display:flex;align-items:center;gap:6px;padding:8px 12px 6px}
-.input-ta{flex:1;resize:none;max-height:100px;font-size:13px;color:var(--tx1);line-height:1.5;background:transparent}
-.input-ta::placeholder{color:var(--tx4)}
-.input-send{width:28px;height:28px;border-radius:var(--r6);background:var(--gr);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all var(--t2);flex-shrink:0}
-.input-send:hover{background:var(--gr2)}
-.input-send svg{stroke:#000;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;width:13px;height:13px}
-.input-fmtbar{display:flex;align-items:center;gap:4px;padding:4px 12px 6px;border-top:1px solid var(--c4)}
-.fmt-btn{padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;color:var(--tx4);cursor:pointer;transition:all var(--t1)}
-.fmt-btn:hover{background:var(--c3);color:var(--tx2)}
-.input-hint{margin-left:auto;font-size:9px;color:var(--tx4)}
-.rxns{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
-.rxn{display:inline-flex;align-items:center;gap:3px;background:var(--c2);border:1px solid var(--c4);border-radius:99px;padding:1px 6px;font-size:10px;color:var(--tx2);cursor:pointer;transition:all var(--t1)}
-.rxn:hover{border-color:var(--c5)}
-.rxn.mine{border-color:var(--blue);background:var(--blue-dim);color:var(--blue)}
-
-/* ── RIGHT PANEL: TEAM + REPO + AI ── */
-.right-panel{width:280px;flex-shrink:0;background:var(--c1);border-left:1px solid var(--c4);display:flex;flex-direction:column;overflow:hidden}
-.rp-tabs{display:flex;border-bottom:1px solid var(--c4);flex-shrink:0}
-.rp-tab{flex:1;padding:12px 0;font-size:10px;font-weight:700;color:var(--tx4);text-align:center;cursor:pointer;border-bottom:2px solid transparent;transition:all var(--t2);letter-spacing:.3px}
-.rp-tab:hover{color:var(--tx2)}
-.rp-tab.active{color:var(--tx1);border-bottom-color:var(--gr)}
-.rp-body{flex:1;overflow-y:auto;padding:12px}
-.rp-sec-label{font-size:9px;font-weight:700;color:var(--tx4);letter-spacing:.7px;text-transform:uppercase;margin:10px 0 6px;padding-top:4px}
-.rp-sec-label:first-child{margin-top:0;padding-top:0}
-
-/* Team members in right panel */
-.rp-member{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--c4)}
-.rp-member:last-child{border-bottom:none}
-.rp-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#000}
-.rp-info{flex:1;min-width:0}
-.rp-name{font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rp-task{font-size:9px;color:var(--tx4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
-.online-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.on{background:var(--gr);box-shadow:0 0 4px var(--gr)}.aw{background:var(--yellow)}.of{background:var(--c5)}
-.rp-dm-btn{width:22px;height:22px;border-radius:var(--r6);display:flex;align-items:center;justify-content:center;color:var(--tx4);cursor:pointer;font-size:11px;transition:all var(--t1)}
-.rp-dm-btn:hover{background:var(--c3);color:var(--tx1)}
-
-/* Commits in right panel */
-.commit-sm{padding:7px 0;border-bottom:1px solid var(--c4)}
-.commit-sm:last-child{border-bottom:none}
-.commit-sha-sm{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--blue);cursor:pointer}
-.commit-sha-sm:hover{text-decoration:underline}
-.commit-msg-sm{font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:2px 0}
-.commit-meta-sm{font-size:9px;color:var(--tx4)}
-
-/* PRs in right panel */
-.pr-sm{padding:8px 0;border-bottom:1px solid var(--c4)}
-.pr-sm:last-child{border-bottom:none}
-.pr-sm-title{font-size:11px;font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pr-sm-meta{display:flex;align-items:center;gap:6px}
-.pr-badge-sm{font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px}
-.pr-open{background:rgba(34,197,94,.1);color:var(--gr)}.pr-closed{background:var(--c3);color:var(--tx4)}.pr-merged{background:rgba(168,85,247,.1);color:var(--purple)}
-
-/* AI panel in right panel */
-.ai-mini{display:flex;flex-direction:column;height:100%}
-.ai-mini-msgs{flex:1;overflow-y:auto;padding-bottom:8px;display:flex;flex-direction:column;gap:8px}
-.ai-mini-bubble{padding:8px 10px;border-radius:var(--r8);font-size:11px;line-height:1.6;max-width:100%}
-.ai-mini-bubble.bot{background:var(--c2);color:var(--tx2);border:1px solid var(--c4)}
-.ai-mini-bubble.bot code{background:var(--c3);padding:1px 4px;border-radius:3px;font-size:10px}
-.ai-mini-bubble.user{background:var(--blue);color:#fff}
-.ai-mini-input{background:var(--c2);border:1px solid var(--c4);border-radius:var(--r8);overflow:hidden;flex-shrink:0;margin-top:8px}
-.ai-mini-ta{width:100%;padding:8px 10px;font-size:11px;color:var(--tx1);background:transparent;resize:none;max-height:80px;line-height:1.5}
-.ai-mini-ta::placeholder{color:var(--tx4)}
-.ai-mini-footer{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-top:1px solid var(--c4)}
-.ai-mini-send{padding:4px 12px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border-radius:5px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;transition:all var(--t2)}
-.ai-mini-send:hover{filter:brightness(1.1)}
-.ai-mini-model{font-size:9px;color:var(--purple);font-weight:600}
-
-/* ── TABS: TEAM, REPO, TIMELINE ── */
-#tab-team,#tab-repo,#tab-timeline{flex:1;overflow-y:auto;padding:20px}
-.team-member-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--c4)}
-.team-member-row:last-child{border-bottom:none}
-.tm-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#000;position:relative}
-.tm-status-dot{position:absolute;bottom:0;right:0;width:9px;height:9px;border-radius:50%;border:2px solid var(--c0)}
-.tm-name{font-size:13px;font-weight:600}
-.tm-role{font-size:10px;color:var(--tx3);margin-top:1px;display:flex;align-items:center;gap:5px}
-.role-tag{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;text-transform:uppercase;letter-spacing:.2px}
-.role-owner{background:rgba(34,197,94,.1);color:var(--gr)}
-.role-lead{background:rgba(168,85,247,.1);color:var(--purple)}
-.role-developer{background:var(--c3);color:var(--tx3)}
-.role-senior{background:rgba(249,115,22,.1);color:var(--orange)}
-.role-junior{background:var(--c3);color:var(--tx4)}
-.tm-task{font-size:10px;color:var(--blue);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tm-actions{display:flex;gap:5px;margin-left:auto}
-
-/* File tree for repo tab */
-.file-item-sm{display:flex;align-items:center;gap:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:var(--tx3);border-radius:var(--r6);transition:background var(--t1)}
-.file-item-sm:hover{background:var(--c3);color:var(--tx2)}
-.file-item-sm.active{background:var(--c3);color:var(--tx1)}
-
-/* Timeline */
-.tl-row{display:flex;align-items:center;gap:0;margin-bottom:5px;min-width:600px}
-.tl-lbl{width:150px;flex-shrink:0;font-size:10px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;font-weight:500}
-.tl-track{flex:1;position:relative;height:24px}
-.tl-bar{position:absolute;height:16px;border-radius:99px;top:4px;min-width:8px;display:flex;align-items:center;padding:0 6px}
-.tl-bar-lbl{font-size:8px;font-weight:700;color:#000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tl-today{position:absolute;top:0;bottom:0;width:1.5px;background:var(--red);z-index:2}
-.tl-month-row{display:flex;padding-left:150px;margin-bottom:4px;font-size:9px;color:var(--tx4);min-width:600px;font-weight:600}
-
-/* Task detail modal */
-.task-modal-ov{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center}
-.task-modal{background:var(--c1);border:1px solid var(--c4);border-radius:var(--r16);width:480px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.7);animation:scaleIn .18s var(--spring)}
-@keyframes scaleIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
-.task-modal-hdr{padding:16px 18px;border-bottom:1px solid var(--c4);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.task-modal-title{font-size:14px;font-weight:700;letter-spacing:-.2px}
-.modal-close{width:26px;height:26px;border-radius:var(--r6);display:flex;align-items:center;justify-content:center;color:var(--tx4);cursor:pointer;transition:all var(--t1)}
-.modal-close:hover{background:var(--c3);color:var(--tx1)}
-.task-modal-body{padding:18px;overflow-y:auto;flex:1}
-.task-modal-ftr{padding:12px 18px;border-top:1px solid var(--c4);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
-.field-lbl{font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.3px;text-transform:uppercase;margin-bottom:5px;display:block}
-.field-in{width:100%;padding:8px 10px;background:var(--c0);border:1px solid var(--c4);border-radius:var(--r8);color:var(--tx1);font-size:12px;transition:border-color var(--t2);font-family:inherit}
-.field-in:focus{border-color:var(--gr);box-shadow:0 0 0 2px rgba(34,197,94,.1)}
-.field-in::placeholder{color:var(--tx4)}
-.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.field-mb{margin-bottom:12px}
-.chip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:99px;font-size:9px;font-weight:700;border:1px solid transparent}
-.chip-open{background:rgba(34,197,94,.1);color:var(--gr);border-color:rgba(34,197,94,.15)}
-.chip-review{background:rgba(234,179,8,.1);color:var(--yellow);border-color:rgba(234,179,8,.15)}
-.chip-done{background:rgba(168,85,247,.1);color:var(--purple);border-color:rgba(168,85,247,.15)}
-.chip-blocked{background:var(--red-dim);color:var(--red);border-color:rgba(239,68,68,.15)}
-.twc-btn{padding:5px 12px;border-radius:var(--r6);font-size:11px;font-weight:700;cursor:pointer;border:1px solid;transition:all .1s;font-family:inherit}
-.twc-start{background:rgba(34,197,94,.08);color:var(--gr);border-color:rgba(34,197,94,.2)}.twc-start:hover{background:rgba(34,197,94,.15)}
-.twc-submit{background:rgba(59,130,246,.08);color:var(--blue);border-color:rgba(59,130,246,.2)}.twc-submit:hover{background:rgba(59,130,246,.15)}
-.twc-approve{background:rgba(34,197,94,.08);color:var(--gr);border-color:rgba(34,197,94,.2)}.twc-approve:hover{background:rgba(34,197,94,.15)}
-.twc-reject{background:var(--red-dim);color:var(--red);border-color:rgba(239,68,68,.2)}.twc-reject:hover{background:rgba(239,68,68,.15)}
-.prio-chip{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px}
-.prio-urgent{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2)}
-.prio-medium{background:rgba(234,179,8,.1);color:var(--yellow);border:1px solid rgba(234,179,8,.2)}
-.prio-normal{background:rgba(34,197,94,.08);color:var(--gr);border:1px solid rgba(34,197,94,.12)}
-/* Toast */
-#toasts{position:fixed;bottom:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
-.toast{background:rgba(24,24,27,.96);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);border-radius:var(--r10);padding:10px 14px;font-size:11px;color:var(--tx1);box-shadow:var(--sh3);max-width:280px;display:flex;align-items:flex-start;gap:8px;pointer-events:all;animation:slideUp .2s var(--spring)}
-@keyframes slideUp{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
-.toast-s{border-left:3px solid var(--gr)}.toast-e{border-left:3px solid var(--red)}.toast-i{border-left:3px solid var(--blue)}.toast-a{border-left:3px solid var(--purple)}
-.toast-title{font-weight:600;margin-bottom:1px}.toast-msg{color:var(--tx3);font-size:10px}
-/* Context menu */
-.ctx-menu{position:fixed;z-index:900;background:rgba(24,24,27,.96);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.08);border-radius:var(--r12);padding:4px;min-width:160px;box-shadow:var(--sh3);animation:scaleIn .12s var(--spring)}
-.ctx-item{padding:6px 10px;border-radius:var(--r8);font-size:11px;color:var(--tx2);cursor:pointer;display:flex;align-items:center;gap:7px;transition:all var(--t1)}
-.ctx-item:hover{background:rgba(255,255,255,.06);color:var(--tx1)}
-.ctx-item.danger{color:var(--red)}.ctx-item.danger:hover{background:var(--red-dim)}
-.ctx-sep{height:1px;background:rgba(255,255,255,.06);margin:3px 0}
-.ctx-lbl{padding:4px 10px;font-size:9px;font-weight:700;color:var(--tx4);letter-spacing:.5px;text-transform:uppercase}
-/* Empty state */
-.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:32px;text-align:center;color:var(--tx4)}
-.empty-icon{font-size:32px;opacity:.4}
-.empty-title{font-size:13px;font-weight:600;color:var(--tx3)}
-.empty-desc{font-size:11px;line-height:1.6;max-width:220px}
-/* Error screen */
-#error-screen{position:fixed;inset:0;background:var(--c0);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px}
-.error-icon{font-size:40px}
-.error-msg{font-size:14px;font-weight:600;color:var(--red)}
-.error-sub{font-size:12px;color:var(--tx4);text-align:center;max-width:300px;line-height:1.6}
-</style>
-</head>
-<body>
-
-<!-- Loading -->
-<div id="loading">
-  <div class="loading-mark">DC</div>
-  <div id="loading-status">Loading project workspace...</div>
-</div>
-
-<!-- Error -->
-<div id="error-screen">
-  <div class="error-icon">⚠️</div>
-  <div class="error-msg" id="error-msg">Failed to load</div>
-  <div class="error-sub" id="error-sub">Please close this window and try again.</div>
-  <button class="btn btn-secondary" onclick="window.close()">Close Window</button>
-</div>
-
-<!-- App (hidden until loaded) -->
-<div id="proj-app" style="display:none;flex-direction:column;height:100vh">
-
-  <!-- Top bar -->
-  <div class="topbar">
-    <div class="proj-mark" id="proj-mark">DC</div>
-    <div class="proj-name" id="proj-name">Loading...</div>
-    <a id="proj-gh-link" class="proj-gh-badge" href="#" target="_blank" style="display:none">🐙 GitHub ↗</a>
-    <div class="topbar-tabs">
-      <div class="topbar-tab active" id="ttab-workspace" onclick="switchTopTab('workspace')">Workspace</div>
-      <div class="topbar-tab" id="ttab-team" onclick="switchTopTab('team')">Team</div>
-      <div class="topbar-tab" id="ttab-repo" onclick="switchTopTab('repo')">Repository</div>
-      <div class="topbar-tab" id="ttab-timeline" onclick="switchTopTab('timeline')">Timeline</div>
-    </div>
-    <div class="topbar-acts">
-      <div id="proj-progress-badge" style="font-size:11px;color:var(--tx3);background:var(--c3);padding:3px 10px;border-radius:99px;font-weight:600"></div>
-      <button class="btn btn-secondary btn-sm" onclick="openNewTaskModal()" id="new-task-btn">+ Task</button>
-      <button class="btn btn-primary btn-sm" onclick="openInviteMember()">+ Invite</button>
-    </div>
-  </div>
-
-  <!-- WORKSPACE TAB: Kanban + Chat + Right Panel -->
-  <div id="tab-workspace" class="shell">
-
-    <!-- LEFT: Kanban Tasks -->
-    <div class="kanban-panel">
-      <div class="kanban-hdr">
-        <div class="kanban-hdr-title">📋 Tasks</div>
-        <button class="btn btn-ghost btn-sm" onclick="openNewTaskModal()" style="font-size:10px;padding:3px 8px">+ Add</button>
-      </div>
-      <div class="kanban-scroll" id="kanban-scroll">
-        <div class="empty"><div class="empty-icon">📋</div><div class="empty-desc">Loading tasks...</div></div>
-      </div>
-    </div>
-
-    <!-- CENTER: Project Chat -->
-    <div class="chat-panel">
-      <div class="chat-hdr">
-        <div style="font-size:14px">🔒</div>
-        <div class="chat-hdr-name" id="chat-ch-name">Project Chat</div>
-        <div class="chat-hdr-desc" id="chat-ch-desc"></div>
-        <div style="margin-left:auto;display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" onclick="switchRPTab('ai')" style="color:var(--purple)">✦ AI</button>
-        </div>
-      </div>
-      <div class="msgs-area" id="msgs-area">
-        <div class="empty"><div class="empty-icon">💬</div><div class="empty-title">Project chat</div><div class="empty-desc">Team discussion dedicated to this project</div></div>
-      </div>
-      <div class="typing-bar" id="typing-bar"></div>
-      <div class="input-area">
-        <div class="input-box">
-          <div class="input-row">
-            <textarea class="input-ta" id="msg-input" placeholder="Message project team..." rows="1" onkeydown="handleMsgKey(event)" oninput="onMsgInput(this)"></textarea>
-            <div class="input-send" onclick="sendMsg()">
-              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </div>
-          </div>
-          <div class="input-fmtbar">
-            <div class="fmt-btn" onclick="insertAtCursor('@')">@ Mention</div>
-            <div class="fmt-btn" onclick="insertCodeBlock()">⌨ Code</div>
-            <div class="fmt-btn" onclick="switchRPTab('ai');document.getElementById('ai-mini-ta')?.focus()" style="color:var(--purple)">✦ Ask AI</div>
-            <div class="input-hint">Enter to send · Shift+Enter new line</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- RIGHT: Team / Commits / AI -->
-    <div class="right-panel">
-      <div class="rp-tabs">
-        <div class="rp-tab active" id="rpt-team" onclick="switchRPTab('team')">Team</div>
-        <div class="rp-tab" id="rpt-commits" onclick="switchRPTab('commits')">Commits</div>
-        <div class="rp-tab" id="rpt-ai" onclick="switchRPTab('ai')">✦ AI</div>
-      </div>
-      <!-- Team -->
-      <div id="rp-team" class="rp-body">
-        <div class="rp-sec-label">Online Now</div>
-        <div id="rp-members-list"></div>
-        <div class="rp-sec-label">Open PRs</div>
-        <div id="rp-prs-list"><div style="font-size:10px;color:var(--tx4)">Loading...</div></div>
-      </div>
-      <!-- Commits -->
-      <div id="rp-commits" class="rp-body hidden">
-        <div class="rp-sec-label">Recent Commits</div>
-        <div id="rp-commits-list"><div style="font-size:10px;color:var(--tx4)">Loading...</div></div>
-      </div>
-      <!-- AI -->
-      <div id="rp-ai" class="rp-body hidden" style="display:flex;flex-direction:column;padding:10px">
-        <div class="ai-mini">
-          <div class="ai-mini-msgs" id="ai-mini-msgs">
-            <div class="ai-mini-bubble bot"><strong>DevCollab AI ✦</strong><br>I have context about this project: tasks, repo, team. Ask me anything.</div>
-          </div>
-          <div class="ai-mini-input">
-            <textarea class="ai-mini-ta" id="ai-mini-ta" placeholder="Ask about tasks, code, architecture..." rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMini();}"></textarea>
-            <div class="ai-mini-footer">
-              <span class="ai-mini-model">✦ gemini-2.5-flash-lite</span>
-              <button class="ai-mini-send" onclick="sendAIMini()">Ask ↗</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TEAM TAB -->
-  <div id="tab-team" style="flex:1;overflow-y:auto;padding:24px;display:none">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div style="font-size:16px;font-weight:700">Project Team</div>
-      <button class="btn btn-primary btn-sm" onclick="openInviteMember()">+ Add Member</button>
-    </div>
-    <div id="full-team-list"></div>
-  </div>
-
-  <!-- REPO TAB -->
-  <div id="tab-repo" style="flex:1;display:none;overflow:hidden">
-    <div style="display:flex;height:100%">
-      <!-- File tree -->
-      <div style="width:240px;flex-shrink:0;background:var(--c1);border-right:1px solid var(--c4);display:flex;flex-direction:column">
-        <div style="padding:10px;border-bottom:1px solid var(--c4)">
-          <select id="branch-sel" style="width:100%;background:var(--c2);border:1px solid var(--c4);border-radius:var(--r6);color:var(--tx2);font-size:11px;padding:5px 8px;cursor:pointer" onchange="loadTree('')">
-            <option>main</option>
-          </select>
-        </div>
-        <div id="file-tree" style="flex:1;overflow-y:auto;padding:4px 0"></div>
-      </div>
-      <!-- Code viewer -->
-      <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-        <div style="padding:10px 14px;background:var(--c1);border-bottom:1px solid var(--c4);display:flex;align-items:center;gap:10px;flex-shrink:0">
-          <div id="file-breadcrumb" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3);flex:1">Select a file</div>
-          <button class="btn btn-secondary btn-sm" onclick="copyFileContent()">Copy</button>
-          <button class="btn btn-secondary btn-sm" style="color:var(--purple)" onclick="aiReviewFile()">✦ AI Review</button>
-        </div>
-        <div style="flex:1;overflow:auto;background:var(--c0)">
-          <div id="file-content" style="display:none;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;color:#d4d4d8;padding:14px;white-space:pre"></div>
-          <div id="file-empty" class="empty"><div class="empty-icon">📄</div><div class="empty-desc">Select a file from the tree</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TIMELINE TAB -->
-  <div id="tab-timeline" style="flex:1;overflow:auto;padding:24px;display:none">
-    <div id="timeline-content" style="min-width:700px"></div>
-  </div>
-
-</div><!-- /#proj-app -->
-
-<!-- Task Detail Modal -->
-<div id="task-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);align-items:center;justify-content:center">
-  <div class="task-modal">
-    <div class="task-modal-hdr">
-      <div class="task-modal-title" id="tm-title">Task</div>
-      <div class="modal-close" onclick="closeTaskModal()">✕</div>
-    </div>
-    <div class="task-modal-body" id="tm-body"></div>
-    <div class="task-modal-ftr" id="tm-ftr"></div>
-  </div>
-</div>
-
-<!-- New Task Modal -->
-<div id="new-task-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);align-items:center;justify-content:center">
-  <div class="task-modal">
-    <div class="task-modal-hdr"><div class="task-modal-title">New Task</div><div class="modal-close" onclick="document.getElementById('new-task-modal').style.display='none'">✕</div></div>
-    <div class="task-modal-body">
-      <div class="field-mb"><label class="field-lbl">Title *</label><input class="field-in" id="nt-title" type="text" placeholder="What needs to be done?"></div>
-      <div class="field-mb"><label class="field-lbl">Description</label><textarea class="field-in" id="nt-desc" rows="3" placeholder="Details, acceptance criteria..."></textarea></div>
-      <div class="field-row field-mb">
-        <div><label class="field-lbl">Priority</label><select class="field-in" id="nt-prio"><option value="urgent">🔴 Urgent</option><option value="medium" selected>🟡 Medium</option><option value="normal">🟢 Normal</option></select></div>
-        <div><label class="field-lbl">Deadline</label><input class="field-in" id="nt-deadline" type="date" style="cursor:pointer"></div>
-      </div>
-      <div class="field-mb"><label class="field-lbl">Assign To (@handle)</label><input class="field-in" id="nt-assign" type="text" placeholder="@username"></div>
-      <div class="field-mb"><label class="field-lbl">Linked File</label><input class="field-in" id="nt-file" type="text" placeholder="src/auth.js"></div>
-    </div>
-    <div class="task-modal-ftr"><button class="btn btn-secondary" onclick="document.getElementById('new-task-modal').style.display='none'">Cancel</button><button class="btn btn-primary" onclick="submitNewTask()">Create Task</button></div>
-  </div>
-</div>
-
-<div id="ctx-menu" class="ctx-menu hidden"></div>
-<div id="toasts"></div>
-
-<script>
 'use strict';
+require('dotenv').config();
 
-// ── CONFIG ──────────────────────────────────────────────────────────────────
-const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const BACKEND_URL = IS_LOCAL ? 'http://localhost:4000' : 'https://devcolab-backend.onrender.com';
-const API = BACKEND_URL + '/api';
-const WS_URL = BACKEND_URL;
+const express    = require('express');
+const http       = require('http');
+const { Server } = require('socket.io');
+const cors       = require('cors');
+const helmet     = require('helmet');
+const compression= require('compression');
+const rateLimit  = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
+const crypto     = require('crypto');
 
-// ── STATE ──────────────────────────────────────────────────────────────────
-const S = {
-  token: null, user: null, myRole: null, myPerms: {},
-  project: null, projectId: null,
-  tasks: [], members: [], channels: [],
-  projectChannel: null,
-  messages: [], currentBranch: 'main',
-  repo: null, repoFiles: [],
-  socket: null, online: {}, typingUsers: {},
-  typingTimer: null, aiHistory: [],
-};
+const { db, testConnection } = require('./config/database');
+const { authenticate }       = require('./middleware/auth');
+const { encrypt, decrypt, uuid } = require('./services/crypto');
+const gh         = require('./services/github');
+const gemini     = require('./services/gemini');
+const { ROLES, TASK_PRIORITY, TASK_STATUS, TASK_TEMPLATES, NOTIF_TYPE, hasPermission } = require('./config/constants');
+const { makeToken, verifyJWT } = require('./middleware/auth');
 
-// ── UTILS ──────────────────────────────────────────────────────────────────
-function esc(s){ if(typeof s!=='string')return String(s||''); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function safe(s,max=500){ return typeof s==='string'?s.trim().slice(0,max):''; }
-function setStatus(msg){ document.getElementById('loading-status').textContent = msg; }
-function fmtText(t){
-  if(!t)return'';let s=esc(t);
-  s=s.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-  s=s.replace(/_(.*?)_/g,'<em>$1</em>');
-  s=s.replace(/`([^`\n]+)`/g,'<code style="background:var(--c3);padding:1px 4px;border-radius:3px;font-size:11px;font-family:monospace">$1</code>');
-  s=s.replace(/@(\w[\w.]*)/g,'<span style="color:var(--blue);font-weight:500">@$1</span>');
-  return s;
-}
-function deadline(dl){
-  if(!dl)return{label:'No deadline',cls:''};
-  const diff=new Date(dl)-Date.now(),h=diff/3600000;
-  if(h<0)return{label:'Overdue',cls:'kp-dl-over'};
-  if(h<24)return{label:Math.round(h)+'h left',cls:'kp-dl-soon'};
-  if(h<72)return{label:Math.round(h/24)+'d left',cls:'kp-dl-soon'};
-  return{label:new Date(dl).toLocaleDateString(),cls:'kp-dl-ok'};
-}
-function prioColor(p){return{urgent:'#ef4444',medium:'#eab308',normal:'#22c55e'}[p]||'var(--tx4)';}
-function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px';}
-function toast(type,title,msg='',dur=4000){
-  const icons={s:'✓',e:'✕',i:'ℹ',a:'✦'};
-  const el=document.createElement('div');el.className='toast toast-'+type;
-  el.innerHTML='<div><div class="toast-title">'+esc(title)+'</div>'+(msg?'<div class="toast-msg">'+esc(msg)+'</div>':'')+'</div>';
-  document.getElementById('toasts').appendChild(el);
-  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(16px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),350);},dur);
+const PORT         = process.env.PORT || 4000;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const NODE_ENV     = process.env.NODE_ENV || 'development';
+
+// ── Startup env validation ────────────────────────────────────────────────────
+if (NODE_ENV === 'production') {
+  const required = ['SUPABASE_URL','SUPABASE_SERVICE_KEY','JWT_SECRET','ENCRYPTION_KEY','GITHUB_CLIENT_ID','GITHUB_CLIENT_SECRET','GITHUB_CALLBACK_URL','FRONTEND_URL'];
+  const missing = required.filter(k => !process.env[k]);
+  if (missing.length) {
+    console.error('❌ Missing required env vars:', missing.join(', '));
+    process.exit(1);
+  }
 }
 
-// ── HTTP ──────────────────────────────────────────────────────────────────
-async function api(method,path,body){
-  const opts={method,headers:{'Content-Type':'application/json',...(S.token?{Authorization:'Bearer '+S.token}:{})}};
-  if(body)opts.body=JSON.stringify(body);
-  const res=await fetch(API+path,opts);
-  const data=await res.json().catch(()=>({}));
-  if(!res.ok)throw new Error(data.error||'HTTP '+res.status);
-  return data.data??data;
+const app    = express();
+const server = http.createServer(app);
+
+// ── Security ─────────────────────────────────────────────────────────────────
+app.use(helmet({ contentSecurityPolicy:false, crossOriginEmbedderPolicy:false }));
+// ── CORS allowed origins ──────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  FRONTEND_URL,
+  'https://devcolab.dev',
+  'https://www.devcolab.dev',
+  'http://localhost:3000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+].filter(Boolean);
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // allow requests with no origin (curl, Render health checks, redirects)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    // allow any vercel.app preview URL for this project
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    callback(new Error('Not allowed by CORS: ' + origin));
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+}));
+app.use(compression());
+app.use(express.json({ limit:'10mb' }));
+app.use(express.urlencoded({ extended:true }));
+app.use(cookieParser());
+
+const limiter    = rateLimit({ windowMs:15*60*1000, max:500 });
+const authLimiter= rateLimit({ windowMs:15*60*1000, max:20 });
+const aiLimiter  = rateLimit({ windowMs:60*1000,    max:30 });
+app.use('/api/', limiter);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function ok(res, data, status=200) { res.status(status).json({ success:true, data }); }
+function fail(res, msg, status=400) { res.status(status).json({ success:false, error:msg }); }
+function esc(s) { if(typeof s!=='string')return s; return s.replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'})[c]); }
+function safeStr(s,max=500) { return typeof s==='string' ? esc(s.trim()).slice(0,max) : ''; }
+
+// Safe user (no github_access_token)
+function safeUser(u) {
+  if (!u) return null;
+  const { github_access_token, ...rest } = u;
+  return rest;
 }
-const GET=p=>api('GET',p);
-const POST=(p,b)=>api('POST',p,b);
-const PATCH=(p,b)=>api('PATCH',p,b);
-const DEL=p=>api('DELETE',p);
 
-// ── INIT ──────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-  // Get project ID from URL params
-  const params = new URLSearchParams(location.search);
-  S.projectId = params.get('id') || params.get('project');
-  if (!S.projectId) { showError('No project ID', 'Missing ?id= in URL'); return; }
+// Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: NODE_ENV === 'production' ? ALLOWED_ORIGINS : '*',
+    methods: ['GET','POST'],
+  },
+  pingTimeout:60000, pingInterval:25000,
+});
 
-  // Auth - read token from localStorage (shared with main window)
-  S.token = localStorage.getItem('dc_token');
-  if (!S.token) { showError('Not authenticated', 'Please log in from the main DevCollab Hub window first.'); return; }
-
+// Socket auth
+io.use(async (socket, next) => {
   try {
-    setStatus('Authenticating...');
-    S.user = await GET('/auth/me');
-    if (!S.user?.id) throw new Error('Not authenticated');
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error('No token'));
+    const payload = verifyJWT(token);
+    const { data:user } = await db.userById(payload.userId);
+    if (!user) return next(new Error('User not found'));
+    socket.user = safeUser(user);
+    socket.userId = user.id;
+    // Store raw token for GitHub calls
+    socket.githubToken = user.github_access_token;
+    next();
+  } catch(e) { next(new Error('Auth failed')); }
+});
 
-    setStatus('Loading project...');
-    const data = await GET('/projects/'+S.projectId+'/dashboard');
-    S.project = data.project;
-    S.tasks = data.tasks || [];
-    S.members = (data.members || []).map(m => {
-      const u = m.user||{};
-      try { if(u.display_name&&u.display_name.length>60) u.display_name=u.github_username||u.handle||''; } catch{}
-      return { ...m, user:u };
+const onlineUsers = new Map(); // userId → Set<socketId>
+
+io.on('connection', async (socket) => {
+  const { userId, user } = socket;
+  console.log(`[+] ${user.handle} connected`);
+
+  // Track presence
+  if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
+  onlineUsers.get(userId).add(socket.id);
+  await db.updateUser(userId, { status:'online' });
+  io.emit('presence', { userId, status:'online' });
+
+  // Join all workspace channels
+  try {
+    const { data:wms } = await db.workspacesByUser(userId);
+    for (const ws of wms||[]) {
+      const { data:channels } = await db.channelsByWorkspace(ws.id);
+      for (const ch of channels||[]) socket.join(`ch:${ch.id}`);
+      socket.join(`ws:${ws.id}`);
+    }
+  } catch(e) {}
+
+  socket.emit('connected', { user: safeUser(user) });
+  // Track last_active timestamp
+  await db.updateUser(userId, { last_active: new Date().toISOString() }).catch(()=>{});
+
+  // ── SEND MESSAGE ──
+  socket.on('msg:send', async ({ channelId, content, type='text', code, metadata }) => {
+    try {
+      if (!content && !code) return;
+      const enc = content ? encrypt(safeStr(content, 5000)) : null;
+      const metaEnc = metadata ? encrypt(JSON.stringify(metadata)) : null;
+      const msg = {
+        id: uuid(), channel_id:channelId, user_id:userId,
+        content_encrypted:enc, type, metadata:metaEnc,
+        code_lang:code?.lang||null, code_body:code?.body?encrypt(code.body):null,
+        created_at:new Date().toISOString(), deleted:false, edited:false,
+      };
+      const { data:saved } = await db.createMessage(msg);
+      const out = formatMsg(saved);
+      io.to(`ch:${channelId}`).emit('msg:new', out);
+    } catch(e) { socket.emit('error', { message:e.message }); }
+  });
+
+  // ── EDIT MESSAGE ──
+  socket.on('msg:edit', async ({ messageId, content }) => {
+    try {
+      const { data:msg } = await db.messageById(messageId);
+      if (!msg || msg.user_id !== userId) return socket.emit('error',{message:'Not your message'});
+      await db.updateMessage(messageId, { content_encrypted: encrypt(safeStr(content,5000)) });
+      io.to(`ch:${msg.channel_id}`).emit('msg:updated', { messageId, content:safeStr(content,5000), edited:true });
+    } catch(e) { socket.emit('error',{message:e.message}); }
+  });
+
+  // ── DELETE MESSAGE ──
+  socket.on('msg:delete', async ({ messageId, forEveryone=false }) => {
+    try {
+      const { data:msg } = await db.messageById(messageId);
+      if (!msg) return;
+      // Owner of workspace OR message author can delete
+      const { data:wsMember } = await db.supabase().from('workspace_members').select('role').eq('user_id',userId).single();
+      const isAdmin = ['owner','admin','manager'].includes(wsMember?.role||'');
+      if (msg.user_id !== userId && !isAdmin) return socket.emit('error',{message:'Not your message'});
+      // HARD DELETE — completely remove, no ghost
+      await db.supabase().from('message_reactions').delete().eq('message_id', messageId);
+      await db.supabase().from('message_pins').delete().eq('message_id', messageId);
+      await db.supabase().from('messages').delete().eq('id', messageId);
+      io.to(`ch:${msg.channel_id}`).emit('msg:deleted', { messageId, hard: true });
+    } catch(e) { socket.emit('error',{message:e.message}); }
+  });
+
+  // ── REACT ──
+  socket.on('msg:react', async ({ messageId, emoji }) => {
+    try {
+      const { data:msg } = await db.messageById(messageId);
+      if (!msg) return;
+      const { data:existing } = await db.supabase().from('message_reactions').select('id').eq('message_id',messageId).eq('user_id',userId).eq('emoji',emoji).single();
+      if (existing) { await db.removeReaction(messageId,userId,emoji); }
+      else { await db.addReaction(messageId,userId,emoji); }
+      const { data:all } = await db.reactions(messageId);
+      io.to(`ch:${msg.channel_id}`).emit('msg:reactions', { messageId, reactions: groupReactions(all) });
+    } catch(e) {}
+  });
+
+  // ── TYPING ──
+  socket.on('typing:start', ({ channelId }) => socket.to('ch:'+channelId).emit('typing:user', { userId, username:user.handle }));
+  socket.on('typing:stop',  ({ channelId }) => socket.to('ch:'+channelId).emit('typing:off',  { userId }));
+  // Task viewing presence
+  socket.on('task:viewing', ({ taskId }) => {
+    socket.join('task:'+taskId);
+    socket.to('task:'+taskId).emit('task:viewer:joined', { userId, handle:user.handle, avatar_color:user.avatar_color });
+  });
+  socket.on('task:left', ({ taskId }) => {
+    socket.leave('task:'+taskId);
+    socket.to('task:'+taskId).emit('task:viewer:left', { userId });
+  });
+  // Task working live indicator (who is actively typing/editing on a task)
+  socket.on('task:working', ({ taskId }) => {
+    socket.to('task:'+taskId).emit('task:worker:active', { userId, handle:user.handle, avatar_color:user.avatar_color, ts:Date.now() });
+  });
+
+  // ── DM ──
+  socket.on('dm:send', async ({ toUserId, content }) => {
+    try {
+      const { data:room } = await db.createDMRoom(userId, toUserId);
+      const enc = encrypt(safeStr(content, 5000));
+      const dm = { id:uuid(), room_id:room.id, from_user:userId, content_encrypted:enc, created_at:new Date().toISOString() };
+      const { data:saved } = await db.createDM(dm);
+      // notify both
+      const out = { id:saved.id, roomId:room.id, fromUserId:userId, content:safeStr(content,5000), ts:saved.created_at };
+      const recipientSockets = onlineUsers.get(toUserId);
+      if (recipientSockets) recipientSockets.forEach(sid => io.to(sid).emit('dm:new', out));
+      socket.emit('dm:new', out);
+      // notification
+      await db.createNotif({ id:uuid(), user_id:toUserId, type:NOTIF_TYPE.DM, title:encrypt(`DM from @${user.handle}`), body:encrypt(safeStr(content,100)), read:false, data:JSON.stringify({fromUserId:userId}), created_at:new Date().toISOString() });
+    } catch(e) { socket.emit('error',{message:e.message}); }
+  });
+
+  // ── TASK UPDATE ──
+  socket.on('task:status', async ({ taskId, status }) => {
+    try {
+      const { data:task } = await db.taskById(taskId);
+      if (!task) return;
+      await db.updateTask(taskId, { status });
+      io.to(`ws:${task.workspace_id||''}`).emit('task:updated', { taskId, status, updatedBy:userId });
+    } catch(e) {}
+  });
+
+  // ── JOIN CHANNEL ──
+  socket.on('channel:join', async ({ channelId }) => {
+    socket.join(`ch:${channelId}`);
+    try {
+      const { data:msgs } = await db.messagesByChannel(channelId, 50);
+      socket.emit('channel:history', { channelId, messages: (msgs||[]).reverse().map(formatMsg) });
+    } catch(e) {}
+  });
+
+
+  // ── CHANNEL VIEW PRESENCE (who's looking at a channel right now) ──
+  socket.on('channel:viewing', ({ channelId }) => {
+    // Leave all previous view rooms
+    const rooms = [...socket.rooms].filter(r => r.startsWith('view:'));
+    rooms.forEach(r => { socket.leave(r); socket.to(r).emit('channel:viewer:left', { userId, channelId: r.replace('view:','') }); });
+    socket.join(`view:${channelId}`);
+    socket.to(`view:${channelId}`).emit('channel:viewer:joined', { userId, user: safeUser(user), channelId });
+    socket.emit('channel:viewers', { channelId, viewers: [] }); // client will accumulate
+  });
+
+  // ── READ RECEIPTS ──
+  socket.on('msg:read', async ({ channelId, messageId }) => {
+    socket.to(`ch:${channelId}`).emit('msg:read:ack', { userId, messageId, channelId });
+  });
+
+  // ── THREAD REPLY ──
+  socket.on('thread:send', async ({ parentMessageId, content, code }) => {
+    try {
+      const { data:parent } = await db.messageById(parentMessageId);
+      if (!parent) return;
+      const enc = content ? encrypt(safeStr(content, 5000)) : null;
+      const msg = {
+        id: uuid(), channel_id: parent.channel_id, user_id: userId,
+        content_encrypted: enc, type: code ? 'code' : 'text',
+        code_lang: code?.lang||null, code_body: code?.body ? encrypt(code.body) : null,
+        thread_parent_id: parentMessageId,
+        created_at: new Date().toISOString(), deleted: false, edited: false,
+      };
+      const { data:saved } = await db.createMessage(msg);
+      const out = formatMsg(saved);
+      io.to(`ch:${parent.channel_id}`).emit('thread:new', { parentMessageId, reply: out });
+    } catch(e) { socket.emit('error', { message: e.message }); }
+  });
+
+  // ── PIN MESSAGE (via socket for instant update) ──
+  socket.on('msg:pin', async ({ messageId, channelId }) => {
+    try {
+      await db.pinMessage(channelId, messageId, userId);
+      io.to(`ch:${channelId}`).emit('msg:pinned', { messageId, channelId, pinnedBy: userId });
+    } catch(e) {}
+  });
+
+  socket.on('msg:unpin', async ({ messageId, channelId }) => {
+    try {
+      await db.supabase().from('message_pins').delete().eq('message_id', messageId).eq('channel_id', channelId);
+      io.to(`ch:${channelId}`).emit('msg:unpinned', { messageId, channelId });
+    } catch(e) {}
+  });
+
+  // ── TASK ASSIGN (with notification) ──
+  socket.on('task:assign', async ({ taskId, assigneeId }) => {
+    try {
+      await db.updateTask(taskId, { assigned_to: assigneeId });
+      const { data:task } = await db.taskById(taskId);
+      if (!task) return;
+      io.to(`ws:${task.workspace_id||''}`).emit('task:assigned', { task });
+      // notify assignee
+      await db.createNotif({ id:uuid(), user_id:assigneeId, type:'task_assigned', title:encrypt(`Task assigned to you`), body:encrypt(safeStr(task.title||'',100)), read:false, data:JSON.stringify({taskId}), created_at:new Date().toISOString() });
+      const assigneeSockets = onlineUsers.get(assigneeId);
+      if (assigneeSockets) assigneeSockets.forEach(sid => io.to(sid).emit('notification:new', { type:'task_assigned', title:'Task Assigned', body: task.title||'' }));
+    } catch(e) {}
+  });
+
+  // ── DISCONNECT ──
+  socket.on('disconnect', async () => {
+    const sockets = onlineUsers.get(userId);
+    if (sockets) { sockets.delete(socket.id); if(!sockets.size) onlineUsers.delete(userId); }
+    if (!onlineUsers.has(userId)) {
+      await db.updateUser(userId, { status:'offline' }).catch(()=>{});
+      io.emit('presence', { userId, status:'offline' });
+    }
+    console.log(`[-] ${user.handle} disconnected`);
+  });
+});
+
+function formatMsg(m) {
+  if (!m) return null;
+  const content = m.content_encrypted ? (() => { try { return decrypt(m.content_encrypted); } catch { return '[encrypted]'; } })() : null;
+  const codeBody = m.code_body ? (() => { try { return decrypt(m.code_body); } catch { return null; } })() : null;
+  return {
+    id:m.id, channelId:m.channel_id, userId:m.user_id,
+    user:m.user, content, type:m.type,
+    code: m.code_lang ? { lang:m.code_lang, body:codeBody } : null,
+    edited:m.edited, deleted:m.deleted,
+    reactions:{}, ts:m.created_at,
+  };
+}
+function groupReactions(arr) {
+  const r = {};
+  for (const x of arr||[]) { if(!r[x.emoji])r[x.emoji]=[]; r[x.emoji].push(x.user_id); }
+  return r;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROUTES
+// ─────────────────────────────────────────────────────────────────────────────
+
+// HEALTH
+app.get('/health', (req,res) => res.json({ status:'ok', version:'2.0.0', env:NODE_ENV }));
+
+// ── AUTH ─────────────────────────────────────────────────────────────────────
+app.get('/api/auth/github', authLimiter, (req,res) => {
+  const state = require('./services/crypto').randomBase64url();
+  res.cookie('oauth_state', state, { httpOnly:true, secure:NODE_ENV==='production', maxAge:600000, sameSite:'lax' });
+  const url = `https://github.com/login/oauth/authorize?` +
+    `client_id=${process.env.GITHUB_CLIENT_ID}&` +
+    `redirect_uri=${encodeURIComponent(process.env.GITHUB_CALLBACK_URL)}&` +
+    `scope=${encodeURIComponent('read:user user:email repo')}&` +
+    `state=${state}`;
+  res.redirect(url);
+});
+
+app.get('/api/auth/github/callback', authLimiter, async (req,res) => {
+  try {
+    const { code } = req.query;
+    if (!code) return res.redirect(`${FRONTEND_URL}?error=no_code`);
+    res.clearCookie('oauth_state');
+
+    const accessToken = await gh.exchangeCode(code);
+    const ghUser = await gh.getAuthUser(accessToken);
+    if (!ghUser.id) return res.redirect(`${FRONTEND_URL}?error=user_fetch_failed`);
+
+    let { data:user } = await db.userByGithubId(ghUser.id);
+    const isNew = !user;
+
+    // generate unique handle from github login
+    const baseHandle = ghUser.login.toLowerCase().replace(/[^a-z0-9_]/g,'') || 'user';
+    let finalHandle = baseHandle;
+    let attempt = 0;
+    while (attempt < 20) {
+      const { data: existing } = await db.userByHandle(finalHandle);
+      if (!existing) break;
+      attempt++;
+      finalHandle = `${baseHandle}${attempt}`;
+    }
+
+    if (isNew) {
+      const newUser = {
+        id: uuid(), github_id: String(ghUser.id),
+        handle: finalHandle,
+        display_name: encrypt(ghUser.name || ghUser.login),
+        avatar_url: ghUser.avatar_url,
+        github_username: ghUser.login,
+        github_access_token: encrypt(accessToken),
+        bio: ghUser.bio ? encrypt(ghUser.bio) : null,
+        status: 'online', setup_complete: false,
+        created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      };
+      const { data:created, error:ce } = await db.createUser(newUser);
+      if (ce) return res.redirect(`${FRONTEND_URL}?error=user_create_failed`);
+      user = created;
+    } else {
+      // refresh token
+      await db.updateUser(user.id, { github_access_token:encrypt(accessToken), status:'online' });
+      user.github_access_token = accessToken;
+    }
+
+    const token = makeToken(user.id, 'access');
+    const refreshTok = makeToken(user.id, 'refresh');
+
+    // Store session
+    await db.createSession({
+      id:uuid(), user_id:user.id,
+      token_hash: require('./services/crypto').hashToken(token),
+      refresh_hash: require('./services/crypto').hashToken(refreshTok),
+      created_at:new Date().toISOString(),
+      expires_at: new Date(Date.now()+86400000).toISOString(),
     });
-    S.repo = data.repo;
 
-    // Load my role in this project
-    const myMember = S.members.find(m => m.user?.id === S.user?.id || m.user_id === S.user?.id);
-    S.myRole = myMember?.role || 'developer';
-    S.myPerms = { canAssign: ['owner','admin','lead','senior'].includes(S.myRole), canApprove: ['owner','admin','lead','senior'].includes(S.myRole) };
-
-    setStatus('Connecting...');
-    await initSocket();
-    await loadProjectChannel();
-
-    // Render everything
-    renderTopbar();
-    renderKanban();
-    renderRPTeam();
-    loadRPCommits();
-    loadRPPRs();
-    renderFullTeam();
-    renderTimeline();
-    if (S.repo) loadRepo();
-
-    // Show app
-    document.getElementById('loading').style.display='none';
-    document.getElementById('proj-app').style.display='flex';
-
+    const q = new URLSearchParams({ token, refresh:refreshTok, new_user:isNew?'1':'0' });
+    res.redirect(`${FRONTEND_URL}?${q.toString()}`);
   } catch(e) {
-    showError('Failed to load project', e.message);
+    console.error('OAuth error:', e);
+    res.redirect(`${FRONTEND_URL}?error=${encodeURIComponent(e.message)}`);
   }
 });
 
-function showError(msg, sub){
-  document.getElementById('loading').style.display='none';
-  document.getElementById('error-screen').style.display='flex';
-  document.getElementById('error-msg').textContent=msg;
-  document.getElementById('error-sub').textContent=sub||'';
-}
-
-// ── SOCKET ────────────────────────────────────────────────────────────────
-async function initSocket(){
-  return new Promise((resolve) => {
-    S.socket = io(WS_URL, { auth:{ token:S.token }, transports:['websocket','polling'], reconnectionAttempts:5 });
-    S.socket.on('connect', () => {
-      // Join project channel
-      if (S.projectChannel?.id) S.socket.emit('channel:join', { channelId:S.projectChannel?.id });
-      resolve();
-    });
-    S.socket.on('connect_error', () => resolve()); // still proceed
-    S.socket.on('msg:new', m => {
-      if (m.channelId === S.projectChannel?.id || m.channel_id === S.projectChannel?.id) {
-        S.messages.push(m); appendMsg(m, false, true); scrollMsgs();
-      }
-    });
-    S.socket.on('channel:history', ({ channelId, messages }) => {
-      if (channelId===S.projectChannel?.id) { S.messages=messages||[]; renderMessages(); }
-    });
-    S.socket.on('typing:user', ({ userId, username }) => {
-      if (userId===S.user?.id) return;
-      S.typingUsers[userId]=username;
-      clearTimeout(S.typingUsers['_t'+userId]);
-      S.typingUsers['_t'+userId]=setTimeout(()=>{delete S.typingUsers[userId];renderTyping();},3000);
-      renderTyping();
-    });
-    S.socket.on('typing:off', ({ userId }) => { delete S.typingUsers[userId]; renderTyping(); });
-    S.socket.on('presence', ({ userId, status }) => {
-      S.online[userId]=status==='online';
-      renderRPTeam();
-    });
-    S.socket.on('task:updated', ({ task }) => {
-      const idx=S.tasks.findIndex(t=>t.id===task?.id||(task&&t.id===task.id));
-      if(idx>=0)S.tasks[idx]={...S.tasks[idx],...task};
-      renderKanban();
-    });
-    S.socket.on('task:assigned', ({ task }) => {
-      if(!S.tasks.find(t=>t.id===task.id)) S.tasks.unshift(task);
-      renderKanban(); toast('a','New Task Assigned',safe(task.title,60));
-    });
-    S.socket.on('task:started', ({ taskId, branchName }) => {
-      const t=S.tasks.find(x=>x.id===taskId);
-      if(t){t.status='in_progress';t.branch_name=branchName;}
-      renderKanban();
-    });
-    S.socket.on('task:submitted', ({ taskId }) => {
-      const t=S.tasks.find(x=>x.id===taskId);
-      if(t)t.status='in_review';
-      renderKanban();
-      if(S.myPerms.canApprove) toast('a','PR Ready for Review','');
-    });
-    S.socket.on('task:approved', ({ taskId }) => {
-      const t=S.tasks.find(x=>x.id===taskId);
-      if(t)t.status='approved';
-      renderKanban(); toast('s','Task Approved! ✓','');
-    });
-    S.socket.on('task:rejected', ({ taskId, reason }) => {
-      const t=S.tasks.find(x=>x.id===taskId);
-      if(t){t.status='in_progress';t.rejection_reason=reason;}
-      renderKanban(); toast('e','Changes Requested',safe(reason,60));
-    });
-    S.socket.on('github:event', ({ type, repo }) => { loadRPCommits(); });
-    setTimeout(resolve, 3000); // timeout fallback
-  });
-}
-
-async function loadProjectChannel(){
+app.post('/api/auth/logout', authenticate, async (req,res) => {
   try {
-    // Find the project's dedicated channel (named proj-*)
-    const wid = S.project?.workspace_id;
-    if (!wid) return;
-    const channels = await GET('/workspaces/'+wid+'/channels');
-    // Match by project name or description
-    const projName = S.project?.name||'';
-    S.projectChannel = channels.find(ch =>
-      ch.description === 'Project: '+projName ||
-      ch.name.startsWith('proj-'+projName.toLowerCase().replace(/[^a-z0-9]/g,'-').slice(0,15))
-    ) || channels.find(ch => ch.type==='private' && ch.name.startsWith('proj-')) || null;
+    const token = req.headers.authorization?.slice(7);
+    if (token) await db.supabase().from('user_sessions').delete().eq('token_hash', require('./services/crypto').hashToken(token));
+    await db.updateUser(req.userId, { status:'offline' });
+    ok(res, { message:'Logged out' });
+  } catch(e) { fail(res, e.message); }
+});
 
-    if (S.projectChannel) {
-      document.getElementById('chat-ch-name').textContent = projName + ' Chat';
-      document.getElementById('chat-ch-desc').textContent = '— '+( S.projectChannel.description||'Project discussion');
-      if (S.socket?.connected) S.socket.emit('channel:join', { channelId:S.projectChannel.id });
+app.get('/api/auth/me', authenticate, async (req,res) => {
+  const u = safeUser(req.user);
+  // decrypt display fields
+  try { u.display_name = req.user.display_name ? decrypt(req.user.display_name) : u.github_username; } catch {}
+  try { u.bio = req.user.bio ? decrypt(req.user.bio) : null; } catch {}
+  ok(res, u);
+});
+
+// ── USERS ─────────────────────────────────────────────────────────────────────
+app.patch('/api/users/me', authenticate, async (req,res) => {
+  try {
+    const { display_name, role, bio, status, avatar_color, setup_complete } = req.body;
+    const updates = { updated_at: new Date().toISOString() };
+    if (display_name) updates.display_name = encrypt(safeStr(display_name,100));
+    if (role) updates.role = safeStr(role,50);
+    if (bio !== undefined) updates.bio = bio ? encrypt(safeStr(bio,500)) : null;
+    if (status) updates.status = status;
+    if (avatar_color) updates.avatar_color = safeStr(avatar_color,20);
+    if (setup_complete !== undefined) updates.setup_complete = Boolean(setup_complete);
+    const { data, error } = await db.updateUser(req.userId, updates);
+    if (error) return fail(res, error.message);
+    const u = safeUser(data);
+    try { u.display_name = data.display_name ? decrypt(data.display_name) : null; } catch {}
+    ok(res, u);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/users/search', authenticate, async (req,res) => {
+  const q = (req.query.q||'').trim();
+  if (q.length < 2) return ok(res, []);
+  const { data } = await db.searchUsers(q, 20);
+  ok(res, data||[]);
+});
+
+app.get('/api/users/:handle', authenticate, async (req,res) => {
+  const { data, error } = await db.userByHandle(req.params.handle.toLowerCase());
+  if (error || !data) return fail(res, 'User not found', 404);
+  const u = safeUser(data);
+  try { u.display_name = data.display_name ? decrypt(data.display_name) : data.github_username; } catch {}
+  try { u.bio = data.bio ? decrypt(data.bio) : null; } catch {}
+  ok(res, u);
+});
+
+// ── WORKSPACES ────────────────────────────────────────────────────────────────
+app.get('/api/workspaces', authenticate, async (req,res) => {
+  const { data } = await db.workspacesByUser(req.userId);
+  const out = (data||[]).map(ws => ({
+    ...ws,
+    name: ws.name ? tryDecrypt(ws.name) : 'Workspace',
+    description: ws.description ? tryDecrypt(ws.description) : null,
+  }));
+  ok(res, out);
+});
+
+app.post('/api/workspaces', authenticate, async (req,res) => {
+  try {
+    const { name, description } = req.body;
+    if (!name) return fail(res,'Name required');
+    const slug = safeStr(name,50).toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-');
+    const ws = {
+      id:uuid(), name:encrypt(safeStr(name,100)),
+      slug:`${slug}-${require('./services/crypto').randomHex(3)}`,
+      description: description?encrypt(safeStr(description,500)):null,
+      owner_id:req.userId, created_at:new Date().toISOString(),
+    };
+    const { data:created, error } = await db.createWorkspace(ws);
+    if (error) return fail(res, error.message);
+    await db.addWorkspaceMember(created.id, req.userId, ROLES.OWNER);
+    // Create default channels
+    for (const [name,desc] of [['general','Main discussion'],['github-feed','Repository activity'],['ai-help','AI coding assistant']]) {
+      await db.createChannel({ id:uuid(), workspace_id:created.id, name, description:desc, type:'public', created_by:req.userId, archived:false, created_at:new Date().toISOString() });
     }
-  } catch(e){ console.warn('[channel]', e.message); }
-}
+    ok(res, { ...created, name:safeStr(name,100) }, 201);
+  } catch(e) { fail(res, e.message); }
+});
 
-// ── TOPBAR ────────────────────────────────────────────────────────────────
-function renderTopbar(){
-  const p = S.project||{};
-  const el=document.getElementById('proj-mark');
-  if(el){el.style.background=p.color||'#22c55e';el.textContent=(p.name||'P').slice(0,2).toUpperCase();}
-  document.getElementById('proj-name').textContent=p.name||'Project';
-  document.title='DevCollab — '+(p.name||'Project');
-  const ghLink=document.getElementById('proj-gh-link');
-  if(p.github_url){ghLink.href=p.github_url;ghLink.style.display='inline-flex';}
-  const prog=document.getElementById('proj-progress-badge');
-  const done=S.tasks.filter(t=>t.status==='done'||t.status==='approved').length;
-  const pct=S.tasks.length?Math.round(done/S.tasks.length*100):0;
-  prog.textContent=pct+'% complete · '+S.tasks.filter(t=>t.status!=='done'&&t.status!=='approved').length+' open';
-  // Hide new task / invite for non-leads
-  if(!S.myPerms.canAssign){
-    const btn=document.getElementById('new-task-btn');
-    if(btn)btn.style.display='none';
-  }
-}
+app.get('/api/workspaces/:id', authenticate, async (req,res) => {
+  const { data, error } = await db.workspaceById(req.params.id);
+  if (error || !data) return fail(res,'Not found',404);
+  const out = { ...data };
+  try { out.name = data.name ? decrypt(data.name) : null; } catch {}
+  try { out.description = data.description ? decrypt(data.description) : null; } catch {}
+  ok(res, out);
+});
 
-// ── KANBAN (Left Panel) ──────────────────────────────────────────────────
-const COLS = [
-  {id:'not_started',label:'To Do',dot:'#52525b'},
-  {id:'in_progress',label:'In Progress',dot:'#3b82f6'},
-  {id:'in_review',label:'In Review',dot:'#eab308'},
-  {id:'approved',label:'Approved',dot:'#22c55e'},
-  {id:'done',label:'Done',dot:'#a855f7'},
-];
+app.post('/api/workspaces/:id/invite', authenticate, async (req,res) => {
+  try {
+    const { handle, role='developer' } = req.body;
+    const { data:invitee } = await db.userByHandle(handle.toLowerCase());
+    if (!invitee) return fail(res,'User not found',404);
+    const { data:existing } = await db.workspaceMember(req.params.id, invitee.id);
+    if (existing) return fail(res,'Already a member');
+    await db.addWorkspaceMember(req.params.id, invitee.id, role);
+    // notify
+    await db.createNotif({ id:uuid(), user_id:invitee.id, type:NOTIF_TYPE.SYSTEM, title:encrypt('Workspace invite'), body:encrypt(`You were added to a workspace`), read:false, data:JSON.stringify({workspaceId:req.params.id}), created_at:new Date().toISOString() });
+    ok(res, { message:'Member added' });
+  } catch(e) { fail(res, e.message); }
+});
 
-function renderKanban(){
-  const scroll=document.getElementById('kanban-scroll');
-  if(!scroll)return;
-  const myTasks=S.tasks.filter(t=>t.assigned_to===S.user?.id);
-  const urgentTasks=myTasks.filter(t=>{
-    if(t.status==='done'||t.status==='approved')return false;
-    const diff=new Date(t.deadline||0)-Date.now();
-    return t.priority==='urgent'||(diff>0&&diff<24*3600000);
+app.get('/api/workspaces/:id/members', authenticate, async (req,res) => {
+  const { data } = await db.workspaceMembers(req.params.id);
+  const members = (data||[]).map(m => {
+    const user = safeUser(m.user);
+    if (user) {
+      try { user.display_name = user.display_name ? decrypt(user.display_name) : user.github_username; } catch { user.display_name = user.github_username; }
+    }
+    return { ...m, user };
   });
-  let html='';
-  // Urgent section at top
-  if(urgentTasks.length){
-    html+='<div class="urgent-section"><div class="urgent-label">🔴 Urgent / Deadline Soon ('+urgentTasks.length+')</div>'+
-      urgentTasks.map(t=>buildKPCard(t,true)).join('')+'</div>';
-  }
-  // Columns
-  COLS.forEach(col=>{
-    const tasks=S.tasks.filter(t=>t.status===col.id);
-    if(!tasks.length&&!['not_started','in_progress'].includes(col.id))return;
-    html+='<div class="kp-col"><div class="kp-col-hdr" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">'+
-      '<div class="kp-col-title"><div style="width:7px;height:7px;border-radius:50%;background:'+col.dot+'"></div>'+col.label+'</div>'+
-      '<span class="kp-col-count">'+tasks.length+'</span>'+
-    '</div><div class="kp-col-body">'+
-      tasks.map(t=>buildKPCard(t,false)).join('')+
-      (S.myPerms.canAssign?'<div class="kp-add-btn" onclick="openNewTaskInCol(\''+col.id+'\')">+ Add task</div>':'')+
-    '</div></div>';
-  });
-  if(!S.tasks.length) html='<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No tasks yet</div><div class="empty-desc">Create the first task for this project</div></div>';
-  scroll.innerHTML=html;
-}
+  ok(res, members);
+});
 
-function buildKPCard(t,urgent){
-  const mine=t.assigned_to===S.user?.id;
-  const dl=deadline(t.deadline);
-  const assignee=S.members.find(m=>m.user?.id===t.assigned_to||m.user_id===t.assigned_to)?.user||null;
-  const initials=assignee?(assignee.display_name||assignee.handle||'?').slice(0,2).toUpperCase():'?';
-  const urgentCls=urgent?'urgent':(t.priority==='urgent'?'urgent':dl.cls==='kp-dl-soon'?'deadline-soon':'');
-  return '<div class="kp-card'+(mine?' mine':'')+' '+urgentCls+'" onclick="openTaskDetail(\''+esc(t.id)+'\')">'+
-    '<div class="kp-card-title">'+esc(t.title||'')+'</div>'+
-    '<div class="kp-card-meta">'+
-      '<span class="kp-prio kp-'+(t.priority||'normal')+'">'+esc((t.priority||'normal').toUpperCase())+'</span>'+
-      (t.branch_name?'<span class="kp-branch">🌿 '+esc(t.branch_name)+'</span>':'')+
-      (assignee?'<div style="display:flex;align-items:center;gap:3px;font-size:9px;color:var(--tx4);margin-left:2px"><div style="width:14px;height:14px;border-radius:50%;background:'+(assignee.avatar_color||'#22c55e')+';display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#000">'+initials+'</div>'+esc(assignee.display_name||assignee.handle||'')+'</div>':'')+
-      '<span class="kp-deadline '+dl.cls+'" style="margin-left:auto">'+dl.label+'</span>'+
-    '</div>'+
-    (t.rejection_reason?'<div style="font-size:9px;color:var(--red);margin-top:4px;background:var(--red-dim);padding:2px 5px;border-radius:3px">⚠ '+esc(t.rejection_reason)+'</div>':'')+
-    // Quick action buttons for mine
-    (mine&&t.status==='not_started'?'<button class="twc-btn twc-start" style="font-size:9px;padding:2px 8px;margin-top:5px" onclick="event.stopPropagation();startTask(\''+t.id+'\')">▶ Start</button>':'')+
-    (mine&&t.status==='in_progress'?'<button class="twc-btn twc-submit" style="font-size:9px;padding:2px 8px;margin-top:5px" onclick="event.stopPropagation();submitTaskReview(\''+t.id+'\')">⇄ Submit</button>':'')+
-    ((S.myPerms.canApprove)&&t.status==='in_review'?'<div style="display:flex;gap:3px;margin-top:5px"><button class="twc-btn twc-approve" style="font-size:9px;padding:2px 6px" onclick="event.stopPropagation();approveTask(\''+t.id+'\')">✓</button><button class="twc-btn twc-reject" style="font-size:9px;padding:2px 6px" onclick="event.stopPropagation();rejectTask(\''+t.id+'\')">✕</button></div>':'')+
-  '</div>';
-}
+// ── TEAMS ─────────────────────────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/teams', authenticate, async (req,res) => {
+  const { data } = await db.teamsByWorkspace(req.params.wid);
+  ok(res, data||[]);
+});
 
-function openNewTaskInCol(status){ openNewTaskModal(status); }
+app.post('/api/workspaces/:wid/teams', authenticate, async (req,res) => {
+  try {
+    const { name, description, color } = req.body;
+    if (!name) return fail(res,'Name required');
+    const { data, error } = await db.createTeam({ id:uuid(), workspace_id:req.params.wid, name:safeStr(name,100), description:safeStr(description||'',300), color:color||'#39d353', lead_id:req.userId, created_at:new Date().toISOString() });
+    if (error) return fail(res, error.message);
+    await db.addTeamMember(data.id, req.userId, 'lead');
+    ok(res, data, 201);
+  } catch(e) { fail(res, e.message); }
+});
 
-// ── TASK DETAIL ──────────────────────────────────────────────────────────
-function openTaskDetail(taskId){
-  const t=S.tasks.find(x=>x.id===taskId);
-  if(!t)return;
-  const mine=t.assigned_to===S.user?.id;
-  const assignee=S.members.find(m=>m.user?.id===t.assigned_to)?.user||{};
-  const dl=deadline(t.deadline);
-  const statusLabels={not_started:'Not Started',in_progress:'In Progress',in_review:'In Review',approved:'Approved',done:'Done',blocked:'Blocked'};
-  document.getElementById('tm-title').textContent=t.title||'Task';
-  document.getElementById('tm-body').innerHTML=
-    '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px">'+
-      '<span class="prio-chip prio-'+(t.priority||'normal')+'">'+(t.priority||'normal').toUpperCase()+'</span>'+
-      '<span class="chip chip-'+(t.status==='done'||t.status==='approved'?'done':t.status==='in_review'?'review':t.status==='blocked'?'blocked':'open')+'">'+esc(statusLabels[t.status]||t.status)+'</span>'+
-      '<span class="'+dl.cls+'" style="font-size:11px;color:var(--tx3)">📅 '+dl.label+'</span>'+
-    '</div>'+
-    (t.description?'<div style="font-size:12px;color:var(--tx2);line-height:1.7;padding:10px;background:var(--c0);border-radius:var(--r8);margin-bottom:12px">'+esc(t.description)+'</div>':'')+
-    '<div style="font-size:11px;color:var(--tx3);display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">'+
-      '<span>👤 '+esc(assignee.display_name||assignee.handle||'Unassigned')+'</span>'+
-      (t.branch_name?'<span style="color:var(--blue);font-family:monospace;font-size:10px">🌿 '+esc(t.branch_name)+'</span>':'')+
-      (t.linked_file?'<span style="color:var(--blue);font-family:monospace;font-size:10px">📄 '+esc(t.linked_file)+'</span>':'')+
-    '</div>'+
-    (t.pr_url?'<a href="'+esc(t.pr_url)+'" target="_blank" style="color:var(--blue);font-size:12px;display:inline-flex;align-items:center;gap:4px">⇄ View Pull Request ↗</a>':'')+
-    (t.rejection_reason?'<div style="margin-top:10px;font-size:11px;color:var(--red);background:var(--red-dim);border:1px solid rgba(239,68,68,.2);border-radius:var(--r8);padding:8px">⚠ Changes requested: '+esc(t.rejection_reason)+'</div>':'');
+app.post('/api/teams/:tid/members', authenticate, async (req,res) => {
+  try {
+    const { userId, role='developer' } = req.body;
+    const { data, error } = await db.addTeamMember(req.params.tid, userId, role);
+    if (error) return fail(res, error.message);
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
 
-  let ftr='';
-  if(mine&&t.status==='not_started') ftr+='<button class="btn btn-primary" onclick="startTask(\''+t.id+'\');closeTaskModal()">▶ Start Task</button>';
-  if(mine&&t.status==='in_progress') ftr+='<button class="btn btn-primary" onclick="submitTaskReview(\''+t.id+'\');closeTaskModal()">⇄ Submit for Review</button>';
-  if(S.myPerms.canApprove&&t.status==='in_review'){
-    ftr+='<button class="btn btn-primary" onclick="approveTask(\''+t.id+'\');closeTaskModal()">✓ Approve</button>';
-    ftr+='<button class="btn" style="background:var(--red-dim);color:var(--red)" onclick="rejectTask(\''+t.id+'\');closeTaskModal()">✕ Request Changes</button>';
-  }
-  ftr+='<button class="btn btn-secondary" onclick="closeTaskModal()">Close</button>';
-  document.getElementById('tm-ftr').innerHTML=ftr;
-  const mo=document.getElementById('task-modal');mo.style.display='flex';
-}
-function closeTaskModal(){ document.getElementById('task-modal').style.display='none'; }
+app.delete('/api/teams/:tid/members/:uid', authenticate, async (req,res) => {
+  await db.removeTeamMember(req.params.tid, req.params.uid);
+  ok(res, { message:'Removed' });
+});
 
-function openNewTaskModal(defaultStatus){
-  document.getElementById('new-task-modal').style.display='flex';
-  if(defaultStatus) document.getElementById('nt-prio').value=(defaultStatus==='not_started'?'normal':'medium');
-}
+// ── PROJECTS ──────────────────────────────────────────────────────────────────
 
-async function submitNewTask(){
-  const title=safe(document.getElementById('nt-title').value,300);
-  const desc=safe(document.getElementById('nt-desc').value,5000);
-  const prio=document.getElementById('nt-prio').value;
-  const dl=document.getElementById('nt-deadline').value;
-  const handle=safe(document.getElementById('nt-assign').value,50).replace('@','');
-  const file=safe(document.getElementById('nt-file').value,500);
-  if(!title){toast('e','Error','Title required');return;}
-  let assignedTo=S.user?.id;
-  if(handle){const u=S.members.find(m=>m.user?.handle===handle||m.user?.github_username===handle);if(u?.user?.id)assignedTo=u.user.id;}
-  try{
-    // Get project ID
-    const projs=await GET('/workspaces/'+S.project?.workspace_id+'/projects');
-    const proj=projs.find(p=>p.id===S.projectId)||projs[0];
-    const task=await POST('/projects/'+S.projectId+'/tasks',{title,description:desc,priority:prio,assignedTo,deadline:dl||null,linkedFile:file||null});
-    S.tasks.unshift(task);renderKanban();
-    document.getElementById('new-task-modal').style.display='none';
-    toast('s','Task created','');
-    ['nt-title','nt-desc','nt-assign','nt-file'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  }catch(e){toast('e','Error',e.message);}
-}
+// ── PROJECT DETAIL + DASHBOARD DATA ──────────────────────────────────────
+app.get('/api/projects/:id', authenticate, async (req,res) => {
+  try {
+    const { data:proj } = await db.projectById(req.params.id);
+    if (!proj) return fail(res,'Not found',404);
+    const name = proj.name ? tryDecrypt(proj.name) : 'Project';
+    ok(res, { ...proj, name });
+  } catch(e) { fail(res, e.message); }
+});
 
-// ── TASK ACTIONS ──────────────────────────────────────────────────────────
-async function startTask(id){
-  try{
-    const r=await POST('/tasks/'+id+'/start',{});
-    const t=S.tasks.find(x=>x.id===id);
-    if(t){t.status='in_progress';t.branch_name=r.branchName;}
-    renderKanban();
-    toast('s','Task started!',r.branchName?'Branch: '+r.branchName:'');
-  }catch(e){toast('e','Error',e.message);}
-}
-async function submitTaskReview(id){
-  const t=S.tasks.find(x=>x.id===id);
-  if(!t)return;
-  const prTitle=prompt('PR Title:',t.title||'');
-  if(prTitle===null)return;
-  try{
-    const r=await POST('/tasks/'+id+'/submit-review',{prTitle,prBody:''});
-    t.status='in_review';t.pr_url=r.pr?.html_url||null;
-    renderKanban();toast('s','Submitted for review ⇄',r.pr?.html_url?'PR opened on GitHub':'Lead notified');
-  }catch(e){toast('e','Error',e.message);}
-}
-async function approveTask(id){
-  try{await POST('/tasks/'+id+'/approve',{});const t=S.tasks.find(x=>x.id===id);if(t)t.status='approved';renderKanban();toast('s','Approved ✓','');}
-  catch(e){toast('e','Error',e.message);}
-}
-async function rejectTask(id){
-  const reason=prompt('Reason for requesting changes:');if(!reason)return;
-  try{await POST('/tasks/'+id+'/reject',{reason});const t=S.tasks.find(x=>x.id===id);if(t){t.status='in_progress';t.rejection_reason=reason;}renderKanban();toast('i','Changes requested','');}
-  catch(e){toast('e','Error',e.message);}
-}
+app.get('/api/projects/:id/dashboard', authenticate, async (req,res) => {
+  try {
+    const { data:proj } = await db.projectById(req.params.id);
+    if (!proj) return fail(res,'Not found',404);
+    const name = proj.name ? tryDecrypt(proj.name) : 'Project';
+    // Get all tasks for this project
+    const { data:tasksRaw } = await db.tasksByProject(req.params.id);
+    const tasks = (tasksRaw||[]).map(decryptTask);
+    // Get project members
+    const { data:members } = await db.supabase()
+      .from('project_members')
+      .select('*, user:users(id,handle,display_name,avatar_url,avatar_color,role,status,last_active)')
+      .eq('project_id', req.params.id);
+    // Get linked repos
+    const { data:repos } = await db.supabase()
+      .from('linked_repos').select('*').eq('workspace_id', proj.workspace_id);
+    // Find project-specific repo (by name matching or first linked repo)
+    const projectRepo = repos?.[0] || null;
+    // Task stats
+    const stats = {
+      total: tasks.length,
+      not_started: tasks.filter(t=>t.status==='not_started').length,
+      in_progress: tasks.filter(t=>t.status==='in_progress').length,
+      in_review: tasks.filter(t=>t.status==='in_review').length,
+      approved: tasks.filter(t=>t.status==='approved').length,
+      done: tasks.filter(t=>t.status==='done').length,
+      blocked: tasks.filter(t=>t.status==='blocked').length,
+      urgent: tasks.filter(t=>t.priority==='urgent'&&t.status!=='done').length,
+    };
+    const progress = tasks.length ? Math.round(tasks.filter(t=>t.status==='done'||t.status==='approved').length/tasks.length*100) : 0;
+    ok(res, { project:{...proj,name}, tasks, members:members||[], stats, progress, repo:projectRepo });
+  } catch(e) { fail(res, e.message); }
+});
 
-// ── CHAT ──────────────────────────────────────────────────────────────────
-function renderMessages(){
-  const area=document.getElementById('msgs-area');
-  const msgs=S.messages||[];
-  if(!msgs.length){
-    area.innerHTML='<div class="empty"><div class="empty-icon">💬</div><div class="empty-title">Project Chat</div><div class="empty-desc">Start the conversation with your project team</div></div>';
-    return;
-  }
-  area.innerHTML='<div class="msgs-date-sep">Today</div>';
-  let lastUser=null,lastTs=0;
-  msgs.forEach(m=>{
-    const cont=m.userId===lastUser&&(new Date(m.ts||m.created_at).getTime()-lastTs)<300000;
-    appendMsg(m,cont,false);
-    lastUser=m.userId;lastTs=new Date(m.ts||m.created_at).getTime();
-  });
-  scrollMsgs();
-}
+app.get('/api/projects/:id/members', authenticate, async (req,res) => {
+  try {
+    const { data } = await db.supabase()
+      .from('project_members')
+      .select('*, user:users(id,handle,display_name,avatar_url,avatar_color,role,status,last_active,github_username)')
+      .eq('project_id', req.params.id);
+    ok(res, (data||[]).map(m => {
+      const u = m.user||{};
+      try { if(u.display_name) u.display_name = tryDecrypt(u.display_name); } catch{}
+      return { ...m, user:safeUser(u) };
+    }));
+  } catch(e) { fail(res, e.message); }
+});
 
-function appendMsg(m,cont=false,animate=false){
-  const area=document.getElementById('msgs-area');
-  if(!area)return;
-  const u=S.members.find(mb=>mb.user?.id===m.userId)?.user||m.user||{};
-  const initials=(u.display_name||u.github_username||'?').replace(/[^A-Za-z0-9 ]/g,'').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
-  const color=u.avatar_color||'#22c55e';
-  const time=new Date(m.ts||m.created_at||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  const el=document.createElement('div');
-  el.className='msg'+(cont?' cont':'');
-  el.dataset.mid=m.id;
-  let codeHtml='';
-  if(m.code&&!m.deleted){
-    codeHtml='<div class="msg-code-block"><div class="msg-code-hdr"><span class="code-lang">'+esc((m.code.lang||'code').toUpperCase())+'</span><span class="code-copy" onclick="navigator.clipboard.writeText(this.closest(\'.msg-code-block\').querySelector(\'.code-body\').textContent).then(()=>toast(\'s\',\'Copied\',\'\'))">Copy</span></div><pre class="code-body">'+esc(m.code.body||'')+'</pre></div>';
-  }
-  el.innerHTML=
-    '<div class="msg-av" style="background:'+color+'">'+initials+'</div>'+
-    '<div class="msg-body">'+
-      '<div class="msg-meta"><span class="msg-name">'+esc(u.display_name||u.github_username||m.userId||'')+'</span><span class="msg-ts">'+time+'</span></div>'+
-      '<div class="msg-text">'+(m.deleted?'<span style="color:var(--tx4);font-style:italic">[deleted]</span>':fmtText(m.content||''))+'</div>'+
-      codeHtml+
-    '</div>';
-  const emp=area.querySelector('.empty');if(emp)emp.remove();
-  area.appendChild(el);
-}
-function scrollMsgs(){const a=document.getElementById('msgs-area');if(a)a.scrollTop=a.scrollHeight;}
-function renderTyping(){
-  const users=Object.entries(S.typingUsers).filter(([k])=>!k.startsWith('_')).map(([,v])=>v);
-  const bar=document.getElementById('typing-bar');
-  if(!users.length){bar.innerHTML='';return;}
-  bar.innerHTML='<div class="typing-dots"><span></span><span></span><span></span></div>'+esc(users.join(', '))+' typing...';
-}
-function sendMsg(){
-  const ta=document.getElementById('msg-input');const raw=ta.value.trim();
-  if(!raw||!S.user)return;
-  ta.value='';ta.style.height='auto';
-  if(!S.projectChannel?.id){toast('e','No channel','Project channel not found');return;}
-  let text=raw,code=null;
-  const cm=raw.match(/```(\w*)\n?([\s\S]*?)```/s);
-  if(cm){code={lang:cm[1]||'javascript',body:cm[2].trim()};text=raw.replace(/```[\s\S]*?```/g,'').trim();}
-  if(S.socket?.connected){
-    S.socket.emit('msg:send',{channelId:S.projectChannel.id,content:text,type:code?'code':'text',code});
-    stopTyping();
-  }
-}
-function handleMsgKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
-function onMsgInput(el){
-  autoGrow(el);
-  if(!S.projectChannel?.id||!S.socket?.connected)return;
-  S.socket.emit('typing:start',{channelId:S.projectChannel.id});
-  clearTimeout(S.typingTimer);S.typingTimer=setTimeout(stopTyping,2000);
-}
-function stopTyping(){if(S.projectChannel?.id&&S.socket?.connected)S.socket.emit('typing:stop',{channelId:S.projectChannel.id});}
-function insertAtCursor(text){const ta=document.getElementById('msg-input');if(!ta)return;const s=ta.selectionStart;ta.value=ta.value.slice(0,s)+text+ta.value.slice(s);ta.setSelectionRange(s+text.length,s+text.length);ta.focus();}
-function insertCodeBlock(){const ta=document.getElementById('msg-input');ta.value+=(ta.value?'\n':'')+'```javascript\n// code\n```';ta.focus();autoGrow(ta);}
+app.delete('/api/projects/:id/members/:uid', authenticate, async (req,res) => {
+  try {
+    await db.supabase().from('project_members').delete().eq('project_id',req.params.id).eq('user_id',req.params.uid);
+    ok(res, { removed:true });
+  } catch(e) { fail(res, e.message); }
+});
 
-// ── RIGHT PANEL ───────────────────────────────────────────────────────────
-function switchRPTab(tab){
-  ['team','commits','ai'].forEach(t=>{
-    document.getElementById('rp-'+t)?.classList.toggle('hidden',t!==tab);
-    const el=document.getElementById('rpt-'+t);if(el)el.classList.toggle('active',t===tab);
-  });
-  if(tab==='ai') setTimeout(()=>document.getElementById('ai-mini-ta')?.focus(),50);
-}
+app.patch('/api/projects/:id/tasks/:tid/status', authenticate, async (req,res) => {
+  try {
+    const { status } = req.body;
+    await db.updateTask(req.params.tid, { status, updated_at:new Date().toISOString() });
+    const { data:task } = await db.taskById(req.params.tid);
+    io.to('ws:'+(task?.workspace_id||'')).emit('task:updated', { task:decryptTask(task) });
+    ok(res, { status });
+  } catch(e) { fail(res, e.message); }
+});
 
-function renderRPTeam(){
-  const el=document.getElementById('rp-members-list');if(!el)return;
-  el.innerHTML=S.members.map(m=>{
-    const u=m.user||{};
-    const isOnline=S.online[u.id];
-    const initials=(u.display_name||u.handle||'?').slice(0,2).toUpperCase();
-    const myTask=S.tasks.find(t=>t.assigned_to===u.id&&t.status!=='done'&&t.status!=='approved');
-    return '<div class="rp-member">'+
-      '<div class="online-dot '+(isOnline?'on':'of')+'"></div>'+
-      '<div class="rp-av" style="background:'+(u.avatar_color||'#22c55e')+'">'+initials+'</div>'+
-      '<div class="rp-info">'+
-        '<div class="rp-name">'+esc(u.display_name||u.handle||'User')+'</div>'+
-        (myTask?'<div class="rp-task">📋 '+esc(myTask.title.slice(0,30))+'</div>':'<div class="rp-task">No active task</div>')+
-      '</div>'+
-    '</div>';
-  }).join('')||'<div style="font-size:10px;color:var(--tx4)">No members</div>';
-}
+app.delete('/api/projects/:id', authenticate, async (req,res) => {
+  try {
+    const { data:proj } = await db.projectById(req.params.id);
+    if (!proj) return fail(res,'Not found',404);
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',proj.workspace_id).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','CREATE_PROJECT')) return fail(res,'Permission denied',403);
+    await db.supabase().from('tasks').delete().eq('project_id',req.params.id);
+    await db.supabase().from('project_members').delete().eq('project_id',req.params.id);
+    await db.supabase().from('projects').delete().eq('id',req.params.id);
+    io.to('ws:'+proj.workspace_id).emit('project:deleted', { projectId:req.params.id });
+    ok(res, { deleted:true });
+  } catch(e) { fail(res, e.message); }
+});
 
-async function loadRPCommits(){
-  const el=document.getElementById('rp-commits-list');if(!el||!S.repo)return;
-  try{
-    const commits=await GET('/repos/'+S.repo.id+'/commits');
-    el.innerHTML=(commits||[]).slice(0,8).map(c=>'<div class="commit-sm">'+
-      '<div class="commit-sha-sm" onclick="navigator.clipboard.writeText(\''+esc(c.sha||'')+'\').then(()=>toast(\'s\',\'SHA copied\',\'\'))">'+esc(c.sha?.slice(0,7)||'')+'</div>'+
-      '<div class="commit-msg-sm">'+esc(c.commit?.message?.split('\n')[0]||'')+'</div>'+
-      '<div class="commit-meta-sm">'+esc(c.commit?.author?.name||'')+' · '+new Date(c.commit?.author?.date||Date.now()).toLocaleDateString()+'</div>'+
-    '</div>').join('')||'<div style="font-size:10px;color:var(--tx4)">No commits yet</div>';
-  }catch{el.innerHTML='<div style="font-size:10px;color:var(--tx4)">No repo linked</div>';}
-}
+// ── CHANNEL MANAGEMENT ────────────────────────────────────────────────────
+app.patch('/api/channels/:id', authenticate, async (req,res) => {
+  try {
+    const { name, description, type } = req.body;
+    const updates = {};
+    if (name) updates.name = safeStr(name.toLowerCase().replace(/[^a-z0-9-]/g,'-'),50);
+    if (description !== undefined) updates.description = safeStr(description||'',300);
+    if (type) updates.type = type;
+    const { data, error } = await db.supabase().from('channels').update(updates).eq('id',req.params.id).select().single();
+    if (error) return fail(res, error.message);
+    io.to('ws:'+(data?.workspace_id||'')).emit('channel:updated', { channel:data });
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
 
-async function loadRPPRs(){
-  const el=document.getElementById('rp-prs-list');if(!el||!S.repo)return;
-  try{
-    const prs=await GET('/repos/'+S.repo.id+'/prs?state=open');
-    if(!(prs||[]).length){el.innerHTML='<div style="font-size:10px;color:var(--tx4)">No open PRs</div>';return;}
-    el.innerHTML=prs.slice(0,4).map(pr=>'<div class="pr-sm">'+
-      '<div class="pr-sm-title">'+esc(pr.title||'')+'</div>'+
-      '<div class="pr-sm-meta">'+
-        '<span class="pr-badge-sm pr-open">open</span>'+
-        '<span style="font-size:9px;color:var(--tx4)">#'+pr.number+'</span>'+
-        (pr.html_url?'<a href="'+esc(pr.html_url)+'" target="_blank" style="font-size:9px;color:var(--blue);margin-left:auto">View ↗</a>':'')+
-      '</div></div>').join('');
-  }catch{el.innerHTML='<div style="font-size:10px;color:var(--tx4)">No repo linked</div>';}
-}
+app.delete('/api/channels/:id', authenticate, async (req,res) => {
+  try {
+    const { data:ch } = await db.supabase().from('channels').select('*').eq('id',req.params.id).single();
+    if (!ch) return fail(res,'Not found');
+    if (['general','github-feed','ai-help'].includes(ch.name)) return fail(res,'Cannot delete default channels');
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',ch.workspace_id).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','CREATE_CHANNEL')) return fail(res,'Permission denied',403);
+    await db.supabase().from('messages').delete().eq('channel_id',req.params.id);
+    await db.supabase().from('channel_members').delete().eq('channel_id',req.params.id);
+    await db.supabase().from('channels').delete().eq('id',req.params.id);
+    io.to('ws:'+ch.workspace_id).emit('channel:deleted', { channelId:req.params.id });
+    ok(res, { deleted:true });
+  } catch(e) { fail(res, e.message); }
+});
 
-// ── FULL TEAM TAB ─────────────────────────────────────────────────────────
-function renderFullTeam(){
-  const el=document.getElementById('full-team-list');if(!el)return;
-  el.innerHTML=S.members.map(m=>{
-    const u=m.user||{};
-    const isOnline=S.online[u.id];
-    const initials=(u.display_name||u.handle||'?').replace(/[^A-Za-z0-9 ]/g,'').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
-    const myTask=S.tasks.find(t=>t.assigned_to===u.id&&t.status!=='done');
-    return '<div class="team-member-row">'+
-      '<div class="tm-av" style="background:'+(u.avatar_color||'#22c55e')+'">'+initials+
-        '<div class="tm-status-dot" style="background:'+(isOnline?'var(--gr)':'var(--c5)')+'"></div>'+
-      '</div>'+
-      '<div style="flex:1;min-width:0">'+
-        '<div class="tm-name">'+esc(u.display_name||u.github_username||u.handle||'User')+'</div>'+
-        '<div class="tm-role"><span class="role-tag role-'+(m.role||'developer')+'">'+esc(m.role||'developer')+'</span> @'+esc(u.handle||u.github_username||'')+'</div>'+
-        (myTask?'<div class="tm-task">📋 '+esc(myTask.title.slice(0,50))+'</div>':'<div style="font-size:10px;color:var(--tx4);margin-top:1px">No active task</div>')+
-      '</div>'+
-      '<div class="tm-actions">'+
-        (S.myPerms.canAssign?'<button class="btn btn-secondary btn-sm" onclick="openAssignToMember(\''+esc(u.id)+'\')">Assign Task</button>':'')+ 
-      '</div>'+
-    '</div>';
-  }).join('')||'<div class="empty"><div class="empty-icon">👥</div><div class="empty-desc">No team members yet</div></div>';
-}
+// ── WORKSPACE PROJECTS WITH GITHUB MANDATORY ─────────────────────────────
 
-function openAssignToMember(userId){
-  openNewTaskModal();
-  const u=S.members.find(m=>m.user?.id===userId)?.user||{};
-  setTimeout(()=>{const el=document.getElementById('nt-assign');if(el)el.value='@'+(u.handle||u.github_username||'');},100);
-}
+app.get('/api/workspaces/:wid/projects', authenticate, async (req,res) => {
+  const { data } = await db.projectsByWorkspace(req.params.wid);
+  ok(res, data||[]);
+});
 
-// ── REPO TAB ──────────────────────────────────────────────────────────────
-async function loadRepo(){
-  if(!S.repo)return;
-  try{
-    const branches=await GET('/repos/'+S.repo.id+'/branches');
-    const sel=document.getElementById('branch-sel');
-    if(sel){sel.innerHTML=branches.map(b=>'<option value="'+esc(b.name)+'">'+esc(b.name)+'</option>').join('');S.currentBranch=branches[0]?.name||'main';}
-    loadTree('');
-  }catch{}
-}
-async function loadTree(path=''){
-  if(!S.repo)return;
-  const tree=document.getElementById('file-tree');if(!tree)return;
-  try{
-    const items=await GET('/repos/'+S.repo.id+'/tree?path='+encodeURIComponent(path)+'&ref='+S.currentBranch);
-    const sorted=Array.isArray(items)?[...items].sort((a,b)=>a.type.localeCompare(b.type)||a.name.localeCompare(b.name)):[];
-    const back=path?'<div class="file-item-sm" onclick="loadTree(\''+esc(path.split('/').slice(0,-1).join('/'))+'\')">← ..</div>':'';
-    tree.innerHTML=back+sorted.map(it=>'<div class="file-item-sm" onclick="'+(it.type==='dir'?'loadTree(\''+esc(it.path)+'\')':'loadFile(\''+esc(it.path)+'\')')+'">'+
-      (it.type==='dir'?'📁':'📄')+' '+esc(it.name)+'</div>').join('');
-  }catch{}
-}
-async function loadFile(path){
-  if(!S.repo)return;
-  try{
-    const f=await GET('/repos/'+S.repo.id+'/file?path='+encodeURIComponent(path)+'&ref='+S.currentBranch);
-    document.getElementById('file-breadcrumb').textContent=S.repo.full_name+' / '+path;
-    const fc=document.getElementById('file-content');fc.style.display='block';
-    const lines=(f.decoded_content||'').split('\n');
-    fc.innerHTML=lines.map((l,i)=>'<span style="display:inline-block;width:32px;color:var(--tx4);text-align:right;margin-right:14px;user-select:none">'+(i+1)+'</span>'+esc(l)+'\n').join('');
-    document.getElementById('file-empty').style.display='none';
-    document.querySelectorAll('.file-item-sm').forEach(el=>el.classList.toggle('active',el.textContent.trim().endsWith(path.split('/').pop())));
-  }catch(e){toast('e','Error',e.message);}
-}
-function copyFileContent(){const fc=document.getElementById('file-content');if(fc)navigator.clipboard.writeText(fc.innerText||'').then(()=>toast('s','Copied',''));}
-function aiReviewFile(){
-  const fc=document.getElementById('file-content');
-  const path=document.getElementById('file-breadcrumb').textContent;
-  if(!fc||!fc.style.display||fc.style.display==='none'){toast('e','Select a file first','');return;}
-  switchRPTab('ai');
-  const inp=document.getElementById('ai-mini-ta');
-  if(inp){inp.value='Review this file: '+path+'\n'+(fc.innerText||'').slice(0,2000);inp.focus();}
-}
+app.post('/api/workspaces/:wid/projects', authenticate, async (req,res) => {
+  try {
+    const { name, description, color='#22c55e', deadline, isPrivate=false } = req.body;
+    if (!name) return fail(res,'Name required');
+    // Check permission
+    const { data:member } = await db.supabase().from('workspace_members').select('role').eq('user_id',req.userId).eq('workspace_id',req.params.wid).single();
+    if (!hasPermission(member?.role||'viewer','CREATE_PROJECT')) return fail(res,'Permission denied',403);
 
-// ── TIMELINE TAB ─────────────────────────────────────────────────────────
-function renderTimeline(){
-  const el=document.getElementById('timeline-content');if(!el)return;
-  const tasks=S.tasks.filter(t=>t.deadline).sort((a,b)=>new Date(a.deadline)-new Date(b.deadline));
-  if(!tasks.length){el.innerHTML='<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">No deadlines set</div><div class="empty-desc">Add deadlines to tasks to see the timeline</div></div>';return;}
-  const now=Date.now();
-  const dates=tasks.map(t=>new Date(t.deadline).getTime());
-  const minD=Math.min(...dates,now);const maxD=Math.max(...dates,now+7*86400000);
-  const range=maxD-minD||1;
-  const STATUS_COLORS={not_started:'#52525b',in_progress:'#3b82f6',in_review:'#eab308',approved:'#22c55e',done:'#a855f7',blocked:'#ef4444'};
-  const todayPct=((now-minD)/range*100).toFixed(1);
-  const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const months=[];let cur=new Date(minD);cur.setDate(1);
-  while(cur.getTime()<maxD){months.push({label:MONTH_NAMES[cur.getMonth()]+' '+cur.getFullYear().toString().slice(2),pos:(cur.getTime()-minD)/range});cur.setMonth(cur.getMonth()+1);}
-  const monthHtml='<div class="tl-month-row">'+months.map(m=>'<div class="tl-month-lbl" style="margin-left:'+Math.round(m.pos*100)+'%">'+esc(m.label)+'</div>').join('')+'</div>';
-  const rowsHtml=tasks.map(t=>{
-    const s=Math.max(0,(new Date(t.created_at||now).getTime()-minD)/range*100).toFixed(1);
-    const w=Math.max(1,(new Date(t.deadline).getTime()-new Date(t.created_at||now).getTime())/range*100).toFixed(1);
-    const c=STATUS_COLORS[t.status]||'#52525b';
-    const mine=t.assigned_to===S.user?.id;
-    return '<div class="tl-row">'+
-      '<div class="tl-lbl" title="'+esc(t.title||'')+'" style="'+(mine?'color:var(--gr)':'')+'">'+(mine?'★ ':'')+esc((t.title||'').slice(0,25))+'</div>'+
-      '<div class="tl-track">'+
-        '<div class="tl-today" style="left:'+todayPct+'%"></div>'+
-        '<div class="tl-bar" style="left:'+s+'%;width:'+w+'%;background:'+c+'" title="'+esc(t.title||'')+'"><span class="tl-bar-lbl">'+esc((t.title||'').slice(0,18))+'</span></div>'+
-      '</div></div>';
-  }).join('');
-  const legendHtml='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;padding-left:150px;font-size:10px;color:var(--tx3)">'+
-    Object.entries(STATUS_COLORS).map(([s,c])=>'<span style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:2px;background:'+c+'"></div>'+s.replace(/_/g,' ')+'</span>').join('')+'</div>';
-  el.innerHTML=monthHtml+rowsHtml+legendHtml;
-}
+    // MANDATORY: Create GitHub repo
+    let ghRepo = null;
+    const token = tryDecrypt(req.user.github_access_token);
+    const repoSlug = name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,100);
+    try {
+      ghRepo = await gh.createRepo(repoSlug, description||('DevCollab project: '+name), isPrivate, token);
+    } catch(ghErr) {
+      // If repo already exists with same name, try to get it
+      try { ghRepo = await gh.getRepo(req.user.github_username, repoSlug, token); }
+      catch { return fail(res,'GitHub repo creation failed: '+ghErr.message); }
+    }
 
-// ── TOP TABS ──────────────────────────────────────────────────────────────
-function switchTopTab(tab){
-  ['workspace','team','repo','timeline'].forEach(t=>{
-    const panel=document.getElementById('tab-'+t);
-    if(panel)panel.style.display=t===tab?'flex':'none';
-    const tabEl=document.getElementById('ttab-'+t);
-    if(tabEl)tabEl.classList.toggle('active',t===tab);
-  });
-  if(tab==='repo'&&S.repo&&!document.getElementById('branch-sel')?.options?.length)loadRepo();
-  if(tab==='timeline')renderTimeline();
-}
+    const p = {
+      id:uuid(), workspace_id:req.params.wid,
+      name: encrypt(safeStr(name,100)),
+      description: description ? encrypt(safeStr(description,1000)) : null,
+      color, deadline:deadline||null, status:'active',
+      created_by:req.userId,
+      created_at:new Date().toISOString(), updated_at:new Date().toISOString(),
+    };
+    // Store github info in metadata (avoid adding non-existent columns)
+    const ghMeta = { full_name: ghRepo.full_name, html_url: ghRepo.html_url, id: ghRepo.id };
+    const { data, error } = await db.createProject(p);
+    if (error) return fail(res, error.message);
 
-// ── AI MINI ───────────────────────────────────────────────────────────────
-async function sendAIMini(){
-  const inp=document.getElementById('ai-mini-ta');const text=inp?.value?.trim();
-  if(!text)return;
-  inp.value='';
-  appendAIMini('user',text);
-  const thinkEl=document.createElement('div');thinkEl.className='ai-mini-bubble bot';thinkEl.id='ai-mini-think';thinkEl.textContent='Thinking...';
-  document.getElementById('ai-mini-msgs').appendChild(thinkEl);
-  document.getElementById('ai-mini-msgs').scrollTop=99999;
-  // Add project context
-  const ctx='[Project: '+esc(S.project?.name||'')+' | Tasks: '+S.tasks.length+' | Repo: '+esc(S.repo?.full_name||'none')+' | My role: '+(S.myRole||'developer')+']';
-  try{
-    const res=await fetch(API+'/ai/chat',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+S.token},body:JSON.stringify({message:text+'\n\n'+ctx,history:S.aiHistory.slice(-6),mode:'lite'})});
-    const data=await res.json().catch(()=>({}));
-    const reply=(data.data?.reply||data.reply||data.data||'No response').toString();
-    S.aiHistory.push({role:'user',text});S.aiHistory.push({role:'model',text:reply});
-    document.getElementById('ai-mini-think')?.remove();
-    appendAIMini('bot',reply);
-  }catch(e){document.getElementById('ai-mini-think')?.remove();appendAIMini('bot','Error: '+e.message);}
-}
-function appendAIMini(role,text){
-  const msgs=document.getElementById('ai-mini-msgs');
-  const el=document.createElement('div');el.className='ai-mini-bubble '+(role==='user'?'user':'bot');
-  if(role==='bot'){
-    // Simple markdown for bot
-    let html=esc(text);
-    html=html.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-    html=html.replace(/`([^`]+)`/g,'<code>$1</code>');
-    html=html.replace(/\n/g,'<br>');
-    el.innerHTML=html;
-  } else {el.textContent=text;}
-  msgs.appendChild(el);msgs.scrollTop=99999;
-}
+    // Link repo to workspace
+    await db.createRepo({ id:uuid(), workspace_id:req.params.wid, github_repo_id:String(ghRepo.id), full_name:ghRepo.full_name, description:ghRepo.description||'', private:ghRepo.private, linked_by:req.userId, linked_at:new Date().toISOString() }).catch(()=>{});
 
-// ── INVITE ────────────────────────────────────────────────────────────────
-function openInviteMember(){
-  const handle=prompt('GitHub @handle of person to invite:');
-  if(!handle)return;
-  // Search for user then add to project
-  GET('/users/search?q='+encodeURIComponent(handle.replace('@',''))).then(users=>{
-    const u=users[0];
-    if(!u){toast('e','User not found','@'+handle+' is not registered on DevCollab Hub');return;}
-    return POST('/projects/'+S.projectId+'/members',{userId:u.id,role:'developer'}).then(()=>{
-      toast('s','Member added','@'+handle+' added to project');
-      GET('/projects/'+S.projectId+'/dashboard').then(data=>{
-        S.members=(data.members||[]).map(m=>{const u2=m.user||{};try{if(u2.display_name&&u2.display_name.length>60)u2.display_name=u2.github_username||'';}catch{}return{...m,user:u2};});
-        renderRPTeam();renderFullTeam();
-      });
+    // Add creator as project owner
+    await db.addProjectMember(data.id, req.userId, 'owner');
+
+    // Create project-specific private channel with REAL project name
+    const chanName = 'proj-'+repoSlug.slice(0,25);
+    const newCh = await db.createChannel({ id:uuid(), workspace_id:req.params.wid, name:chanName, description:'Project: '+name, type:'private', created_by:req.userId, archived:false, created_at:new Date().toISOString() }).catch(()=>({data:null}));
+
+    io.to('ws:'+req.params.wid).emit('project:created', { project:{...data, name, github_repo:ghRepo.full_name, github_url:ghRepo.html_url}, repo:ghRepo });
+    ok(res, { ...data, name, github_repo:ghMeta.full_name, github_url:ghMeta.html_url }, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.patch('/api/projects/:id', authenticate, async (req,res) => {
+  try {
+    const allowed = ['name','description','color','deadline','status'];
+    const updates = {};
+    for (const k of allowed) if (req.body[k]!==undefined) updates[k]=req.body[k];
+    const { data, error } = await db.updateProject(req.params.id, updates);
+    if (error) return fail(res, error.message);
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/projects/:id/members', authenticate, async (req,res) => {
+  try {
+    const { userId, role='contributor' } = req.body;
+    const { data, error } = await db.addProjectMember(req.params.id, userId, role);
+    if (error) return fail(res, error.message);
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── TASKS ─────────────────────────────────────────────────────────────────────
+app.get('/api/projects/:pid/tasks', authenticate, async (req,res) => {
+  const { data } = await db.tasksByProject(req.params.pid);
+  const tasks = (data||[]).map(t => decryptTask(t));
+  ok(res, tasks);
+});
+
+app.get('/api/tasks/mine', authenticate, async (req,res) => {
+  const { data } = await db.tasksByAssignee(req.userId);
+  ok(res, (data||[]).map(decryptTask));
+});
+
+app.post('/api/projects/:pid/tasks', authenticate, async (req,res) => {
+  try {
+    const { title, description, priority='normal', assignedTo, deadline, linkedRepo, linkedFile, linkedBranch, linkedLines } = req.body;
+    if (!title) return fail(res,'Title required');
+    const tmpl = TASK_TEMPLATES[priority] || TASK_TEMPLATES.normal;
+    const dl = deadline || new Date(Date.now() + tmpl.deadlineHours*3600000).toISOString();
+    const { data:proj } = await db.projectById(req.params.pid);
+    if (!proj) return fail(res,'Project not found',404);
+
+    const task = {
+      id:uuid(), project_id:req.params.pid, workspace_id:proj.workspace_id,
+      title:encrypt(safeStr(title,300)),
+      description: description?encrypt(safeStr(description,5000)):null,
+      priority, status:TASK_STATUS.NOT_STARTED,
+      assigned_to:assignedTo||null, assigned_by:req.userId,
+      deadline:dl, linked_repo:linkedRepo||null, linked_file:linkedFile||null,
+      linked_branch:linkedBranch||null, linked_lines:linkedLines?JSON.stringify(linkedLines):null,
+      created_at:new Date().toISOString(), updated_at:new Date().toISOString(),
+    };
+    const { data, error } = await db.createTask(task);
+    if (error) return fail(res, error.message);
+
+    // Notify assignee
+    if (assignedTo && assignedTo !== req.userId) {
+      await db.createNotif({ id:uuid(), user_id:assignedTo, type:NOTIF_TYPE.TASK_ASSIGNED, title:encrypt(`New task assigned`), body:encrypt(safeStr(title,100)), read:false, data:JSON.stringify({taskId:data.id,priority}), created_at:new Date().toISOString() });
+      const sockets = onlineUsers.get(assignedTo);
+      if (sockets) sockets.forEach(sid => io.to(sid).emit('task:assigned', { task:decryptTask(data) }));
+    }
+    ok(res, decryptTask(data), 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.patch('/api/tasks/:id', authenticate, async (req,res) => {
+  try {
+    const { status, priority, deadline, title, description } = req.body;
+    const updates = {};
+    if (status) updates.status = status;
+    if (priority) updates.priority = priority;
+    if (deadline) updates.deadline = deadline;
+    if (title) updates.title = encrypt(safeStr(title,300));
+    if (description !== undefined) updates.description = description?encrypt(safeStr(description,5000)):null;
+    const { data, error } = await db.updateTask(req.params.id, updates);
+    if (error) return fail(res, error.message);
+    const updated = decryptTask(data);
+    if (updated.workspace_id) {
+      io.to(`ws:${updated.workspace_id}`).emit('task:updated', { task: updated });
+    }
+    ok(res, updated);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.delete('/api/tasks/:id', authenticate, async (req,res) => {
+  await db.deleteTask(req.params.id);
+  ok(res, { message:'Deleted' });
+});
+
+// ── CODE ASSIGNMENTS ──────────────────────────────────────────────────────────
+app.post('/api/code-assignments', authenticate, async (req,res) => {
+  try {
+    const { toUserId, taskId, repoId, filePath, startLine, endLine, code, note } = req.body;
+    const ca = {
+      id:uuid(), task_id:taskId||null, from_user:req.userId, to_user:toUserId,
+      repo_id:repoId||null, file_path:filePath||null,
+      start_line:startLine||null, end_line:endLine||null,
+      code_encrypted:code?encrypt(safeStr(code,20000)):null,
+      note_encrypted:note?encrypt(safeStr(note,1000)):null,
+      acknowledged:false, created_at:new Date().toISOString(),
+    };
+    const { data, error } = await db.createCodeAssignment(ca);
+    if (error) return fail(res, error.message);
+    // notify
+    await db.createNotif({ id:uuid(), user_id:toUserId, type:NOTIF_TYPE.CODE_ASSIGNED, title:encrypt('Code assignment'), body:encrypt(`From @${req.user.handle}: ${filePath||'snippet'}`), read:false, data:JSON.stringify({assignmentId:data.id}), created_at:new Date().toISOString() });
+    const sockets = onlineUsers.get(toUserId);
+    if (sockets) sockets.forEach(sid => io.to(sid).emit('code:assigned', { ...data, code:code, note:note }));
+    ok(res, data, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/code-assignments/mine', authenticate, async (req,res) => {
+  const { data } = await db.codeAssignmentsByUser(req.userId);
+  ok(res, (data||[]).map(ca => ({ ...ca, code: ca.code_encrypted ? tryDecrypt(ca.code_encrypted) : null, note: ca.note_encrypted ? tryDecrypt(ca.note_encrypted) : null })));
+});
+
+// ── CHANNELS ──────────────────────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/channels', authenticate, async (req,res) => {
+  const { data } = await db.channelsByWorkspace(req.params.wid);
+  ok(res, data||[]);
+});
+
+app.post('/api/workspaces/:wid/channels', authenticate, async (req,res) => {
+  try {
+    const { name, description, type='public' } = req.body;
+    if (!name) return fail(res,'Name required');
+    const clean = name.toLowerCase().replace(/[^a-z0-9-]/g,'-').slice(0,50);
+    const { data, error } = await db.createChannel({ id:uuid(), workspace_id:req.params.wid, name:clean, description:safeStr(description||'',300), type, created_by:req.userId, archived:false, created_at:new Date().toISOString() });
+    if (error) return fail(res, error.message);
+    io.to(`ws:${req.params.wid}`).emit('channel:created', data);
+    ok(res, data, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.delete('/api/channels/:id', authenticate, async (req,res) => {
+  await db.updateChannel(req.params.id, { archived:true });
+  ok(res, { message:'Archived' });
+});
+
+// ── MESSAGES ──────────────────────────────────────────────────────────────────
+app.get('/api/channels/:id/messages', authenticate, async (req,res) => {
+  const { before } = req.query;
+  const { data } = await db.messagesByChannel(req.params.id, 50, before||null);
+  ok(res, (data||[]).reverse().map(formatMsg));
+});
+
+app.post('/api/channels/:id/messages/pin', authenticate, async (req,res) => {
+  try {
+    const { messageId } = req.body;
+    const { data, error } = await db.pinMessage(req.params.id, messageId, req.userId);
+    if (error) return fail(res, error.message);
+    io.to(`ch:${req.params.id}`).emit('msg:pinned', { messageId });
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/channels/:id/pins', authenticate, async (req,res) => {
+  const { data } = await db.pinnedMessages(req.params.id);
+  ok(res, data||[]);
+});
+
+// ── REPOS ─────────────────────────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/repos', authenticate, async (req,res) => {
+  const { data } = await db.reposByWorkspace(req.params.wid);
+  ok(res, data||[]);
+});
+
+app.get('/api/repos/mine', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const repos = await gh.getUserRepos(token);
+    ok(res, repos);
+  } catch(e) { fail(res, e.message); }
+});
+
+
+// ── GitHub Profile & Contribution routes ─────────────────
+app.get('/api/github/profile', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const [profile, events] = await Promise.all([
+      gh.getAuthUser(token),
+      fetch(`https://api.github.com/users/${req.user.github_username}/events/public?per_page=30`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' }
+      }).then(r=>r.json()).catch(()=>[]),
+    ]);
+    ok(res, { profile, events });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/all', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    // Fetch up to 100 repos (2 pages) including private
+    const [page1, page2] = await Promise.all([
+      gh.getUserRepos(token, 1),
+      gh.getUserRepos(token, 2).catch(()=>[]),
+    ]);
+    const all = [...(page1||[]), ...(page2||[])];
+    ok(res, all);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/languages', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/languages`, {
+      headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' }
+    }).then(r=>r.json());
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/stats', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const [contributors, commitActivity, codeFreq] = await Promise.all([
+      fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/stats/contributors?per_page=5`, {headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}}).then(r=>r.json()).catch(()=>[]),
+      fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/stats/commit_activity`, {headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}}).then(r=>r.json()).catch(()=>[]),
+      fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/stats/code_frequency`, {headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}}).then(r=>r.json()).catch(()=>[]),
+    ]);
+    ok(res, { contributors, commitActivity, codeFreq });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/issues', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const state = req.query.state || 'open';
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/issues?state=${state}&per_page=20`, {
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}
+    }).then(r=>r.json());
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/github/repos/:owner/:repo/issues', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const {title,body,labels} = req.body;
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/issues`, {
+      method:'POST',
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','Content-Type':'application/json','User-Agent':'DevCollab-Hub/2.0'},
+      body: JSON.stringify({title,body,labels}),
+    }).then(r=>r.json());
+    ok(res, data, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/releases', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/releases?per_page=10`, {
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}
+    }).then(r=>r.json());
+    ok(res, Array.isArray(data) ? data : []);
+  } catch(e) { fail(res, []); }
+});
+
+app.post('/api/github/repos/:owner/:repo/fork', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/forks`, {
+      method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'},body:'{}'
+    }).then(r=>r.json());
+    ok(res, data, 202);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/contributors', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/contributors?per_page=10`, {
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}
+    }).then(r=>r.json());
+    ok(res, Array.isArray(data)?data:[]);
+  } catch(e) { fail(res, []); }
+});
+
+app.patch('/api/github/repos/:owner/:repo', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const {description,homepage,has_issues,has_projects,has_wiki,private:priv} = req.body;
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}`, {
+      method:'PATCH',
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','Content-Type':'application/json','User-Agent':'DevCollab-Hub/2.0'},
+      body:JSON.stringify({description,homepage,has_issues,has_projects,has_wiki,private:priv}),
+    }).then(r=>r.json());
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/github/repos/:owner/:repo/star', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    await fetch(`https://api.github.com/user/starred/${req.params.owner}/${req.params.repo}`, {
+      method:'PUT',headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','Content-Length':'0','User-Agent':'DevCollab-Hub/2.0'}
     });
-  }).catch(e=>toast('e','Error',e.message));
+    ok(res, {starred:true});
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/github/repos/:owner/:repo/readme', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const data = await fetch(`https://api.github.com/repos/${req.params.owner}/${req.params.repo}/readme`, {
+      headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','User-Agent':'DevCollab-Hub/2.0'}
+    }).then(r=>r.json());
+    const content = data.content ? Buffer.from(data.content,'base64').toString('utf8') : '';
+    ok(res, {content, name: data.name||'README.md'});
+  } catch(e) { ok(res, {content:'',name:'README.md'}); }
+});
+app.post('/api/workspaces/:wid/repos', authenticate, async (req,res) => {
+  try {
+    const { owner, name: repoName } = req.body;
+    if (!owner || !repoName) return fail(res,'owner and name required');
+    const token = tryDecrypt(req.user.github_access_token);
+    const ghRepo = await gh.getRepo(owner, repoName, token);
+    const { data, error } = await db.createRepo({ id:uuid(), workspace_id:req.params.wid, github_repo_id:String(ghRepo.id), full_name:ghRepo.full_name, description:ghRepo.description||'', private:ghRepo.private, linked_by:req.userId, linked_at:new Date().toISOString() });
+    if (error) return fail(res, error.message);
+    ok(res, data, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/repos/create', authenticate, async (req,res) => {
+  try {
+    const { workspaceId, name: repoName, description, isPrivate } = req.body;
+    const token = tryDecrypt(req.user.github_access_token);
+    const ghRepo = await gh.createRepo(repoName, description||'', Boolean(isPrivate), token);
+    const { data } = await db.createRepo({ id:uuid(), workspace_id:workspaceId, github_repo_id:String(ghRepo.id), full_name:ghRepo.full_name, description:ghRepo.description||'', private:ghRepo.private, linked_by:req.userId, linked_at:new Date().toISOString() });
+    ok(res, { repo:data, github:ghRepo }, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/repos/:id/tree', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res,'Repo not found',404);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const contents = await gh.getRepoContents(owner, name, req.query.path||'', req.query.ref||'main', token);
+    ok(res, contents);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/repos/:id/file', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res,'Repo not found',404);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const file = await gh.getFileContent(owner, name, req.query.path, req.query.ref||'main', token);
+    ok(res, file);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/repos/:id/commit', authenticate, async (req,res) => {
+  try {
+    const { path, content, message, branch, sha } = req.body;
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res,'Repo not found',404);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const result = await gh.createOrUpdateFile(owner, name, path, content, message, sha||null, branch||'main', token);
+    io.to(`ws:${repo.workspace_id}`).emit('repo:commit', { repoId:req.params.id, path, message, author:req.user.handle });
+    ok(res, result);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/repos/:id/branches', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    ok(res, await gh.getBranches(owner, name, token));
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/repos/:id/branches', authenticate, async (req,res) => {
+  try {
+    const { branchName, fromSha } = req.body;
+    const { data:repo } = await db.repoById(req.params.id);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    ok(res, await gh.createBranch(owner, name, branchName, fromSha, token));
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/repos/:id/commits', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    ok(res, await gh.getCommits(owner, name, req.query.branch||'main', 20, token));
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── PULL REQUESTS ─────────────────────────────────────────────────────────────
+app.get('/api/repos/:id/prs', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    ok(res, await gh.getPRs(owner, name, req.query.state||'open', token));
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/repos/:id/prs', authenticate, async (req,res) => {
+  try {
+    const { title, body, head, base='main' } = req.body;
+    const { data:repo } = await db.repoById(req.params.id);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const pr = await gh.createPR(owner, name, title, body||'', head, base, token);
+    io.to(`ws:${repo.workspace_id}`).emit('pr:created', { repoId:req.params.id, pr });
+    ok(res, pr);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/repos/:id/prs/:num/approve', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const r = await gh.approvePR(owner, name, req.params.num, token);
+    io.to(`ws:${repo.workspace_id}`).emit('pr:approved', { repoId:req.params.id, prNumber:req.params.num, by:req.user.handle });
+    ok(res, r);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/repos/:id/prs/:num/merge', authenticate, async (req,res) => {
+  try {
+    const { commitTitle } = req.body;
+    const { data:repo } = await db.repoById(req.params.id);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const r = await gh.mergePR(owner, name, req.params.num, commitTitle||`Merge PR #${req.params.num}`, token);
+    io.to(`ws:${repo.workspace_id}`).emit('pr:merged', { repoId:req.params.id, prNumber:req.params.num, by:req.user.handle });
+    ok(res, r);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.get('/api/repos/:id/prs/:num/diff', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    const [owner, name] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const diff = await gh.getPRDiff(owner, name, req.params.num, token);
+    ok(res, { diff });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── AI ────────────────────────────────────────────────────────────────────────
+app.post('/api/ai/chat', authenticate, aiLimiter, async (req,res) => {
+  try {
+    const { message, history=[], mode='flash' } = req.body;
+    if (!message) return fail(res,'Message required');
+    const msgs = [
+      ...history.map(h => ({ role:h.role, parts:[{text:h.text}] })),
+      { role:'user', parts:[{text:message}] },
+    ];
+    const result = await gemini.geminiChat(msgs, mode==='pro'||mode==='review'?'pro':mode==='deep'?'flash':'lite');
+    ok(res, result);
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/ai/review', authenticate, aiLimiter, async (req,res) => {
+  try {
+    const { code, language='javascript', context='' } = req.body;
+    if (!code) return fail(res,'Code required');
+    const prompt = `Perform a comprehensive code review of this ${language} code:\n\`\`\`${language}\n${code}\n\`\`\`\n${context}\n\nReview:\n1. **Bugs & Logic Errors**\n2. **Security Issues** (injection, XSS, auth flaws)\n3. **Performance** bottlenecks\n4. **Code Quality** and readability\n5. **Best Practices**\n6. **Improved Version** — full rewrite with all fixes`;
+    const { reply, usage, model } = await gemini.geminiChat([{role:'user',parts:[{text:prompt}]}], 'flash');
+    ok(res, { review:reply, usage, model });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/ai/fix', authenticate, aiLimiter, async (req,res) => {
+  try {
+    const { code, error:errMsg, language='javascript' } = req.body;
+    const prompt = `Fix this ${language} code${errMsg?` that produces: "${errMsg}"`:''}:\n\`\`\`${language}\n${code}\n\`\`\`\n\n1. Root cause of the bug\n2. Fixed code (complete)\n3. How to prevent this`;
+    const { reply, usage, model } = await gemini.geminiChat([{role:'user',parts:[{text:prompt}]}], 'flash');
+    ok(res, { fix:reply, usage, model });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/ai/explain', authenticate, aiLimiter, async (req,res) => {
+  try {
+    const { code, language='' } = req.body;
+    const prompt = `Explain this ${language} code clearly for developers of all levels:\n\`\`\`${language}\n${code}\n\`\`\`\n\nCover: what it does, how it works line by line, and important patterns used.`;
+    const { reply, model } = await gemini.geminiChat([{role:'user',parts:[{text:prompt}]}], 'lite');
+    ok(res, { explanation:reply, model });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+app.get('/api/notifications', authenticate, async (req,res) => {
+  const { data } = await db.notifsByUser(req.userId);
+  const notifs = (data||[]).map(n => ({
+    ...n,
+    title: n.title ? tryDecrypt(n.title) : null,
+    body: n.body ? tryDecrypt(n.body) : null,
+  }));
+  ok(res, notifs);
+});
+
+app.post('/api/notifications/read-all', authenticate, async (req,res) => {
+  await db.markAllNotifsRead(req.userId);
+  ok(res, { message:'All marked read' });
+});
+
+app.patch('/api/notifications/:id/read', authenticate, async (req,res) => {
+  await db.markNotifRead(req.params.id);
+  ok(res, { message:'Marked read' });
+});
+
+
+
+app.post('/api/messages/:id/thread', authenticate, async (req,res) => {
+  try {
+    const { content } = req.body;
+    const { data:parent } = await db.messageById(req.params.id);
+    if (!parent) return fail(res,'parent not found');
+    const enc = encrypt(safeStr(content,5000));
+    const msg = { id:uuid(), channel_id:parent.channel_id, user_id:req.userId, content_encrypted:enc, type:'text', thread_parent_id:req.params.id, created_at:new Date().toISOString(), deleted:false };
+    const { data:saved } = await db.createMessage(msg);
+    const out = formatMsg(saved);
+    io.to(`ch:${parent.channel_id}`).emit('thread:new', { parentMessageId:req.params.id, reply:out });
+    ok(res, out, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── THREADS ──────────────────────────────────────────────────────────────
+app.get('/api/messages/:id/thread', authenticate, async (req,res) => {
+  try {
+    const { data } = await db.supabase().from('messages')
+      .select('*,user:users(id,github_username,handle,display_name,avatar_url,avatar_color,role)')
+      .eq('thread_parent_id', req.params.id).order('created_at');
+    ok(res, (data||[]).map(formatMsg));
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── CODE SEARCH ───────────────────────────────────────────────────────────
+app.get('/api/github/search/code', authenticate, async (req,res) => {
+  try {
+    const { q, lang } = req.query;
+    if (!q) return fail(res, 'q required');
+    const token = tryDecrypt(req.user.github_access_token);
+    const qualifier = lang ? `+language:${lang}` : '';
+    const data = await fetch(
+      `https://api.github.com/search/code?q=${encodeURIComponent(q)}+user:${req.user.github_username}${qualifier}&per_page=20`,
+      { headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' } }
+    ).then(r=>r.json());
+    ok(res, data);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── DIFF (between two commits or branches) ───────────────────────────────
+app.get('/api/repos/:id/diff', authenticate, async (req,res) => {
+  try {
+    const { base, head } = req.query;
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res, 'Repo not found');
+    const [owner, repoName] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const diff = await fetch(
+      `https://api.github.com/repos/${owner}/${repoName}/compare/${base||'HEAD~1'}...${head||'HEAD'}`,
+      { headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' } }
+    ).then(r=>r.json());
+    ok(res, diff);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── COMMIT DIFF (single commit) ──────────────────────────────────────────
+app.get('/api/repos/:id/commits/:sha/diff', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res, 'Repo not found');
+    const [owner, repoName] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const commit = await fetch(
+      `https://api.github.com/repos/${owner}/${repoName}/commits/${req.params.sha}`,
+      { headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' } }
+    ).then(r=>r.json());
+    ok(res, commit);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── GITHUB GRAPHQL (real contributions) ─────────────────────────────────
+app.get('/api/github/contributions', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    const year = req.query.year || new Date().getFullYear();
+    const from = `${year}-01-01T00:00:00Z`;
+    const to   = `${year}-12-31T23:59:59Z`;
+    const query = `{
+      user(login: "${req.user.github_username}") {
+        contributionsCollection(from: "${from}", to: "${to}") {
+          totalCommitContributions
+          totalPullRequestContributions
+          totalIssueContributions
+          totalRepositoryContributions
+          contributionCalendar {
+            totalContributions
+            weeks {
+              contributionDays {
+                date
+                contributionCount
+                color
+              }
+            }
+          }
+        }
+        repositories(first: 1, orderBy: { field: UPDATED_AT, direction: DESC }) {
+          nodes { name }
+        }
+      }
+    }`;
+    const result = await fetch('https://api.github.com/graphql', {
+      method: 'POST',
+      headers: { Authorization:`Bearer ${token}`, 'Content-Type':'application/json', 'User-Agent':'DevCollab-Hub/2.0' },
+      body: JSON.stringify({ query }),
+    }).then(r=>r.json());
+    if (result.errors) return fail(res, result.errors[0]?.message || 'GraphQL error');
+    ok(res, result.data?.user?.contributionsCollection);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── ACTIVITY FEED ─────────────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/activity', authenticate, async (req,res) => {
+  try {
+    const limit = parseInt(req.query.limit)||30;
+    const { data } = await db.supabase()
+      .from('audit_log')
+      .select('*')
+      .eq('workspace_id', req.params.wid)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    ok(res, data||[]);
+  } catch(e) { fail(res, []); }
+});
+
+// ── BURNDOWN DATA ─────────────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/burndown', authenticate, async (req,res) => {
+  try {
+    // Only owner/lead can see burndown
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',req.params.wid).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','APPROVE_PR')) return fail(res,'Permission denied',403);
+    const { data } = await db.supabase()
+      .from('tasks')
+      .select('id,created_at,status,updated_at,priority,title,assigned_to')
+      .eq('workspace_id', req.params.wid)
+      .order('created_at');
+    // Compute daily burndown for last 30 days
+    const tasks = data||[];
+    const days = [];
+    for (let i=29; i>=0; i--) {
+      const d = new Date(); d.setDate(d.getDate()-i); d.setHours(0,0,0,0);
+      const dEnd = new Date(d); dEnd.setHours(23,59,59,999);
+      const dStr = d.toISOString().split('T')[0];
+      const open = tasks.filter(t => new Date(t.created_at) <= dEnd && t.status!=='done').length;
+      const closed = tasks.filter(t => t.status==='done' && new Date(t.updated_at) <= dEnd && new Date(t.updated_at) >= d).length;
+      days.push({ date:dStr, open, closed, total:tasks.filter(t=>new Date(t.created_at)<=dEnd).length });
+    }
+    ok(res, { tasks, days });
+  } catch(e) { fail(res, []); }
+});
+
+// ── PERSONAL STATS ────────────────────────────────────────────────────────
+app.get('/api/users/me/stats', authenticate, async (req,res) => {
+  try {
+    const token = tryDecrypt(req.user.github_access_token);
+    // Get tasks completed this month
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+    const { data:tasks } = await db.supabase().from('tasks')
+      .select('id,status,updated_at').eq('assigned_to', req.userId).eq('status','done').gte('updated_at', monthStart.toISOString());
+    const tasksThisMonth = tasks?.length || 0;
+    // Get recent commit count via GitHub
+    let commitsThisWeek = 0;
+    try {
+      const weekAgo = new Date(Date.now() - 7*24*3600000).toISOString();
+      const events = await fetch(`https://api.github.com/users/${req.user.github_username}/events?per_page=100`, {
+        headers: { Authorization:`Bearer ${token}`, 'User-Agent':'DevCollab-Hub/2.0' }
+      }).then(r=>r.json());
+      commitsThisWeek = (Array.isArray(events) ? events : []).filter(e => e.type==='PushEvent' && new Date(e.created_at)>new Date(weekAgo))
+        .reduce((sum,e) => sum + (e.payload?.commits?.length||0), 0);
+    } catch {}
+    ok(res, { tasksThisMonth, commitsThisWeek });
+  } catch(e) { fail(res, { tasksThisMonth:0, commitsThisWeek:0 }); }
+});
+
+// ── INLINE PR COMMENT ─────────────────────────────────────────────────────
+app.post('/api/repos/:id/prs/:num/comments', authenticate, async (req,res) => {
+  try {
+    const { body, path, position, commit_id } = req.body;
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res,'not found');
+    const [owner, repoName] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const result = await fetch(`https://api.github.com/repos/${owner}/${repoName}/pulls/${req.params.num}/comments`, {
+      method: 'POST',
+      headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'Content-Type':'application/json', 'User-Agent':'DevCollab-Hub/2.0' },
+      body: JSON.stringify({ body, path, position, commit_id }),
+    }).then(r=>r.json());
+    ok(res, result, 201);
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── PR DIFF ───────────────────────────────────────────────────────────────
+app.get('/api/repos/:id/prs/:num/diff', authenticate, async (req,res) => {
+  try {
+    const { data:repo } = await db.repoById(req.params.id);
+    if (!repo) return fail(res,'not found');
+    const [owner, repoName] = repo.full_name.split('/');
+    const token = tryDecrypt(req.user.github_access_token);
+    const diff = await fetch(`https://api.github.com/repos/${owner}/${repoName}/pulls/${req.params.num}/files`, {
+      headers: { Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'User-Agent':'DevCollab-Hub/2.0' }
+    }).then(r=>r.json());
+    ok(res, diff);
+  } catch(e) { fail(res, e.message); }
+});
+
+
+// ── ROLE MANAGEMENT ──────────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/my-role', authenticate, async (req,res) => {
+  try {
+    const { data } = await db.supabase().from('workspace_members')
+      .select('role').eq('workspace_id',req.params.wid).eq('user_id',req.userId).single();
+    ok(res, { role: data?.role || 'viewer', permissions: Object.entries(require('./config/constants').CAN).reduce((acc,[k,v])=>({...acc,[k]:v.includes(data?.role||'viewer')}),{}) });
+  } catch(e) { ok(res, { role:'viewer', permissions:{} }); }
+});
+
+app.patch('/api/workspaces/:wid/members/:uid/role', authenticate, async (req,res) => {
+  try {
+    const { role } = req.body;
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',req.params.wid).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','MANAGE_MEMBERS')) return fail(res,'Permission denied',403);
+    await db.supabase().from('workspace_members').update({role}).eq('workspace_id',req.params.wid).eq('user_id',req.params.uid);
+    io.to(`ws:${req.params.wid}`).emit('member:role_changed', { userId:req.params.uid, role, changedBy:req.userId });
+    ok(res, { role });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── OWNER DASHBOARD DATA ──────────────────────────────────────────────────
+app.get('/api/workspaces/:wid/dashboard', authenticate, async (req,res) => {
+  try {
+    const [members, tasks, projects, channels] = await Promise.all([
+      db.workspaceMembers(req.params.wid).then(r=>r.data||[]),
+      db.supabase().from('tasks').select('*').eq('workspace_id',req.params.wid).then(r=>r.data||[]),
+      db.supabase().from('projects').select('*').eq('workspace_id',req.params.wid).then(r=>r.data||[]),
+      db.channelsByWorkspace(req.params.wid).then(r=>r.data||[]),
+    ]);
+    const now = Date.now();
+    const membersWithStatus = members.map(m => {
+      const u = m.user || {};
+      const isOnline = onlineUsers.has(u.id);
+      return { ...m, user:safeUser(u), online:isOnline };
+    });
+    const taskStats = {
+      total: tasks.length,
+      open: tasks.filter(t=>t.status!=='done').length,
+      inReview: tasks.filter(t=>t.status==='in_review').length,
+      done: tasks.filter(t=>t.status==='done').length,
+      blocked: tasks.filter(t=>t.status==='blocked').length,
+      urgent: tasks.filter(t=>t.priority==='urgent'&&t.status!=='done').length,
+    };
+    ok(res, { members:membersWithStatus, taskStats, projectCount:projects.length, channelCount:channels.length });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── AUTO BRANCH CREATION ON TASK START ───────────────────────────────────
+app.post('/api/tasks/:id/start', authenticate, async (req,res) => {
+  try {
+    const { data:task } = await db.taskById(req.params.id);
+    if (!task) return fail(res,'Task not found');
+    if (task.assigned_to !== req.userId) return fail(res,'Not assigned to you',403);
+    await db.updateTask(req.params.id, { status:'in_progress', started_at:new Date().toISOString() });
+    // Auto-create branch on the project repo
+    let branchName = null;
+    if (task.github_repo || task.workspace_id) {
+      try {
+        const token = tryDecrypt(req.user.github_access_token);
+        // Find linked repo
+        const { data:repos } = await db.supabase().from('linked_repos').select('*').eq('workspace_id',task.workspace_id).limit(1);
+        if (repos?.length) {
+          const [owner,repoName] = repos[0].full_name.split('/');
+          const slug = (task.title||'task').toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').slice(0,30);
+          branchName = `task-${req.params.id.slice(0,8)}-${slug}`;
+          const branches = await gh.getBranches(owner, repoName, token);
+          const sha = branches[0]?.commit?.sha || '';
+          if (sha) await gh.createBranch(owner, repoName, branchName, sha, token);
+        }
+      } catch(branchErr) { console.warn('[task:start] branch creation:', branchErr.message); }
+    }
+    await db.updateTask(req.params.id, { branch_name: branchName });
+    io.to(`ws:${task.workspace_id||''}`).emit('task:started', { taskId:req.params.id, userId:req.userId, branchName });
+    ok(res, { status:'in_progress', branchName });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── SUBMIT TASK FOR REVIEW (auto-opens GitHub PR) ─────────────────────────
+app.post('/api/tasks/:id/submit-review', authenticate, async (req,res) => {
+  try {
+    const { data:task } = await db.taskById(req.params.id);
+    if (!task) return fail(res,'Task not found');
+    if (task.assigned_to !== req.userId) return fail(res,'Not your task',403);
+    const { prTitle, prBody } = req.body;
+    let prData = null;
+    if (task.branch_name) {
+      try {
+        const token = tryDecrypt(req.user.github_access_token);
+        const { data:repos } = await db.supabase().from('linked_repos').select('*').eq('workspace_id',task.workspace_id).limit(1);
+        if (repos?.length) {
+          const [owner,repoName] = repos[0].full_name.split('/');
+          const repo = await gh.getRepo(owner, repoName, token);
+          prData = await gh.createPR(owner, repoName, prTitle||task.title, prBody||`Resolves task #${req.params.id}\n\n${task.description||''}`, task.branch_name, repo.default_branch||'main', token);
+        }
+      } catch(prErr) { console.warn('[task:submit] PR creation:', prErr.message); }
+    }
+    await db.updateTask(req.params.id, { status:'in_review', pr_url:prData?.html_url||null, pr_number:prData?.number||null });
+    // Notify leads/owner
+    const { data:leads } = await db.supabase().from('workspace_members').select('user_id').eq('workspace_id',task.workspace_id).in('role',['owner','admin','manager','lead']);
+    for (const lead of leads||[]) {
+      await db.createNotif({ id:uuid(), user_id:lead.user_id, type:'pr_review', title:encrypt(`PR ready for review`), body:encrypt(safeStr(task.title||'',100)), read:false, data:JSON.stringify({taskId:req.params.id, prUrl:prData?.html_url}), created_at:new Date().toISOString() });
+      const sockets = onlineUsers.get(lead.user_id);
+      if (sockets) sockets.forEach(sid => io.to(sid).emit('notification:new', { type:'pr_review', title:'PR Ready for Review', body:task.title||'' }));
+    }
+    io.to(`ws:${task.workspace_id||''}`).emit('task:submitted', { taskId:req.params.id, userId:req.userId, pr:prData });
+    ok(res, { status:'in_review', pr:prData });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── APPROVE/REJECT TASK (Lead/Owner only) ────────────────────────────────
+app.post('/api/tasks/:id/approve', authenticate, async (req,res) => {
+  try {
+    const { data:task } = await db.taskById(req.params.id);
+    if (!task) return fail(res,'not found');
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',task.workspace_id).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','APPROVE_PR')) return fail(res,'Permission denied',403);
+    await db.updateTask(req.params.id, { status:'approved', approved_by:req.userId, approved_at:new Date().toISOString() });
+    // Notify the assignee
+    if (task.assigned_to) {
+      await db.createNotif({ id:uuid(), user_id:task.assigned_to, type:'pr_approved', title:encrypt('Your work was approved!'), body:encrypt(safeStr(task.title||'',100)), read:false, data:JSON.stringify({taskId:req.params.id}), created_at:new Date().toISOString() });
+      const sockets = onlineUsers.get(task.assigned_to);
+      if (sockets) sockets.forEach(sid => io.to(sid).emit('notification:new', { type:'pr_approved', title:'Work Approved! ✓', body:task.title||'' }));
+    }
+    io.to(`ws:${task.workspace_id||''}`).emit('task:approved', { taskId:req.params.id, approvedBy:req.userId });
+    ok(res, { status:'approved' });
+  } catch(e) { fail(res, e.message); }
+});
+
+app.post('/api/tasks/:id/reject', authenticate, async (req,res) => {
+  try {
+    const { reason } = req.body;
+    const { data:task } = await db.taskById(req.params.id);
+    if (!task) return fail(res,'not found');
+    const { data:me } = await db.supabase().from('workspace_members').select('role').eq('workspace_id',task.workspace_id).eq('user_id',req.userId).single();
+    if (!hasPermission(me?.role||'viewer','APPROVE_PR')) return fail(res,'Permission denied',403);
+    await db.updateTask(req.params.id, { status:'in_progress', rejection_reason:reason||'' });
+    if (task.assigned_to) {
+      await db.createNotif({ id:uuid(), user_id:task.assigned_to, type:'system', title:encrypt('Changes requested'), body:encrypt(safeStr(reason||task.title||'',100)), read:false, data:JSON.stringify({taskId:req.params.id,reason}), created_at:new Date().toISOString() });
+      const sockets = onlineUsers.get(task.assigned_to);
+      if (sockets) sockets.forEach(sid => io.to(sid).emit('notification:new', { type:'changes_requested', title:'Changes Requested', body:reason||'' }));
+    }
+    io.to(`ws:${task.workspace_id||''}`).emit('task:rejected', { taskId:req.params.id, rejectedBy:req.userId, reason });
+    ok(res, { status:'in_progress' });
+  } catch(e) { fail(res, e.message); }
+});
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+app.get('/api/search', authenticate, async (req,res) => {
+  const q = (req.query.q||'').trim();
+  if (q.length < 2) return ok(res, { users:[], channels:[] });
+  const [{ data:users }, { data:channels }] = await Promise.all([
+    db.searchUsers(q, 10),
+    db.supabase().from('channels').select('id,name,description,type').ilike('name','%'+q+'%').limit(10),
+  ]);
+  ok(res, { users:users||[], channels:channels||[] });
+});
+
+// ── GITHUB WEBHOOK ────────────────────────────────────────────────────────────
+
+// ── GITHUB WEBHOOK (posts formatted cards to #github-feed) ───────────────
+async function postToGithubFeed(workspaceId, content, type='system') {
+  try {
+    const { data:channels } = await db.channelsByWorkspace(workspaceId);
+    const feedCh = channels?.find(c => c.name === 'github-feed');
+    if (!feedCh) return;
+    const msg = {
+      id: uuid(), channel_id: feedCh.id, user_id: 'system',
+      content_encrypted: encrypt(content), type,
+      created_at: new Date().toISOString(), deleted: false,
+    };
+    await db.createMessage(msg);
+    io.to(`ch:${feedCh.id}`).emit('msg:new', { ...msg, userId:'system', content, ts:msg.created_at });
+  } catch(e) { console.warn('[webhook feed]', e.message); }
 }
 
-// ── CONTEXT MENU ──────────────────────────────────────────────────────────
-function buildCtx(e,items){
-  const ctx=document.getElementById('ctx-menu');
-  ctx.innerHTML=items.map((it,i)=>{
-    if(it.sep)return'<div class="ctx-sep"></div>';
-    if(it.disabled)return'<div class="ctx-lbl">'+esc(it.label)+'</div>';
-    return'<div class="ctx-item'+(it.danger?' danger':'')+'" onclick="__CTX'+i+'()">'+esc(it.label)+'</div>';
-  }).join('');
-  items.forEach((it,i)=>{if(it.fn)window['__CTX'+i]=()=>{it.fn();hideCtx();};});
-  let x=e.clientX,y=e.clientY;ctx.style.left=x+'px';ctx.style.top=y+'px';
-  ctx.classList.remove('hidden');
-  requestAnimationFrame(()=>{const r=ctx.getBoundingClientRect();if(r.right>innerWidth)ctx.style.left=(x-r.width)+'px';if(r.bottom>innerHeight)ctx.style.top=(y-r.height)+'px';});
-  setTimeout(()=>document.addEventListener('click',hideCtx,{once:true}),50);
+app.post('/webhooks/github', express.raw({type:'application/json'}), async (req,res) => {
+  try {
+    const sig = req.headers['x-hub-signature-256'];
+    const secret = process.env.WEBHOOK_SECRET;
+    if (sig && secret) {
+      const expected = 'sha256='+crypto.createHmac('sha256',secret).update(req.body).digest('hex');
+      if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return res.status(401).send('Invalid signature');
+    }
+    const event = req.headers['x-github-event'];
+    const payload = JSON.parse(req.body.toString());
+    const repoId = String(payload.repository?.id);
+    // Look up repo by github_repo_id only (no workspace filter needed in webhook)
+    const { data:repo } = await db.supabase()
+      .from('linked_repos').select('*').eq('github_repo_id', repoId).limit(1).single()
+      .catch(() => ({ data: null }));
+    if (repo) {
+      const wid = repo.workspace_id;
+      const { data:chans } = await db.channelsByWorkspace(wid);
+      const feed = chans?.find(c => c.name==='github-feed');
+      
+      // Build rich card metadata
+      let cardContent = null, cardMeta = null;
+      const repoName = payload.repository?.full_name || '';
+      const repoUrl  = payload.repository?.html_url || '';
+      const sender   = payload.sender?.login || '';
+      const senderAv = payload.sender?.avatar_url || '';
+
+      if (event === 'push' && payload.commits?.length) {
+        const branch = (payload.ref||'').replace('refs/heads/','');
+        const commits = (payload.commits||[]).slice(0,5);
+        cardContent = `🚀 **${sender}** pushed ${payload.commits.length} commit${payload.commits.length!==1?'s':''} to \`${branch}\` in **${repoName}**`;
+        cardMeta = JSON.stringify({
+          type:'push', repo:repoName, repoUrl, branch,
+          sender, senderAv,
+          commits: commits.map(cm => ({ sha:cm.id?.slice(0,7), message:cm.message?.split('\n')[0]?.slice(0,80), url:cm.url })),
+          compareUrl: payload.compare,
+          timestamp: new Date().toISOString(),
+        });
+      } else if (event === 'pull_request') {
+        const pr = payload.pull_request;
+        const icons = { opened:'🔀', closed: pr?.merged?'🎉':'✖️', reopened:'🔄', review_requested:'👀', synchronize:'📤' };
+        const verb = payload.action==='closed' && pr?.merged ? 'merged' : payload.action;
+        cardContent = `${icons[payload.action]||'🔀'} **${sender}** ${verb} PR #${pr?.number}: **${pr?.title}** — \`${pr?.head?.ref}\` → \`${pr?.base?.ref}\``;
+        cardMeta = JSON.stringify({
+          type:'pr', repo:repoName, repoUrl, sender, senderAv,
+          pr:{ number:pr?.number, title:pr?.title, url:pr?.html_url, state:pr?.state,
+               merged:pr?.merged, additions:pr?.additions, deletions:pr?.deletions,
+               head:pr?.head?.ref, base:pr?.base?.ref },
+          action: payload.action, timestamp: new Date().toISOString(),
+        });
+        if (payload.action==='closed' && pr?.merged)
+          io.to('ws:'+wid).emit('pr:merged', { prNumber:pr?.number, by:sender });
+        else if (payload.action==='opened')
+          io.to('ws:'+wid).emit('pr:created', { pr });
+      } else if (event === 'pull_request_review') {
+        const rv = payload.review;
+        const icons2 = { approved:'✅', changes_requested:'🔴', commented:'💬' };
+        cardContent = `${icons2[rv?.state]||'💬'} **${sender}** ${rv?.state?.replace('_',' ')} PR #${payload.pull_request?.number}: **${payload.pull_request?.title}**`;
+        cardMeta = JSON.stringify({
+          type:'review', repo:repoName, repoUrl, sender, senderAv,
+          review:{ state:rv?.state, body:rv?.body?.slice(0,150), url:rv?.html_url },
+          timestamp: new Date().toISOString(),
+        });
+      } else if (event === 'issues') {
+        if (['opened','closed','reopened'].includes(payload.action)) {
+          const iss = payload.issue;
+          const icons3 = { opened:'🐛', closed:'✅', reopened:'🔄' };
+          cardContent = `${icons3[payload.action]||'🐛'} **${sender}** ${payload.action} issue #${iss?.number}: **${iss?.title}**`;
+          cardMeta = JSON.stringify({
+            type:'issue', repo:repoName, repoUrl, sender, senderAv,
+            issue:{ number:iss?.number, title:iss?.title, url:iss?.html_url, state:iss?.state },
+            timestamp: new Date().toISOString(),
+          });
+          // Auto-label: map issue labels to priority
+          if (payload.action==='opened' && iss?.number) {
+            try {
+              const ghToken = process.env.GITHUB_TOKEN;
+              const [owner, rname] = repoName.split('/');
+              // Try to infer priority from title keywords
+              const title = (iss.title||'').toLowerCase();
+              const priority = title.includes('urgent')||title.includes('critical')||title.includes('hotfix') ? 'urgent' :
+                               title.includes('bug')||title.includes('fix')||title.includes('broken') ? 'medium' : 'normal';
+              const labelMap = { urgent:'priority: urgent', medium:'priority: medium', normal:'priority: normal' };
+              await fetch('https://api.github.com/repos/'+owner+'/'+rname+'/issues/'+iss.number+'/labels', {
+                method:'POST',
+                headers:{ Authorization:'Bearer '+ghToken, Accept:'application/vnd.github+json', 'Content-Type':'application/json', 'User-Agent':'DevCollab-Hub/2.0' },
+                body: JSON.stringify({ labels:[labelMap[priority]] }),
+              }).catch(()=>{});
+            } catch{}
+          }
+        }
+      } else if (event === 'create' && payload.ref_type==='branch') {
+        cardContent = '🌿 **'+sender+'** created branch `'+payload.ref+'` in **'+repoName+'**';
+        cardMeta = JSON.stringify({ type:'branch', repo:repoName, repoUrl, sender, senderAv, branch:payload.ref, timestamp:new Date().toISOString() });
+      } else if (event === 'release' && payload.action==='published') {
+        const rel = payload.release;
+        cardContent = '🚀 **'+sender+'** published release **'+( rel?.name||rel?.tag_name)+'** in **'+repoName+'**';
+        cardMeta = JSON.stringify({ type:'release', repo:repoName, repoUrl, sender, senderAv, release:{ tag:rel?.tag_name, name:rel?.name, url:rel?.html_url, prerelease:rel?.prerelease }, timestamp:new Date().toISOString() });
+      } else if (event === 'star' && payload.action==='created') {
+        cardContent = '⭐ **'+sender+'** starred **'+repoName+'**';
+        cardMeta = JSON.stringify({ type:'star', repo:repoName, repoUrl, sender, senderAv, timestamp:new Date().toISOString() });
+      }
+
+      if (cardContent && feed) {
+        const m = {
+          id:uuid(), channel_id:feed.id, user_id:'system',
+          content_encrypted:encrypt(cardContent), type:'github_event',
+          metadata: cardMeta ? encrypt(cardMeta) : null,
+          created_at:new Date().toISOString(), deleted:false, edited:false,
+        };
+        await db.createMessage(m).catch(()=>{});
+        // Emit rich card via socket
+        const cardData = cardMeta ? JSON.parse(cardMeta) : {};
+        io.to('ch:'+feed.id).emit('msg:new', { 
+          ...m, userId:'system', content:cardContent, 
+          githubCard:cardData, ts:m.created_at 
+        });
+        io.to('ws:'+wid).emit('github:event', { type:cardData.type, repo:repoName, sender, timestamp:new Date().toISOString() });
+      }
+    }
+    res.status(200).send('OK');
+  } catch(e) { res.status(200).send('OK'); }
+});
+
+// ── Error handler ─────────────────────────────────────────────────────────────
+app.use((err,req,res,next) => {
+  console.error(err);
+  res.status(err.status||500).json({ success:false, error: NODE_ENV==='production'?'Internal error':err.message });
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function tryDecrypt(s) { try { return decrypt(s); } catch { return s; } }
+function decryptTask(t) {
+  if (!t) return null;
+  return {
+    ...t,
+    title: t.title ? tryDecrypt(t.title) : null,
+    description: t.description ? tryDecrypt(t.description) : null,
+  };
 }
-function hideCtx(){document.getElementById('ctx-menu')?.classList.add('hidden');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTaskModal();document.getElementById('new-task-modal').style.display='none';}});
-</script>
-</body>
-</html>
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+// ── NUDGE CRON: alert members with stale tasks every hour ───────────────
+setInterval(async () => {
+  try {
+    const cutoff = new Date(Date.now() - 24*60*60*1000).toISOString();
+    const { data:staleTasks } = await db.supabase()
+      .from('tasks')
+      .select('*, user:users!tasks_assigned_to_fkey(id,handle,display_name)')
+      .in('status',['in_progress','not_started'])
+      .lt('updated_at', cutoff)
+      .not('assigned_to','is',null);
+    for (const task of staleTasks||[]) {
+      if (!task.assigned_to) continue;
+      const sockets = onlineUsers.get(task.assigned_to);
+      if (sockets?.size) {
+        // Only nudge if they're online — otherwise it's just noise
+        sockets.forEach(sid => io.to(sid).emit('notification:new', {
+          type:'nudge', title:'Task needs attention ⏰',
+          body:(task.title||'').slice(0,80)+' — no activity for 24h',
+        }));
+      }
+    }
+  } catch(e) { console.warn('[nudge cron]', e.message); }
+}, 60*60*1000); // every hour
+
+async function start() {
+  const dbOk = await testConnection();
+  if (!dbOk) {
+    console.error('\n❌ DATABASE CONNECTION FAILED');
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('Most likely cause: wrong Supabase key in Render env vars.');
+    console.error('');
+    console.error('Fix: Go to Supabase → Project Settings → API');
+    console.error('  Copy the "service_role" secret key (NOT the anon key)');
+    console.error('  Paste it as SUPABASE_SERVICE_KEY in Render → Environment');
+    console.error('');
+    console.error('Also check: SUPABASE_URL is correct (no trailing slash)');
+    console.error('Also check: schema.sql has been run in Supabase SQL Editor');
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    if (NODE_ENV === 'production') process.exit(1);
+  }
+  server.listen(PORT, () => {
+    console.log(`\n🚀 DevCollab Hub v2.0 on :${PORT} [${NODE_ENV}]`);
+    console.log(`   GitHub OAuth: /api/auth/github`);
+    console.log(`   Frontend:     ${FRONTEND_URL}`);
+    console.log(`   DB:           ${dbOk ? '✅ Connected' : '⚠️  Not connected'}\n`);
+  });
+}
+start();
+
+module.exports = { app, server, io };
