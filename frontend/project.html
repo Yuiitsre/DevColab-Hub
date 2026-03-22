@@ -917,29 +917,107 @@ function renderMessages(){
   scrollMsgs();
 }
 
-function appendMsg(m,cont=false,animate=false){
-  const area=document.getElementById('msgs-area');
+function appendMsg(m,cont=false){
+  const area=document.getElementById('proj-msgs');
   if(!area)return;
-  const u=S.members.find(mb=>mb.user?.id===m.userId)?.user||m.user||{};
-  const initials=(u.display_name||u.github_username||'?').replace(/[^A-Za-z0-9 ]/g,'').trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?';
+  const uid=m.userId||m.user_id;
+  const u=m.user||(S.members||[]).find(mb=>mb.user?.id===uid)?.user||{};
   const color=u.avatar_color||'#22c55e';
+  const initials=(u.display_name||u.handle||'?').slice(0,2).toUpperCase();
   const time=new Date(m.ts||m.created_at||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const isMe=uid===S.user?.id;
+  const txt=m.deleted?'<span style="color:var(--tx4);font-style:italic">[deleted]</span>':fmtText(m.content||'');
+  const codeHtml=m.code?`<div class="code-block"><div class="code-hdr"><span class="code-lang">${esc(m.code.lang||'code').toUpperCase()}</span></div><pre class="code-body">${esc(m.code.body||'')}</pre></div>`:'';
+
   const el=document.createElement('div');
-  el.className='msg'+(cont?' cont':'');
-  el.dataset.mid=m.id;
-  let codeHtml='';
-  if(m.code&&!m.deleted){
-    codeHtml='<div class="msg-code-block"><div class="msg-code-hdr"><span class="code-lang">'+esc((m.code.lang||'code').toUpperCase())+'</span><span class="code-copy" onclick="navigator.clipboard.writeText(this.closest(\'.msg-code-block\').querySelector(\'.code-body\').textContent).then(()=>toast(\'s\',\'Copied\',\'\'))">Copy</span></div><pre class="code-body">'+esc(m.code.body||'')+'</pre></div>';
-  }
-  el.innerHTML=
-    '<div class="msg-av" style="background:'+color+'">'+initials+'</div>'+
-    '<div class="msg-body">'+
-      '<div class="msg-meta"><span class="msg-name">'+esc(u.display_name||u.github_username||m.userId||'')+'</span><span class="msg-ts">'+time+'</span></div>'+
-      '<div class="msg-text">'+(m.deleted?'<span style="color:var(--tx4);font-style:italic">[deleted]</span>':fmtText(m.content||''))+'</div>'+
-      codeHtml+
-    '</div>';
+  el.className='msg'+(cont?' msg-cont':'');
+  el.style.position='relative';
+  if(m.id) el.dataset.mid=m.id;
+
+  const avHtml=u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:initials;
+  el.innerHTML=`<div class="msg-av" style="width:28px;height:28px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#000;flex-shrink:0">${avHtml}</div>
+    <div class="msg-body" style="flex:1;min-width:0">
+      <div class="msg-meta" ${cont?'style="display:none"':''}><span class="msg-name">${esc(u.display_name||u.handle||u.github_username||'')}</span><span class="msg-ts">${time}</span></div>
+      <div class="msg-text">${txt}</div>${codeHtml}
+    </div>
+    <div class="proj-msg-actions" style="display:none;align-items:center;gap:2px;flex-shrink:0;position:absolute;right:6px;top:2px;background:var(--c1,#141416);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:2px;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+      <button style="width:24px;height:24px;border-radius:5px;background:none;border:none;cursor:pointer;font-size:12px" title="React" onclick="event.stopPropagation();_projMsgReact(this,'${m.id?esc(m.id):''}')">😄</button>
+      ${isMe?`<button style="width:24px;height:24px;border-radius:5px;background:none;border:none;cursor:pointer;font-size:12px" title="Edit" onclick="event.stopPropagation();_projMsgEdit(this,'${m.id?esc(m.id):''}','${esc((m.content||'').replace(/'/g,'\''))}')" >✏️</button>`:''}
+      ${isMe?`<button style="width:24px;height:24px;border-radius:5px;background:none;border:none;cursor:pointer;font-size:12px;color:var(--red,#ef4444)" title="Delete" onclick="event.stopPropagation();_projMsgDel(this,'${m.id?esc(m.id):''}')">🗑</button>`:''}
+    </div>`;
+
+  el.addEventListener('mouseenter',()=>{ const h=el.querySelector('.proj-msg-actions');if(h)h.style.display='flex'; });
+  el.addEventListener('mouseleave',()=>{ const h=el.querySelector('.proj-msg-actions');if(h)h.style.display='none'; });
+  el.addEventListener('contextmenu',(e)=>{
+    e.preventDefault(); e.stopPropagation();
+    _projMsgCtx(e, m, el, isMe);
+  });
+
   const emp=area.querySelector('.empty');if(emp)emp.remove();
   area.appendChild(el);
+}
+
+function _projMsgCtx(e, m, el, isMe) {
+  const content = m.content||'';
+  const ctx=document.getElementById('_kp-ctx')||document.createElement('div');
+  ctx.id='_kp-ctx';
+  ctx.style.cssText='position:fixed;z-index:900;background:rgba(14,14,16,.98);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:5px;min-width:180px;box-shadow:0 12px 40px rgba(0,0,0,.6);backdrop-filter:blur(16px)';
+  ctx.innerHTML='';
+
+  const addItem=(icon,label,fn,danger=false)=>{
+    const d=document.createElement('div');
+    d.style.cssText=`display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;color:${danger?'var(--red,#ef4444)':'var(--tx2,#a1a1aa)'}`;
+    d.innerHTML=`<span>${icon}</span>${esc(label)}`;
+    d.onmouseenter=()=>d.style.background=danger?'rgba(239,68,68,.1)':'rgba(255,255,255,.06)';
+    d.onmouseleave=()=>d.style.background='';
+    d.onclick=()=>{ctx.remove();fn();};
+    ctx.appendChild(d);
+  };
+  const addSep=()=>ctx.insertAdjacentHTML('beforeend','<div style="height:1px;background:rgba(255,255,255,.06);margin:4px 0"></div>');
+
+  addItem('😄','React',()=>_projMsgReact(null,m.id));
+  addItem('↩','Quote Reply',()=>{
+    const ta=document.getElementById('proj-msg-input');
+    if(!ta)return;
+    ta.value='> '+content.slice(0,80).replace(/\n/g,'\n> ')+'\n';
+    ta.focus();
+  });
+  addSep();
+  addItem('📋','Copy Text',()=>navigator.clipboard.writeText(content).then(()=>toast('Copied!')));
+  if(isMe){
+    addSep();
+    addItem('✏️','Edit Message',()=>_projMsgEdit(null,m.id,content));
+    addItem('🗑️','Delete Message',()=>_projMsgDel(null,m.id),true);
+  }
+
+  document.body.appendChild(ctx);
+  const x=Math.min(e.clientX,innerWidth-200),y=e.clientY;
+  ctx.style.left=x+'px';ctx.style.top=y+'px';
+  requestAnimationFrame(()=>{const r=ctx.getBoundingClientRect();if(r.bottom>innerHeight)ctx.style.top=(y-r.height)+'px';});
+  setTimeout(()=>document.addEventListener('click',()=>ctx.remove(),{once:true}),50);
+}
+
+function _projMsgReact(btn, msgId) {
+  if(!msgId) return;
+  const el=btn?btn.closest('[data-mid]'):document.querySelector('[data-mid="'+msgId+'"]');
+  if(el) el.dataset.mid=msgId;
+  toast('i','Reactions','Coming in next update');
+}
+
+function _projMsgEdit(btn, msgId, currentContent) {
+  const newContent=prompt('Edit message:',currentContent||'');
+  if(!newContent||!newContent.trim()||newContent===currentContent) return;
+  const el=btn?btn.closest('[data-mid]'):document.querySelector('[data-mid="'+msgId+'"]');
+  if(el){ const t=el.querySelector('.msg-text'); if(t) t.innerHTML=fmtText(newContent.trim()); }
+  if(S.socket?.connected) S.socket.emit('msg:edit',{messageId:msgId,content:newContent.trim()});
+  toast('Updated!');
+}
+
+function _projMsgDel(btn, msgId) {
+  if(!confirm('Delete this message?')) return;
+  const el=btn?btn.closest('[data-mid]'):document.querySelector('[data-mid="'+msgId+'"]');
+  if(el){ el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),320); }
+  if(S.socket?.connected) S.socket.emit('msg:delete',{messageId:msgId});
 }
 function scrollMsgs(){const a=document.getElementById('msgs-area');if(a)a.scrollTop=a.scrollHeight;}
 function renderTyping(){
