@@ -351,7 +351,7 @@ const IS_DEV=location.hostname==='localhost'||location.hostname==='127.0.0.1';
 const API=IS_DEV?'http://localhost:4000/api':'https://devcolab-backend.onrender.com/api';
 window._dcToken=localStorage.getItem('dc_token');
 async function api(m,p,b){const h={'Content-Type':'application/json'};const t=window._dcToken||localStorage.getItem('dc_token');if(t)h['Authorization']='Bearer '+t;const o={method:m,headers:h};if(b)o.body=JSON.stringify(b);const r=await fetch(API+p,o);const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||d.message||'HTTP '+r.status);return d.data??d}
-const GET=p=>api('GET',p);const PATCH=(p,b)=>api('PATCH',p,b);const POST=(p,b)=>api('POST',p,b);const POST=(p,b)=>api('POST',p,b);const DEL=p=>api('DELETE',p);
+const GET=p=>api('GET',p);const PATCH=(p,b)=>api('PATCH',p,b);const POST=(p,b)=>api('POST',p,b);const DEL=p=>api('DELETE',p);
 function esc(s){return typeof s==='string'?s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'):String(s??'')}
 function isEnc(s){return typeof s==='string'&&/^[0-9a-f]{32}:[0-9a-f]{32}:[0-9a-f]+$/i.test(s)}
 function safeName(u){if(!u)return'User';for(const k of['display_name','github_username','handle']){if(u[k]&&!isEnc(u[k])&&(u[k]+'').trim())return(u[k]+'').trim()}return'User'}
