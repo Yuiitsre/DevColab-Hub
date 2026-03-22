@@ -216,9 +216,9 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
         <span id="mode-label">Collab</span>
       </button>
       <!-- Notifications -->
-      <div class="nav-btn" onclick="openNotifs()" title="Notifications">
+      <div class="nav-btn" onclick="openNotifs()" title="Notifications" style="position:relative">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <div class="nav-notif-dot" id="notif-dot"></div>
+        <div class="nav-notif-dot" id="notif-dot" style="display:none;position:absolute;top:3px;right:3px;min-width:14px;height:14px;border-radius:99px;background:var(--red);border:2px solid var(--bg);font-size:8px;font-weight:800;color:#fff;display:none;align-items:center;justify-content:center;padding:0 3px" id="notif-dot"></div>
       </div>
       <!-- Theme -->
       <div class="nav-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</div>
@@ -309,7 +309,11 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
         </div>
         <div style="display:flex;flex-direction:column;gap:4px">
           <div class="sb-logout-btn" onclick="showWsSwitcher()" title="Switch workspace" style="font-size:11px">⇄</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+          <div class="sb-logout-btn" id="set-status-btn" onclick="openSetStatus()" title="Set status" style="font-size:12px">😊</div>
+          <div class="sb-logout-btn" onclick="showWsSwitcher()" title="Switch workspace" style="font-size:11px">⇄</div>
           <div class="sb-logout-btn" onclick="logout()" title="Sign out">⇥</div>
+        </div>
         </div>
       </div>
     </aside>
@@ -456,7 +460,7 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
           <span class="chat-hdr-name" id="ch-name">general</span>
           <span class="chat-hdr-sep">—</span>
           <span class="chat-hdr-desc" id="ch-desc"></span>
-          <span id="ch-member-count" style="font-size:11px;color:var(--t4);margin-left:4px"></span>
+          <span id="ch-member-count" style="font-size:11px;color:var(--t4);margin-left:4px"></span><span id="ch-msg-count" style="font-size:11px;color:var(--t4);margin-left:4px"></span>
           <div class="chat-hdr-actions">
             <button class="btn btn-ghost btn-sm" id="msg-search-btn" onclick="toggleMsgSearch()" title="Search messages">🔍</button>
             <button class="btn btn-ghost btn-sm" onclick="openAI()">✦ AI</button>
@@ -595,6 +599,34 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
     </div>
   </div>
 </div>
+
+<!-- THREAD PANEL -->
+<div id="thread-panel" style="display:none;position:fixed;right:0;top:52px;bottom:0;z-index:250;width:380px;background:var(--s1);border-left:1px solid rgba(255,255,255,.06);box-shadow:-8px 0 32px rgba(0,0,0,.4);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.16,1,.3,1)">
+  <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <span style="font-size:14px;font-weight:700;flex:1">Thread</span>
+    <span id="thread-channel-label" style="font-size:11px;color:var(--t4)"></span>
+    <button onclick="closeThreadPanel()" style="width:26px;height:26px;border-radius:6px;background:none;border:none;color:var(--t3);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''">✕</button>
+  </div>
+  <!-- Parent message -->
+  <div id="thread-parent" style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);flex-shrink:0"></div>
+  <!-- Replies -->
+  <div id="thread-replies" style="flex:1;overflow-y:auto;padding:10px 16px;display:flex;flex-direction:column;gap:2px"></div>
+  <!-- Reply count -->
+  <div id="thread-reply-count" style="padding:4px 16px;font-size:10px;color:var(--t4);flex-shrink:0;border-top:1px solid rgba(255,255,255,.04)"></div>
+  <!-- Reply input -->
+  <div style="padding:10px 16px 14px;flex-shrink:0;border-top:1px solid rgba(255,255,255,.05)">
+    <div id="thread-reply-input-box" style="background:var(--s2);border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow:hidden;transition:border-color .15s">
+      <div style="display:flex;align-items:flex-end;gap:8px;padding:8px 10px 6px">
+        <textarea id="thread-input" rows="1" placeholder="Reply in thread..." style="flex:1;resize:none;max-height:100px;font-size:12px;color:var(--t1);background:transparent;border:none;font-family:inherit;line-height:1.5" oninput="autoGrow(this)" onkeydown="handleThreadKey(event)"></textarea>
+        <button onclick="sendThreadReply()" style="width:28px;height:28px;border-radius:7px;background:var(--green);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s" onmouseover="this.style.background='var(--green2)'" onmouseout="this.style.background='var(--green)'">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div style="padding:2px 10px 6px;font-size:9px;color:var(--t4)">Enter · Shift+Enter newline</div>
+    </div>
+  </div>
+</div>
+<div id="thread-overlay" onclick="closeThreadPanel()" style="display:none;position:fixed;inset:0;z-index:249;background:rgba(0,0,0,.2)"></div>
 
 <!-- MODALS -->
 
@@ -858,6 +890,8 @@ function renderApp() {
   }
   // Show member count in nav
   updateNavMemberCount();
+  // Away status after 5 min inactivity
+  initAwayDetection();
   // Show onboarding for first-time users
   const hasOnboarded = localStorage.getItem('dc_onboarded_' + S.user?.id);
   if (!hasOnboarded) {
@@ -908,6 +942,74 @@ function showOnboarding() {
   };
   document.body.appendChild(mo);
   renderStep();
+}
+
+function showUserHover(e, userId) {
+  e.stopPropagation();
+  document.getElementById('_user-hover')?.remove();
+  const u = S.users.find(x => x.id === userId);
+  if (!u) return;
+  const name = safe(u.display_name || u.github_username || u.handle || 'User', 40);
+  const handle = u.handle || u.github_username || '';
+  const color = u.avatar_color || '#22c55e';
+  const inits = initials(name);
+  const isOnline = S.online?.[userId];
+  const myTask = S.tasks.find(t => t.assigned_to === userId && t.status !== 'done');
+  const card = document.createElement('div');
+  card.id = '_user-hover';
+  card.style.cssText = 'position:fixed;z-index:800;background:rgba(14,14,16,.98);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px;width:240px;box-shadow:0 16px 50px rgba(0,0,0,.7);backdrop-filter:blur(16px);animation:scaleIn .15s cubic-bezier(.16,1,.3,1)';
+  card.innerHTML = `<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px">
+    <div class="av av-40" style="background:${esc(color)}">${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:inits}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:700">${esc(name)}</div>
+      <div style="font-size:11px;color:var(--t4)">@${esc(handle)}</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:3px">
+        <div style="width:6px;height:6px;border-radius:50%;background:${isOnline?'var(--green)':'var(--s6)'}"></div>
+        <span style="font-size:10px;color:${isOnline?'var(--green)':'var(--t4)'}">${isOnline?'Online':'Offline'}</span>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:12px">
+    ${u.role?`<div style="font-size:10px;color:var(--t4)">Role: <span style="color:var(--t2);font-weight:600">${esc(u.role)}</span></div>`:''}
+    ${myTask?`<div style="font-size:10px;color:var(--t4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Working on: <span style="color:var(--blue)">${esc(myTask.title.slice(0,30))}</span></div>`:''}
+  </div>
+  <div style="display:flex;gap:6px">
+    <button onclick="document.getElementById('_user-hover')?.remove();startDM('${esc(userId)}')" style="flex:1;padding:6px;border-radius:8px;background:var(--s3);border:1px solid rgba(255,255,255,.07);color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">💬 DM</button>
+    <button onclick="document.getElementById('_user-hover')?.remove();window.open('profile.html?handle=${esc(handle)}','_blank')" style="flex:1;padding:6px;border-radius:8px;background:var(--s3);border:1px solid rgba(255,255,255,.07);color:var(--t2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">👤 Profile</button>
+  </div>`;
+  document.body.appendChild(card);
+  // Position near click
+  const x = Math.min(e.clientX, window.innerWidth - 260);
+  const y = e.clientY + 10;
+  card.style.left = x + 'px';
+  card.style.top = (y + card.offsetHeight > window.innerHeight ? y - card.offsetHeight - 20 : y) + 'px';
+  setTimeout(() => document.addEventListener('click', () => card.remove(), { once: true }), 50);
+}
+
+function initAwayDetection() {
+  let _awayTimer = null;
+  const AWAY_MS = 5 * 60 * 1000; // 5 min
+  function resetAway() {
+    clearTimeout(_awayTimer);
+    if (S.socket?.connected && document._isAway) {
+      S.socket.emit('status:active', {});
+      document._isAway = false;
+      const dot = document.querySelector('.sb-user-status .status-dot');
+      if (dot) { dot.className = 'status-dot s-online'; }
+    }
+    _awayTimer = setTimeout(() => {
+      if (S.socket?.connected) {
+        S.socket.emit('status:away', {});
+        document._isAway = true;
+        const dot = document.querySelector('.sb-user-status .status-dot');
+        if (dot) { dot.className = 'status-dot s-away'; }
+      }
+    }, AWAY_MS);
+  }
+  ['mousemove','keydown','click','touchstart','scroll'].forEach(ev => {
+    document.addEventListener(ev, resetAway, { passive: true });
+  });
+  resetAway();
 }
 
 function updateNavMemberCount() {
@@ -1156,6 +1258,8 @@ async function switchChannel(channelId) {
   document.getElementById('msg-input').placeholder = 'Message #' + displayName + '...';
   // Clear unread badge
   const chObj = S.channels.find(x => x.id === channelId);
+  const msgCountEl = document.getElementById('ch-msg-count');
+  if (msgCountEl) { msgCountEl.textContent = ''; }
   if (chObj) { chObj.unread = 0; }
   // Sidebar active
   document.querySelectorAll('[data-chid]').forEach(el => el.classList.toggle('active', el.dataset.chid === channelId));
@@ -1200,6 +1304,8 @@ function renderMessages(channelId) {
   const area = document.getElementById('msgs-area');
   if (!area) return;
   const msgs = S.messages[channelId] || [];
+  const msgCntEl = document.getElementById('ch-msg-count');
+  if (msgCntEl && msgs.length) msgCntEl.textContent = '· ' + msgs.length + (msgs.length===50?'+':' ') + 'message' + (msgs.length!==1?'s':'');
   if (!msgs.length) {
     area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💬</div><div class="empty-state-title">Start the conversation</div><div class="empty-state-desc">Be the first to post in this channel</div></div>';
     return;
@@ -1214,6 +1320,8 @@ function renderMessages(channelId) {
     lastTs = new Date(m.ts || m.created_at).getTime();
   });
   area.scrollTop = area.scrollHeight;
+  // Load reactions for visible messages
+  loadVisibleReactions(channelId);
   // Emit read receipt for last message
   if (S.currentChannel && S.socket?.connected && msgs.length > 0) {
     const lastMsg = msgs[msgs.length - 1];
@@ -1239,6 +1347,24 @@ function appendMsg(m, cont=false, animate=false) {
   el.className = 'msg' + (cont ? ' msg-cont' : '') + (animate ? ' anim-fade-up' : '');
   el.dataset.mid = m.id;
   el.oncontextmenu = (e) => msgCtx(e, m.id);
+  // Long message collapse
+  if (txt && txt.length > 700) {
+    const textEl2 = el.querySelector('.msg-text');
+    if (textEl2) {
+      const fullHTML = textEl2.innerHTML;
+      textEl2.innerHTML = fullHTML.slice(0, 700);
+      const ellipsis = document.createElement('span');
+      ellipsis.style.color = 'var(--t4)'; ellipsis.textContent = '… ';
+      const showMore = document.createElement('a');
+      showMore.href = '#'; showMore.style.cssText = 'color:var(--blue);font-size:11px;font-weight:600';
+      showMore.textContent = 'Show more';
+      showMore.onclick = (ev) => {
+        ev.preventDefault();
+        textEl2.innerHTML = fullHTML;
+      };
+      textEl2.appendChild(ellipsis); textEl2.appendChild(showMore);
+    }
+  }
   const txt = m.deleted ? '<span class="msg-deleted">[deleted]</span>' : fmtText(m.content || '');
   const isOwnMsg = (m.user_id || m.userId) === S.user?.id;
   el.innerHTML = `
@@ -1247,7 +1373,7 @@ function appendMsg(m, cont=false, animate=false) {
     </div>
     <div class="msg-body" style="flex:1;min-width:0">
       <div class="msg-meta">
-        <span class="msg-name">${esc(name)}</span>
+        <span class="msg-name" onclick="showUserHover(event,'${esc(uid)}')" style="cursor:pointer" title="View profile">${esc(name)}</span>
         <span class="msg-ts" title="${new Date(m.ts||m.created_at).toLocaleString()}">${time}</span>
         ${m.edited ? '<span style="font-size:9px;color:var(--t4)">(edited)</span>' : ''}
       </div>
@@ -1271,6 +1397,19 @@ function appendMsg(m, cont=false, animate=false) {
   area.appendChild(el);
 }
 
+async function loadVisibleReactions(channelId) {
+  // Load reactions for all messages in this channel from server
+  const msgs = S.messages[channelId] || [];
+  if (!msgs.length) return;
+  // Batch: we'll rely on socket events for live updates
+  // For initial load, parse reactions from message data if included
+  msgs.forEach(m => {
+    if (m.reactions && typeof m.reactions === 'object' && Object.keys(m.reactions).length > 0) {
+      _renderRxns(m.id, m.reactions);
+    }
+  });
+}
+
 async function loadChannelPins(channelId) {
   try {
     const pins = await GET('/channels/' + channelId + '/pins');
@@ -1288,9 +1427,30 @@ function msgCtx(e, msgId) {
   const isOwnMsg = (m?.user_id || m?.userId) === S.user?.id;
   const items = [
     { label: '😄 React', icon: '😄', fn: () => pickReact(msgId) },
-    { label: 'Reply', icon: '↩', fn: () => { document.getElementById('msg-input').value = ''; document.getElementById('msg-input').focus(); }},
+    { label: 'Reply in Thread', icon: '↩', fn: () => openThreadPanel(msgId) },
+    { label: 'Quote Reply', icon: '❝', fn: () => {
+      const ta = document.getElementById('msg-input');
+      if (!ta) return;
+      const quoted = '> ' + (m?.content||'').slice(0, 80).replace(/\n/g,'\n> ') + '\n';
+      ta.value = quoted + ta.value;
+      autoGrow(ta);
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }},
     { label: 'Copy Text', icon: '📋', fn: () => navigator.clipboard.writeText(m?.content||'').then(()=>toast('s','Copied','')) },
-    { label: 'Pin Message', icon: '📌', fn: () => POST('/channels/'+S.currentChannel+'/messages/pin',{messageId:msgId}).then(()=>toast('s','Pinned','')).catch(e2=>toast('e','Error',e2.message)) },
+    { label: 'Pin Message', icon: '📌', fn: () => {
+      if (S.socket?.connected) S.socket.emit('msg:pin', { messageId: msgId, channelId: S.currentChannel });
+      else POST('/channels/'+S.currentChannel+'/messages/pin',{messageId:msgId}).then(()=>toast('s','Pinned','')).catch(e2=>toast('e','Error',e2.message));
+    }},
+    { label: 'Mark as Unread', icon: '🔵', fn: () => {
+      const ch = S.channels.find(c => c.id === S.currentChannel);
+      if (ch) { ch.unread = (ch.unread||0) + 1; renderSBChannels(); }
+      toast('i','Marked unread','');
+    }},
+    { label: 'Copy Link', icon: '🔗', fn: () => {
+      const link = location.origin + '/app.html?ch=' + S.currentChannel + '&msg=' + msgId;
+      navigator.clipboard.writeText(link).then(() => toast('s','Link copied',''));
+    }},
   ];
   if (isOwnMsg || S.isOwner) {
     items.push({ sep: true });
@@ -1445,6 +1605,144 @@ function insertMention(handle) {
   hideMentionSuggest();
 }
 // Handle keyboard nav in mention suggest
+// ── THREAD PANEL ─────────────────────────────────────────────────────────────
+let _threadMsgId = null;
+
+async function openThreadPanel(msgId) {
+  _threadMsgId = msgId;
+  const panel = document.getElementById('thread-panel');
+  const overlay = document.getElementById('thread-overlay');
+  if (!panel) return;
+  panel.style.display = 'flex';
+  setTimeout(() => { panel.style.transform = 'translateX(0)'; if(overlay) overlay.style.display='block'; }, 10);
+
+  // Find parent message
+  const allMsgs = Object.values(S.messages).flat();
+  const parent = allMsgs.find(m => m.id === msgId);
+  const chLabel = document.getElementById('thread-channel-label');
+  const ch = S.channels.find(c => c.id === S.currentChannel);
+  if (chLabel) chLabel.textContent = ch ? '#' + ch.name : '';
+
+  // Render parent
+  const parentEl = document.getElementById('thread-parent');
+  if (parentEl && parent) {
+    const uid = parent.user_id || parent.userId;
+    const u = S.users.find(x => x.id === uid) || parent.user || {};
+    const name = safe(u.display_name || u.github_username || u.handle || 'User', 40);
+    const color = u.avatar_color || '#22c55e';
+    const inits = initials(name);
+    const time = fmtTime(parent.ts || parent.created_at);
+    parentEl.innerHTML = `<div style="display:flex;gap:10px">
+      <div class="av av-32" style="background:${esc(color)};flex-shrink:0">${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:inits}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:3px">
+          <span style="font-size:13px;font-weight:700">${esc(name)}</span>
+          <span style="font-size:10px;color:var(--t4)">${time}</span>
+        </div>
+        <div style="font-size:13px;color:var(--t2);line-height:1.6">${fmtText(parent.content||'')}</div>
+      </div>
+    </div>`;
+  }
+
+  // Load replies
+  await loadThreadReplies(msgId);
+  document.getElementById('thread-input')?.focus();
+}
+
+function closeThreadPanel() {
+  const panel = document.getElementById('thread-panel');
+  const overlay = document.getElementById('thread-overlay');
+  if (panel) { panel.style.transform = 'translateX(100%)'; setTimeout(()=>{ panel.style.display='none'; }, 300); }
+  if (overlay) overlay.style.display = 'none';
+  _threadMsgId = null;
+}
+
+async function loadThreadReplies(msgId) {
+  const repliesEl = document.getElementById('thread-replies');
+  const countEl = document.getElementById('thread-reply-count');
+  if (!repliesEl) return;
+  repliesEl.innerHTML = '<div style="display:flex;justify-content:center;padding:20px"><div class="spinner"></div></div>';
+  try {
+    const replies = await GET('/messages/' + msgId + '/thread');
+    if (!replies?.length) {
+      repliesEl.innerHTML = '<div style="text-align:center;padding:20px;font-size:12px;color:var(--t4)">No replies yet. Start the thread!</div>';
+      if (countEl) countEl.textContent = '';
+      return;
+    }
+    repliesEl.innerHTML = '';
+    replies.forEach(r => appendThreadReply(r));
+    if (countEl) countEl.textContent = replies.length + ' repl' + (replies.length===1?'y':'ies');
+    repliesEl.scrollTop = repliesEl.scrollHeight;
+  } catch(e) {
+    repliesEl.innerHTML = `<div style="padding:16px;font-size:11px;color:var(--red)">${esc(e.message)}</div>`;
+  }
+}
+
+function appendThreadReply(r, animate=false) {
+  const repliesEl = document.getElementById('thread-replies');
+  if (!repliesEl) return;
+  repliesEl.querySelector('[style*="No replies"]')?.remove();
+  repliesEl.querySelector('[style*="No replies yet"]')?.remove();
+  const uid = r.user_id || r.userId;
+  const u = S.users.find(x => x.id === uid) || r.user || {};
+  const name = safe(u.display_name || u.github_username || u.handle || 'User', 40);
+  const color = u.avatar_color || '#22c55e';
+  const inits = initials(name);
+  const time = fmtTime(r.ts || r.created_at);
+  const el = document.createElement('div');
+  el.style.cssText = 'display:flex;gap:8px;padding:5px 0;' + (animate?'animation:fadeUp .2s ease':'');
+  el.innerHTML = `<div class="av av-28" style="background:${esc(color)};flex-shrink:0">${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:inits}</div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:2px">
+        <span style="font-size:12px;font-weight:700">${esc(name)}</span>
+        <span style="font-size:10px;color:var(--t4)">${time}</span>
+      </div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.6">${fmtText(r.content||'')}</div>
+    </div>`;
+  repliesEl.appendChild(el);
+}
+
+async function sendThreadReply() {
+  if (!_threadMsgId) return;
+  const ta = document.getElementById('thread-input');
+  const content = ta?.value?.trim();
+  if (!content) return;
+  ta.value = ''; ta.style.height = 'auto';
+  try {
+    const reply = await POST('/messages/' + _threadMsgId + '/thread', { content });
+    appendThreadReply(reply || { user_id: S.user?.id, content, created_at: new Date().toISOString() }, true);
+    const repliesEl = document.getElementById('thread-replies');
+    if (repliesEl) repliesEl.scrollTop = repliesEl.scrollHeight;
+    // Update reply count badge on parent message in chat
+    const msgEl = document.querySelector('[data-mid="' + _threadMsgId + '"]');
+    if (msgEl) {
+      let badge = msgEl.querySelector('.thread-badge');
+      if (!badge) {
+        badge = document.createElement('div'); badge.className='thread-badge';
+        badge.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-top:5px;font-size:10px;color:var(--blue);cursor:pointer;background:var(--blue-d);border:1px solid rgba(59,130,246,.2);padding:2px 8px;border-radius:99px';
+        badge.onclick = () => openThreadPanel(_threadMsgId);
+        msgEl.querySelector('.msg-body')?.appendChild(badge);
+      }
+      const cnt = parseInt(badge.dataset.count||'0') + 1;
+      badge.dataset.count = cnt;
+      badge.innerHTML = '↩ ' + cnt + ' repl' + (cnt===1?'y':'ies');
+    }
+    const countEl = document.getElementById('thread-reply-count');
+    const cnt2 = document.getElementById('thread-replies')?.querySelectorAll('div[style*="display:flex"]')?.length || 1;
+    if (countEl) countEl.textContent = cnt2 + ' repl' + (cnt2===1?'y':'ies');
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+function handleThreadKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendThreadReply(); }
+}
+
+// Handle thread:new socket event - open thread panel reply
+;(() => {
+  const _origInit = window.initSocket;
+  // thread:new already handled in existing socket - just need to wire badge click
+})();
+
 document.addEventListener('keydown', e => {
   if (!_mentionSuggestEl || _mentionSuggestEl.style.display === 'none') return;
   if (e.key === 'Escape') { hideMentionSuggest(); return; }
@@ -1589,7 +1887,14 @@ function initSocket() {
   });
   S.socket.on('notification:new', ({ type, title, body }) => {
     toast(type==='pr_approved'?'s':type==='nudge'?'a':'i', title, body||'', type==='nudge'?7000:4000);
-    document.getElementById('notif-dot').style.display = 'block';
+    // Update notification count badge
+    const dot = document.getElementById('notif-dot');
+    if (dot) {
+      const cnt = parseInt(dot.dataset.count||'0') + 1;
+      dot.dataset.count = cnt;
+      dot.style.display = 'flex';
+      dot.textContent = cnt > 9 ? '9+' : cnt;
+    }
     // Desktop notification
     if (Notification.permission === 'granted' && document.hidden) {
       try { new Notification(title || 'DevCollab', { body: body || '', icon: '/favicon.ico', tag: type }); } catch {}
@@ -1731,6 +2036,65 @@ function renderTyping() {
 // ── INVITE (fixed - shows actual user name not UUID) ──────────────────────
 let _inviteSelected = null;
 let _inviteSearchTimer = null;
+
+function openSetStatus() {
+  document.getElementById('_status-modal')?.remove();
+  const mo = document.createElement('div'); mo.id='_status-modal'; mo.className='modal-backdrop';
+  mo.onclick = e => { if(e.target===mo) mo.remove(); };
+  const PRESETS = [
+    {emoji:'💻',text:'Coding'},
+    {emoji:'🔍',text:'In review'},
+    {emoji:'🎯',text:'Focused'},
+    {emoji:'📋',text:'Planning'},
+    {emoji:'🚀',text:'Shipping'},
+    {emoji:'☕',text:'On a break'},
+    {emoji:'🏃',text:'In a meeting'},
+    {emoji:'🎉',text:'Celebrating'},
+  ];
+  const cur = JSON.parse(localStorage.getItem('dc_status')||'{}');
+  mo.innerHTML = `<div class="modal modal-sm">
+    <div class="modal-hdr"><div class="modal-title">Set Your Status</div><div class="modal-close" onclick="document.getElementById('_status-modal').remove()">✕</div></div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Status</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="field-input" id="status-emoji" style="width:52px;text-align:center;font-size:18px" value="${esc(cur.emoji||'😊')}" maxlength="2">
+          <input class="field-input" id="status-text" placeholder="What are you up to?" value="${esc(cur.text||'')}">
+        </div>
+      </div>
+      <div class="t-tiny mb-8">Quick pick</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:4px">
+        ${PRESETS.map(p=>`<button onclick="document.getElementById('status-emoji').value='${p.emoji}';document.getElementById('status-text').value='${p.text}'" style="padding:7px;border-radius:8px;background:var(--s3);border:1px solid rgba(255,255,255,.07);cursor:pointer;font-size:11px;font-family:inherit;transition:all .1s" onmouseover="this.style.background='var(--s4)'" onmouseout="this.style.background='var(--s3)'">${p.emoji} ${p.text}</button>`).join('')}
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary btn-sm" onclick="clearStatus()">Clear Status</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('_status-modal').remove()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStatus()">Save</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+}
+function saveStatus() {
+  const emoji = document.getElementById('status-emoji')?.value?.trim() || '😊';
+  const text = safe(document.getElementById('status-text')?.value||'', 60);
+  const status = { emoji, text };
+  localStorage.setItem('dc_status', JSON.stringify(status));
+  document.getElementById('set-status-btn').textContent = emoji;
+  document.getElementById('_status-modal')?.remove();
+  // Update via API
+  PATCH('/users/me', { status_emoji: emoji, status_text: text }).catch(() => {});
+  toast('s', 'Status set', emoji + ' ' + text);
+}
+function clearStatus() {
+  localStorage.removeItem('dc_status');
+  document.getElementById('set-status-btn').textContent = '😊';
+  document.getElementById('_status-modal')?.remove();
+  PATCH('/users/me', { status_emoji: null, status_text: null }).catch(() => {});
+  toast('s', 'Status cleared', '');
+}
+// Load saved status on boot
+;(()=>{ const s=JSON.parse(localStorage.getItem('dc_status')||'{}'); if(s.emoji){setTimeout(()=>{ const b=document.getElementById('set-status-btn'); if(b)b.textContent=s.emoji; },1000);} })();
 
 function copyInviteLink() {
   const link = location.origin + '/app.html?join=' + (S.ws?.id||'');
@@ -2088,7 +2452,7 @@ function renderAllTasks() {
         <span style="font-size:10px;font-weight:700;color:${sc}">${STATUS_LABELS[t.status]||t.status}</span>
       </div>
       <div style="display:flex;align-items:center;gap:10px;font-size:10px;color:var(--t3)">
-        <span style="color:${dl.color}">${dl.label}</span>
+        <span style="color:${dl.color};font-weight:${dl.cls==='dl-over'||dl.cls==='dl-today'?'700':'400'}">${dl.label}${dl.cls==='dl-over'?' ⚠':''}${dl.cls==='dl-today'?' 🔔':''}</span>
         ${t.branch_name?`<span style="color:var(--blue);font-family:monospace">🌿 ${esc(t.branch_name)}</span>`:''}
         ${t.pr_url?`<a href="${esc(t.pr_url)}" target="_blank" style="color:var(--blue)">⇄ PR ↗</a>`:''}
       </div>
@@ -2143,7 +2507,14 @@ function openEditTask(id) {
             <option value="done" ${t.status==='done'?'selected':''}>Done</option>
           </select></div>
       </div>
-      <div class="field" style="margin-top:12px"><label class="field-label">Deadline</label><input class="field-input" id="et-deadline" type="date" value="${t.deadline?t.deadline.slice(0,10):''}"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div class="field" style="margin-bottom:0"><label class="field-label">Deadline</label><input class="field-input" id="et-deadline" type="date" value="${t.deadline?t.deadline.slice(0,10):''}"></div>
+        <div class="field" style="margin-bottom:0"><label class="field-label">Assign To</label>
+          <select class="field-select" id="et-assignee">
+            ${S.users.map(u=>`<option value="${esc(u.id)}" ${u.id===t.assigned_to?'selected':''}>@${esc(u.handle||u.github_username||u.display_name||'')}</option>`).join('')}
+          </select>
+        </div>
+      </div>
     </div>
     <div class="modal-ftr">
       <button class="btn btn-danger btn-sm" onclick="deleteTask('${esc(id)}');document.getElementById('edit-task-modal')?.remove()">🗑 Delete</button>
@@ -2159,10 +2530,11 @@ async function saveEditTask(id) {
   const desc  = safe(document.getElementById('et-desc')?.value||'', 5000);
   const prio  = document.getElementById('et-prio')?.value || 'medium';
   const status= document.getElementById('et-status')?.value || 'not_started';
-  const dl    = document.getElementById('et-deadline')?.value || '';
+  const dl       = document.getElementById('et-deadline')?.value || '';
+  const assignedTo = document.getElementById('et-assignee')?.value || null;
   if (!title) { toast('e','Error','Title required'); return; }
   try {
-    const updated = await PATCH('/tasks/' + id, { title, description:desc, priority:prio, status, deadline:dl||null });
+    const updated = await PATCH('/tasks/' + id, { title, description:desc, priority:prio, status, deadline:dl||null, assignedTo });
     const i = S.tasks.findIndex(t => t.id === id);
     if (i >= 0) S.tasks[i] = { ...S.tasks[i], ...updated };
     document.getElementById('edit-task-modal')?.remove();
@@ -2184,8 +2556,34 @@ async function submitReview(id) {
   catch(e){toast('e','Error',e.message);}
 }
 async function approveTask(id) {
-  try{await POST('/tasks/'+id+'/approve',{});const t=S.tasks.find(x=>x.id===id);if(t)t.status='approved';renderAllTasks();toast('s','Approved ✓','');}
-  catch(e){toast('e','Error',e.message);}
+  try {
+    await POST('/tasks/'+id+'/approve',{});
+    const t = S.tasks.find(x => x.id === id);
+    if (t) t.status = 'approved';
+    renderAllTasks();
+    toast('s','Task Approved ✓','');
+    celebrateTask();
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+function celebrateTask() {
+  // Burst of colored dots animation
+  const colors = ['#22c55e','#3b82f6','#a855f7','#eab308','#f97316'];
+  for (let i = 0; i < 18; i++) {
+    const dot = document.createElement('div');
+    const angle = (i / 18) * Math.PI * 2;
+    const dist = 60 + Math.random() * 80;
+    const x = Math.cos(angle) * dist;
+    const y = Math.sin(angle) * dist;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    dot.style.cssText = `position:fixed;bottom:80px;right:24px;width:8px;height:8px;border-radius:50%;background:${color};z-index:9999;pointer-events:none;transform:translate(0,0);transition:transform ${0.5+Math.random()*0.5}s cubic-bezier(.16,1,.3,1),opacity 0.8s ease`;
+    document.body.appendChild(dot);
+    requestAnimationFrame(() => {
+      dot.style.transform = `translate(${x}px,${-Math.abs(y)-40}px)`;
+      dot.style.opacity = '0';
+    });
+    setTimeout(() => dot.remove(), 1000);
+  }
 }
 async function rejectTask(id) {
   const reason=prompt('Reason for requesting changes:');if(!reason)return;
@@ -2831,6 +3229,23 @@ function toggleSidebar() {
   const open=sb.classList.toggle('mobile-open');
   ov.classList.toggle('visible',open);
 }
+// Mobile swipe to close sidebar
+;(()=>{
+  let _swipeStartX=0, _swipeStartY=0;
+  document.addEventListener('touchstart',e=>{
+    _swipeStartX=e.touches[0].clientX;
+    _swipeStartY=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-_swipeStartX;
+    const dy=e.changedTouches[0].clientY-_swipeStartY;
+    if(Math.abs(dx)>50&&Math.abs(dy)<50){
+      const sb=document.getElementById('sidebar');
+      if(dx<0&&sb?.classList.contains('mobile-open')){closeSidebar();}  // swipe left = close
+      else if(dx>0&&!sb?.classList.contains('mobile-open')&&_swipeStartX<40){toggleSidebar();}  // swipe right from edge = open
+    }
+  },{passive:true});
+})();
 function closeSidebar() {
   if(window.innerWidth>768)return;
   document.getElementById('sidebar')?.classList.remove('mobile-open');
@@ -2881,6 +3296,29 @@ function showAllPins() { toast('i','Pins','Pin management coming soon'); }
 // Load muted/starred channels from localStorage
 S._mutedChannels = new Set(JSON.parse(localStorage.getItem('dc_muted')||'[]'));
 S._starredChannels = new Set(JSON.parse(localStorage.getItem('dc_starred')||'[]'));
+
+// Error boundary
+window.onerror = function(msg, src, line, col, err) {
+  console.error('[DevCollab Error]', msg, err);
+  // Only show UI error for critical crashes, not minor script errors
+  if (msg && (msg.includes('Uncaught') || msg.includes('Cannot read')) && document.getElementById('app')?.style.display !== 'none') {
+    const existing = document.getElementById('_error-banner');
+    if (existing) return;
+    const banner = document.createElement('div');
+    banner.id = '_error-banner';
+    banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(239,68,68,.9);color:#fff;padding:10px 18px;border-radius:10px;font-size:12px;font-weight:600;z-index:9999;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)';
+    banner.innerHTML = '⚠ Something went wrong. <button onclick="location.reload()" style="padding:4px 10px;border-radius:6px;background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit">Reload</button><button onclick="this.parentElement.remove()" style="padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.1);border:none;color:#fff;cursor:pointer;font-size:11px;font-family:inherit">Dismiss</button>';
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 10000);
+  }
+  return false;
+};
+window.onunhandledrejection = function(e) {
+  const msg = e.reason?.message || String(e.reason || '');
+  if (msg.includes('fetch') || msg.includes('network')) {
+    toast && toast('e','Connection Error','Check your internet connection');
+  }
+};
 
 // Apply saved theme
 if(localStorage.getItem('dc_theme')==='light'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='☀️';}
