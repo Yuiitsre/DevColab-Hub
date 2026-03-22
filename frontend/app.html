@@ -198,7 +198,7 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
       <div class="nav-logo">DC</div>
       <span class="nav-brand-name">DevCollab <em>Hub</em></span>
     </a>
-    <div class="nav-ws-pill" id="nav-ws-name" onclick="showHome()" data-tip="Go to dashboard">–</div>
+    <div class="nav-ws-pill" id="nav-ws-name" onclick="showHome()" oncontextmenu="wsCtx(event)" title="Right-click to rename">–</div>
     <div class="nav-search-wrap">
       <svg class="nav-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input class="nav-search-input" id="nav-search" placeholder="Search users, channels, tasks..." autocomplete="off" onkeydown="if(event.key==='Enter')doSearch(this.value)">
@@ -207,6 +207,10 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
     <div class="nav-spacer"></div>
     <div class="nav-actions">
       <!-- Mode toggle -->
+      <div id="online-badge" style="display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--green);background:var(--green-d);border:1px solid rgba(34,197,94,.15);padding:3px 10px;border-radius:99px" title="Team members online">
+        <div style="width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite"></div>
+        <span id="online-count">0</span> online
+      </div>
       <button class="nav-mode-btn nav-mode-collab" id="mode-btn" onclick="toggleDashMode()">
         <span id="mode-icon">⚡</span>
         <span id="mode-label">Collab</span>
@@ -240,6 +244,7 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
             <span class="sb-item-bar"></span>
             <span class="sb-item-icon">✅</span>
             <span class="sb-item-text">My Tasks</span>
+            <span id="sb-task-badge" class="sb-item-badge" style="display:none"></span>
           </a>
           <a class="sb-item" id="sb-repos" onclick="showRepos()">
             <span class="sb-item-bar"></span>
@@ -250,27 +255,36 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
 
         <!-- Projects -->
         <div class="sb-section">
-          <div class="sb-section-hdr">
+          <div class="sb-section-hdr" onclick="toggleSbSection('sb-projects','sb-sec-proj')" style="cursor:pointer" title="Click to collapse">
             <span class="sb-section-label">Projects</span>
-            <div class="sb-section-add" onclick="openNewProject()" title="New project">+</div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div class="sb-section-add" onclick="event.stopPropagation();openNewProject()" title="New project">+</div>
+              <span id="sb-sec-proj-arrow" style="font-size:9px;color:var(--t4);transition:transform .2s">▾</span>
+            </div>
           </div>
           <div id="sb-projects"></div>
         </div>
 
         <!-- Channels -->
         <div class="sb-section">
-          <div class="sb-section-hdr">
+          <div class="sb-section-hdr" onclick="toggleSbSection('sb-channels','sb-sec-ch')" style="cursor:pointer" title="Click to collapse">
             <span class="sb-section-label">Channels</span>
-            <div class="sb-section-add" onclick="openNewChannel()" title="New channel">+</div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div class="sb-section-add" onclick="event.stopPropagation();openNewChannel()" title="New channel">+</div>
+              <span id="sb-sec-ch-arrow" style="font-size:9px;color:var(--t4);transition:transform .2s">▾</span>
+            </div>
           </div>
           <div id="sb-channels"></div>
         </div>
 
         <!-- DMs -->
         <div class="sb-section">
-          <div class="sb-section-hdr">
+          <div class="sb-section-hdr" onclick="toggleSbSection('sb-dms','sb-sec-dm')" style="cursor:pointer" title="Click to collapse">
             <span class="sb-section-label">Direct Messages</span>
-            <div class="sb-section-add" onclick="newDM()" title="New DM">+</div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div class="sb-section-add" onclick="event.stopPropagation();newDM()" title="New DM">+</div>
+              <span id="sb-sec-dm-arrow" style="font-size:9px;color:var(--t4);transition:transform .2s">▾</span>
+            </div>
           </div>
           <div id="sb-dms"></div>
         </div>
@@ -285,15 +299,18 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
 
       <!-- Footer -->
       <div class="sb-footer">
-        <div class="av av-32 sb-user-av" id="sb-av" onclick="openProfile()"></div>
-        <div class="sb-user-info">
+        <div class="av av-32 sb-user-av" id="sb-av" onclick="openProfile()" style="cursor:pointer"></div>
+        <div class="sb-user-info" style="cursor:pointer" onclick="openProfile()">
           <div class="sb-user-name" id="sb-user-name">Loading...</div>
           <div class="sb-user-status">
             <div class="status-dot s-online"></div>
             <span id="sb-role-label">Online</span>
           </div>
         </div>
-        <div class="sb-logout-btn" onclick="logout()" title="Sign out">⇥</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div class="sb-logout-btn" onclick="showWsSwitcher()" title="Switch workspace" style="font-size:11px">⇄</div>
+          <div class="sb-logout-btn" onclick="logout()" title="Sign out">⇥</div>
+        </div>
       </div>
     </aside>
 
@@ -347,7 +364,14 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
               <div class="panel-body"><div class="vel-chart" id="vel-chart"></div></div>
             </div>
             <div class="panel">
-              <div class="panel-hdr"><div class="panel-hdr-title"><div class="panel-dot" style="background:var(--green)"></div>Team Live Status</div><div class="panel-action" onclick="loadMgrDash()">↻</div></div>
+              <div class="panel-hdr">
+                <div class="panel-hdr-title"><div class="panel-dot" style="background:var(--green)"></div>Team Live Status</div>
+                <div style="display:flex;gap:6px">
+                  <div id="mgr-team-view-btn" onclick="setTeamView('status')" style="font-size:10px;font-weight:600;color:var(--blue);background:var(--blue-d);padding:2px 8px;border-radius:5px;cursor:pointer">Status</div>
+                  <div onclick="setTeamView('activity')" id="mgr-activity-view-btn" style="font-size:10px;font-weight:600;color:var(--t4);padding:2px 8px;border-radius:5px;cursor:pointer">Activity</div>
+                </div>
+                <div class="panel-action" onclick="loadMgrDash()">↻</div>
+              </div>
               <div class="panel-body" id="mgr-team"></div>
             </div>
           </div>
@@ -434,20 +458,27 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
           <span class="chat-hdr-desc" id="ch-desc"></span>
           <span id="ch-member-count" style="font-size:11px;color:var(--t4);margin-left:4px"></span>
           <div class="chat-hdr-actions">
+            <button class="btn btn-ghost btn-sm" id="msg-search-btn" onclick="toggleMsgSearch()" title="Search messages">🔍</button>
             <button class="btn btn-ghost btn-sm" onclick="openAI()">✦ AI</button>
           </div>
+        </div>
+        <div id="msg-search-bar" style="display:none;align-items:center;gap:8px;padding:6px 16px;background:var(--s1);border-bottom:1px solid rgba(255,255,255,.04);flex-shrink:0">
+          <input id="msg-search-input" class="field-input" style="flex:1;font-size:12px;padding:6px 10px" placeholder="Search messages in this channel..." oninput="searchMessages(this.value)" autocomplete="off">
+          <span id="msg-search-count" style="font-size:10px;color:var(--t4);white-space:nowrap"></span>
+          <button onclick="toggleMsgSearch()" style="font-size:13px;color:var(--t4);background:none;border:none;cursor:pointer;padding:4px">✕</button>
         </div>
         <div id="pinned-bar" style="display:none;align-items:center;gap:10px;padding:7px 20px;background:rgba(234,179,8,.04);border-bottom:1px solid rgba(234,179,8,.12);font-size:11px;flex-shrink:0">
           <span>📌</span><span id="pinned-count"></span>
           <a id="pinned-view-all" style="color:var(--blue);cursor:pointer;margin-left:auto;font-size:10px" onclick="showAllPins()">View all</a>
         </div>
-        <div class="msgs-area" id="msgs-area">
+        <div class="msgs-area" id="msgs-area" onscroll="onMsgsScroll(this)">
           <div class="empty-state">
             <div class="empty-state-icon">💬</div>
             <div class="empty-state-title">Select a channel</div>
             <div class="empty-state-desc">Choose a channel from the sidebar to start messaging</div>
           </div>
         </div>
+        <div id="jump-to-bottom" onclick="scrollToBottom()" style="display:none;position:absolute;bottom:130px;right:24px;z-index:10;padding:6px 14px;background:var(--blue);color:#fff;border-radius:99px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(59,130,246,.4);transition:all .2s;border:none;font-family:inherit">↓ New messages</div>
         <div class="typing-bar" id="typing-bar"></div>
         <div class="input-area">
           <div class="input-box">
@@ -596,6 +627,9 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
           <option value="admin">🛡 Admin</option>
         </select>
       </div>
+    </div>
+    <div style="padding:0 20px 14px">
+      <button onclick="copyInviteLink()" style="width:100%;padding:8px;background:var(--s3);border:1px solid rgba(255,255,255,.07);border-radius:8px;color:var(--t3);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='var(--s4)'" onmouseout="this.style.background='var(--s3)'">🔗 Copy Invite Link</button>
     </div>
     <div class="modal-ftr">
       <button class="btn btn-secondary" onclick="closeModal('invite-modal')">Cancel</button>
@@ -818,6 +852,74 @@ function renderApp() {
   renderSidebar();
   showHome();
   applyDashMode(false);
+  // Request desktop notification permission
+  if ('Notification' in window && Notification.permission === 'default') {
+    setTimeout(() => Notification.requestPermission(), 5000);
+  }
+  // Show member count in nav
+  updateNavMemberCount();
+  // Show onboarding for first-time users
+  const hasOnboarded = localStorage.getItem('dc_onboarded_' + S.user?.id);
+  if (!hasOnboarded) {
+    setTimeout(() => showOnboarding(), 1200);
+  }
+}
+
+function showOnboarding() {
+  if (document.getElementById('onboard-modal')) return;
+  const mo = document.createElement('div');
+  mo.id = 'onboard-modal'; mo.className = 'modal-backdrop';
+  mo.style.zIndex = '9998';
+  const u = S.user || {};
+  const steps = [
+    { icon: '💬', title: 'Channels & Chat', desc: 'Send messages in channels on the left. Right-click any channel to rename, star, or mute it.' },
+    { icon: '📋', title: 'Tasks', desc: 'Click My Tasks in the sidebar. Create tasks, set priority, assign to teammates, and track progress through Start → Submit → Approve.' },
+    { icon: '🚀', title: 'Projects', desc: 'Projects link to real GitHub repos. Click a project in the sidebar → Begin to open the full workspace with kanban board.' },
+    { icon: '⚡', title: 'Dashboards', desc: 'Toggle between Manager (control, assign, monitor) and Collaborator (focus, execute, ship) using the button in the top nav.' },
+    { icon: '✦', title: 'Gemini AI', desc: 'Click the AI button in any channel or use the sidebar AI card to get coding help, code reviews, and workspace-aware suggestions.' },
+  ];
+  let currentStep = 0;
+  function renderStep() {
+    const s = steps[currentStep];
+    mo.innerHTML = `<div style="background:rgba(15,15,17,.97);border:1px solid rgba(255,255,255,.08);border-radius:20px;width:480px;max-width:calc(100vw-24px);padding:36px 40px;text-align:center;box-shadow:0 40px 100px rgba(0,0,0,.8);animation:scaleIn .2s cubic-bezier(.16,1,.3,1)">
+      <div style="font-size:48px;margin-bottom:16px">${s.icon}</div>
+      <div style="font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--t4);margin-bottom:8px">Step ${currentStep+1} of ${steps.length}</div>
+      <div style="font-size:20px;font-weight:800;letter-spacing:-.3px;margin-bottom:10px">${s.title}</div>
+      <div style="font-size:13px;color:var(--t3);line-height:1.7;max-width:340px;margin:0 auto 28px">${s.desc}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:24px">
+        ${steps.map((_,i)=>`<div style="width:${i===currentStep?20:6}px;height:6px;border-radius:99px;background:${i===currentStep?'var(--green)':'var(--s5)'};transition:all .3s"></div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center">
+        ${currentStep>0?`<button onclick="onboardPrev()" style="padding:9px 20px;border-radius:10px;background:var(--s3);color:var(--t2);border:1px solid rgba(255,255,255,.07);cursor:pointer;font-size:13px;font-weight:600;font-family:inherit">← Back</button>`:''}
+        ${currentStep<steps.length-1
+          ?`<button onclick="onboardNext()" style="padding:9px 24px;border-radius:10px;background:var(--green);color:#000;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit">Next →</button>`
+          :`<button onclick="finishOnboarding()" style="padding:9px 24px;border-radius:10px;background:var(--green);color:#000;border:none;cursor:pointer;font-size:14px;font-weight:800;font-family:inherit">Let's go! 🚀</button>`}
+        <button onclick="finishOnboarding()" style="padding:9px 16px;border-radius:10px;background:transparent;color:var(--t4);border:1px solid rgba(255,255,255,.07);cursor:pointer;font-size:12px;font-family:inherit">Skip</button>
+      </div>
+      <div style="margin-top:16px;font-size:11px;color:var(--t4)">Welcome, ${esc(u.display_name||u.github_username||'developer')} 👋</div>
+    </div>`;
+  }
+  window.onboardNext = () => { if (currentStep < steps.length-1) { currentStep++; renderStep(); } };
+  window.onboardPrev = () => { if (currentStep > 0) { currentStep--; renderStep(); } };
+  window.finishOnboarding = () => {
+    localStorage.setItem('dc_onboarded_' + S.user?.id, '1');
+    mo.remove();
+    toast('s', 'Welcome to DevCollab Hub! 🎉', 'Press / for keyboard shortcuts');
+  };
+  document.body.appendChild(mo);
+  renderStep();
+}
+
+function updateNavMemberCount() {
+  const ws = document.getElementById('nav-ws-name');
+  if (ws && S.users?.length) {
+    const online = Object.values(S.online||{}).filter(Boolean).length;
+    ws.title = S.users.length + ' members · ' + online + ' online';
+    // Show online badge if team has members
+    const badge = document.getElementById('online-badge');
+    const countEl = document.getElementById('online-count');
+    if (badge) { badge.style.display = 'flex'; if(countEl) countEl.textContent = Math.max(1, online); }
+  }
 }
 
 // ── SIDEBAR ──────────────────────────────────────────────────────────────
@@ -851,12 +953,20 @@ function renderSBChannels() {
   const el = document.getElementById('sb-channels');
   if (!el) return;
   // Display friendly name - use description if "Project: ..." otherwise channel name
-  el.innerHTML = S.channels.map(ch => {
+  const starred = S._starredChannels || new Set();
+  const sortedChs = [...S.channels].sort((a,b) => {
+    const aS = starred.has(a.id) ? 0 : 1;
+    const bS = starred.has(b.id) ? 0 : 1;
+    return aS - bS;
+  });
+  el.innerHTML = sortedChs.map(ch => {
     const isSel = S.currentChannel === ch.id;
     const displayName = ch.description?.startsWith('Project: ')
       ? ch.description.replace('Project: ','')
       : ch.name;
-    const icon = ch.type === 'private' ? '🔒' : ch.type === 'announcement' ? '📢' : '#';
+    const isMuted = (S._mutedChannels||new Set()).has(ch.id);
+    const isStarred = (S._starredChannels||new Set()).has(ch.id);
+    const icon = ch.type === 'private' ? '🔒' : ch.type === 'announcement' ? '📢' : (isStarred ? '⭐' : '#');
     return `<div class="sb-item${isSel?' active':''}"
       data-chid="${esc(ch.id)}"
       onclick="switchChannel('${esc(ch.id)}')"
@@ -864,6 +974,7 @@ function renderSBChannels() {
       <span class="sb-item-bar"></span>
       <span class="sb-item-icon">${icon}</span>
       <span class="sb-item-text">${esc(displayName)}</span>
+      ${isMuted ? '<span style="font-size:9px;color:var(--t4);flex-shrink:0">🔕</span>' : ''}
       ${ch.unread ? `<span class="sb-item-badge">${ch.unread}</span>` : ''}
     </div>`;
   }).join('') || '<div style="padding:4px 14px;font-size:11px;color:var(--t4)">No channels</div>';
@@ -883,11 +994,26 @@ function channelCtx(e, channelId) {
   if (!ch) return;
   const isDefault = ['general','github-feed','ai-help'].includes(ch.name);
   const canManage = S.myPerms?.CREATE_CHANNEL || S.isOwner;
+  const muted = (S._mutedChannels||new Set()).has(channelId);
+  const starred = (S._starredChannels||new Set()).has(channelId);
   const items = [
     { label: '#' + (ch.name || ''), icon: '' },
     { sep: true },
     { label: 'Switch to Channel', icon: '💬', fn: () => switchChannel(channelId) },
     { label: 'Copy Link', icon: '🔗', fn: () => { navigator.clipboard.writeText(location.origin + '/app.html?ch=' + channelId); toast('s','Copied','Channel link copied'); }},
+    { label: starred ? 'Unstar' : 'Star Channel', icon: starred ? '⭐' : '☆', fn: () => {
+      if (!S._starredChannels) S._starredChannels = new Set();
+      if (starred) S._starredChannels.delete(channelId); else S._starredChannels.add(channelId);
+      localStorage.setItem('dc_starred', JSON.stringify([...S._starredChannels]));
+      toast('s', starred ? 'Unstarred' : '⭐ Starred', '#' + ch.name);
+      renderSBChannels();
+    }},
+    { label: muted ? 'Unmute' : 'Mute Channel', icon: muted ? '🔔' : '🔕', fn: () => {
+      if (!S._mutedChannels) S._mutedChannels = new Set();
+      if (muted) S._mutedChannels.delete(channelId); else S._mutedChannels.add(channelId);
+      localStorage.setItem('dc_muted', JSON.stringify([...S._mutedChannels]));
+      toast('i', muted ? 'Unmuted' : '🔕 Muted', '#' + ch.name + (muted?'':' — notifications off'));
+    }},
   ];
   if (canManage && !isDefault) {
     items.push({ sep: true });
@@ -1036,6 +1162,8 @@ async function switchChannel(channelId) {
   renderSBChannels();
   // Emit presence
   if (S.socket?.connected) S.socket.emit('channel:viewing', { channelId });
+  // Load pins count
+  loadChannelPins(channelId);
   // Load messages (will emit channel:join internally)
   await loadMessages(channelId);
   closeSidebar();
@@ -1086,6 +1214,13 @@ function renderMessages(channelId) {
     lastTs = new Date(m.ts || m.created_at).getTime();
   });
   area.scrollTop = area.scrollHeight;
+  // Emit read receipt for last message
+  if (S.currentChannel && S.socket?.connected && msgs.length > 0) {
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg?.id && lastMsg.userId !== S.user?.id) {
+      S.socket.emit('msg:read', { channelId: S.currentChannel, messageId: lastMsg.id });
+    }
+  }
 }
 
 function appendMsg(m, cont=false, animate=false) {
@@ -1105,20 +1240,46 @@ function appendMsg(m, cont=false, animate=false) {
   el.dataset.mid = m.id;
   el.oncontextmenu = (e) => msgCtx(e, m.id);
   const txt = m.deleted ? '<span class="msg-deleted">[deleted]</span>' : fmtText(m.content || '');
+  const isOwnMsg = (m.user_id || m.userId) === S.user?.id;
   el.innerHTML = `
     <div class="av av-32 msg-av" style="background:${color}">
       ${u.avatar_url ? `<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : inits}
     </div>
-    <div class="msg-body">
+    <div class="msg-body" style="flex:1;min-width:0">
       <div class="msg-meta">
         <span class="msg-name">${esc(name)}</span>
-        <span class="msg-ts">${time}</span>
+        <span class="msg-ts" title="${new Date(m.ts||m.created_at).toLocaleString()}">${time}</span>
+        ${m.edited ? '<span style="font-size:9px;color:var(--t4)">(edited)</span>' : ''}
       </div>
-      <div class="msg-text">${txt}</div>
+      <div class="msg-text" id="msg-text-${esc(m.id)}">${txt}</div>
+    </div>
+    <div class="msg-hover-actions" style="display:none;align-items:center;gap:2px;flex-shrink:0">
+      <button onclick="pickReact('${esc(m.id)}')" class="msg-act-btn" title="React">😄</button>
+      ${isOwnMsg ? `<button onclick="startInlineEdit('${esc(m.id)}')" class="msg-act-btn" title="Edit">✏️</button>` : ''}
+      <button onclick="msgCtx(event,'${esc(m.id)}')" class="msg-act-btn" title="More">···</button>
     </div>`;
+  el.addEventListener('mouseenter', () => {
+    const ha = el.querySelector('.msg-hover-actions');
+    if (ha) ha.style.display = 'flex';
+  });
+  el.addEventListener('mouseleave', () => {
+    const ha = el.querySelector('.msg-hover-actions');
+    if (ha && !el.querySelector('.msg-edit-active')) ha.style.display = 'none';
+  });
   const emp = area.querySelector('.empty-state');
   if (emp) emp.remove();
   area.appendChild(el);
+}
+
+async function loadChannelPins(channelId) {
+  try {
+    const pins = await GET('/channels/' + channelId + '/pins');
+    const bar = document.getElementById('pinned-bar');
+    const cnt = document.getElementById('pinned-count');
+    if (!pins?.length) { if (bar) bar.style.display = 'none'; return; }
+    if (bar) bar.style.display = 'flex';
+    if (cnt) cnt.textContent = pins.length + ' pinned message' + (pins.length > 1 ? 's' : '');
+  } catch {}
 }
 
 function msgCtx(e, msgId) {
@@ -1146,6 +1307,52 @@ function msgCtx(e, msgId) {
 
 function pickReact(msgId) { toast('i','Reactions','Coming soon'); }
 
+function startInlineEdit(msgId) {
+  // Remove any existing edit
+  document.querySelectorAll('.msg-edit-area').forEach(e => e.remove());
+  document.querySelectorAll('.msg-edit-hint').forEach(e => e.remove());
+  const msgEl = document.querySelector('[data-mid="' + msgId + '"]');
+  if (!msgEl) return;
+  const textEl = msgEl.querySelector('.msg-text');
+  if (!textEl) return;
+  const original = textEl.textContent; // plain text
+  msgEl.classList.add('msg-edit-active');
+  const ta = document.createElement('textarea');
+  ta.className = 'msg-edit-area';
+  ta.value = original;
+  ta.rows = 1;
+  autoGrow(ta);
+  ta.oninput = () => autoGrow(ta);
+  const hint = document.createElement('div');
+  hint.className = 'msg-edit-hint';
+  hint.innerHTML = '<kbd style="background:var(--s3);padding:1px 4px;border-radius:3px;font-size:9px">Enter</kbd> save · <kbd style="background:var(--s3);padding:1px 4px;border-radius:3px;font-size:9px">Esc</kbd> cancel';
+  ta.onkeydown = e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const newContent = ta.value.trim();
+      if (!newContent || newContent === original) { cancelInlineEdit(msgId); return; }
+      if (S.socket?.connected) S.socket.emit('msg:edit', { messageId: msgId, content: newContent });
+      textEl.innerHTML = fmtText(newContent);
+      cancelInlineEdit(msgId);
+    }
+    if (e.key === 'Escape') cancelInlineEdit(msgId);
+  };
+  msgEl.querySelector('.msg-body')?.appendChild(ta);
+  msgEl.querySelector('.msg-body')?.appendChild(hint);
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function cancelInlineEdit(msgId) {
+  const msgEl = document.querySelector('[data-mid="' + msgId + '"]');
+  if (!msgEl) return;
+  msgEl.classList.remove('msg-edit-active');
+  msgEl.querySelector('.msg-edit-area')?.remove();
+  msgEl.querySelector('.msg-edit-hint')?.remove();
+  const ha = msgEl.querySelector('.msg-hover-actions');
+  if (ha) ha.style.display = 'none';
+}
+
 function sendMsg() {
   const ta = document.getElementById('msg-input');
   const raw = ta?.value?.trim();
@@ -1167,6 +1374,141 @@ function onMsgInput(el) {
   S.socket.emit('typing:start', { channelId: S.currentChannel });
   clearTimeout(S._typingTimer);
   S._typingTimer = setTimeout(() => S.socket.emit('typing:stop',{channelId:S.currentChannel}), 2500);
+  // @mention autocomplete
+  const val = el.value;
+  const pos = el.selectionStart;
+  const before = val.slice(0, pos);
+  const mentionMatch = before.match(/@(\w*)$/);
+  if (mentionMatch) {
+    showMentionSuggest(mentionMatch[1], el);
+  } else {
+    hideMentionSuggest();
+  }
+}
+
+let _mentionSuggestEl = null;
+let _mentionQuery = '';
+function showMentionSuggest(query, inputEl) {
+  _mentionQuery = query;
+  const users = (S.users||[]).filter(u => {
+    const q = query.toLowerCase();
+    const h = (u.handle||'').toLowerCase();
+    const g = (u.github_username||'').toLowerCase();
+    const d = (u.display_name||'').toLowerCase();
+    return !q || h.startsWith(q) || g.startsWith(q) || d.startsWith(q);
+  }).slice(0, 6);
+  if (!users.length) { hideMentionSuggest(); return; }
+  if (!_mentionSuggestEl) {
+    _mentionSuggestEl = document.createElement('div');
+    _mentionSuggestEl.id = '_mention-suggest';
+    _mentionSuggestEl.style.cssText = 'position:fixed;z-index:600;background:rgba(14,14,16,.98);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:5px;min-width:200px;max-width:280px;box-shadow:0 8px 32px rgba(0,0,0,.6);backdrop-filter:blur(16px)';
+    document.body.appendChild(_mentionSuggestEl);
+  }
+  const rect = inputEl.getBoundingClientRect();
+  _mentionSuggestEl.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+  _mentionSuggestEl.style.left = rect.left + 'px';
+  _mentionSuggestEl.style.display = 'block';
+  _mentionSuggestEl.innerHTML = users.map((u,i) => {
+    const name = safe(u.display_name || u.github_username || u.handle || 'User', 30);
+    const handle = u.handle || u.github_username || '';
+    const color = u.avatar_color || '#22c55e';
+    const inits = initials(name);
+    const isOnline = S.online?.[u.id];
+    return `<div class="mention-item" data-handle="${esc(handle)}" data-idx="${i}"
+      onclick="insertMention('${esc(handle)}')"
+      style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;transition:background .1s"
+      onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background=''">
+      <div style="position:relative;flex-shrink:0">
+        <div class="av av-24" style="background:${esc(color)}">${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:inits}</div>
+        <div style="position:absolute;bottom:0;right:0;width:6px;height:6px;border-radius:50%;background:${isOnline?'var(--green)':'var(--s6)'};border:1.5px solid var(--bg)"></div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</div>
+        <div style="font-size:10px;color:var(--t4)">@${esc(handle)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function hideMentionSuggest() {
+  if (_mentionSuggestEl) _mentionSuggestEl.style.display = 'none';
+}
+function insertMention(handle) {
+  const ta = document.getElementById('msg-input');
+  if (!ta) return;
+  const val = ta.value;
+  const pos = ta.selectionStart;
+  const before = val.slice(0, pos);
+  const newBefore = before.replace(/@\w*$/, '@' + handle + ' ');
+  ta.value = newBefore + val.slice(pos);
+  ta.setSelectionRange(newBefore.length, newBefore.length);
+  ta.focus();
+  hideMentionSuggest();
+}
+// Handle keyboard nav in mention suggest
+document.addEventListener('keydown', e => {
+  if (!_mentionSuggestEl || _mentionSuggestEl.style.display === 'none') return;
+  if (e.key === 'Escape') { hideMentionSuggest(); return; }
+  const items = _mentionSuggestEl.querySelectorAll('.mention-item');
+  const active = _mentionSuggestEl.querySelector('.mention-item[data-active]');
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    let idx = active ? parseInt(active.dataset.idx) : -1;
+    idx = e.key === 'ArrowDown' ? Math.min(idx+1, items.length-1) : Math.max(idx-1, 0);
+    items.forEach(it => { delete it.dataset.active; it.style.background=''; });
+    if (items[idx]) { items[idx].dataset.active='1'; items[idx].style.background='rgba(255,255,255,.06)'; }
+    return;
+  }
+  if (e.key === 'Enter' || e.key === 'Tab') {
+    if (active) { e.preventDefault(); insertMention(active.dataset.handle); }
+  }
+});
+document.addEventListener('click', e => {
+  if (_mentionSuggestEl && !_mentionSuggestEl.contains(e.target) && e.target.id !== 'msg-input') {
+    hideMentionSuggest();
+  }
+});
+function onMsgsScroll(el) {
+  const btn = document.getElementById('jump-to-bottom');
+  if (!btn) return;
+  const fromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+  btn.style.display = fromBottom > 200 ? 'block' : 'none';
+}
+function toggleMsgSearch() {
+  const bar = document.getElementById('msg-search-bar');
+  const isOpen = bar.style.display !== 'none';
+  bar.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen) { const inp = document.getElementById('msg-search-input'); inp?.focus(); inp && (inp.value=''); document.getElementById('msg-search-count').textContent=''; clearMsgSearchHighlight(); }
+}
+
+let _lastSearchQ = '';
+function searchMessages(q) {
+  _lastSearchQ = q.trim().toLowerCase();
+  clearMsgSearchHighlight();
+  if (!_lastSearchQ) { document.getElementById('msg-search-count').textContent=''; return; }
+  const msgs = document.querySelectorAll('.msg-text');
+  let count = 0;
+  msgs.forEach(el => {
+    const text = el.textContent.toLowerCase();
+    if (text.includes(_lastSearchQ)) {
+      count++;
+      el.innerHTML = el.innerHTML.replace(new RegExp('(' + _lastSearchQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<mark style="background:rgba(234,179,8,.3);color:var(--yellow);border-radius:2px;padding:0 1px">$1</mark>');
+      if (count === 1) el.closest('.msg')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+  document.getElementById('msg-search-count').textContent = count ? count + ' result' + (count>1?'s':'') : 'No results';
+}
+
+function clearMsgSearchHighlight() {
+  document.querySelectorAll('.msg-text mark').forEach(m => {
+    m.outerHTML = m.textContent;
+  });
+}
+
+function scrollToBottom() {
+  const el = document.getElementById('msgs-area');
+  if (el) { el.scrollTop = el.scrollHeight; }
+  const btn = document.getElementById('jump-to-bottom');
+  if (btn) btn.style.display = 'none';
 }
 function insertAt(text) { const ta=document.getElementById('msg-input'); if(!ta)return; const s=ta.selectionStart; ta.value=ta.value.slice(0,s)+text+ta.value.slice(s); ta.setSelectionRange(s+text.length,s+text.length); ta.focus(); }
 function insertCode() { const ta=document.getElementById('msg-input'); ta.value+=(ta.value?'\n':'')+'```javascript\n// code\n```'; ta.focus(); autoGrow(ta); }
@@ -1226,6 +1568,12 @@ function initSocket() {
   S.socket.on('presence', ({ userId, status }) => {
     S.online[userId] = status === 'online';
     renderSBDMs();
+    // Update online count badge
+    const cnt = Object.values(S.online).filter(Boolean).length;
+    const badge = document.getElementById('online-badge');
+    const countEl = document.getElementById('online-count');
+    if (badge && cnt > 0) { badge.style.display='flex'; if(countEl) countEl.textContent=cnt; }
+    else if (badge) badge.style.display='none';
   });
   S.socket.on('task:updated', ({ task }) => {
     const i = S.tasks.findIndex(t => t.id === task?.id);
@@ -1242,6 +1590,10 @@ function initSocket() {
   S.socket.on('notification:new', ({ type, title, body }) => {
     toast(type==='pr_approved'?'s':type==='nudge'?'a':'i', title, body||'', type==='nudge'?7000:4000);
     document.getElementById('notif-dot').style.display = 'block';
+    // Desktop notification
+    if (Notification.permission === 'granted' && document.hidden) {
+      try { new Notification(title || 'DevCollab', { body: body || '', icon: '/favicon.ico', tag: type }); } catch {}
+    }
   });
   S.socket.on('project:created', ({ project }) => {
     if (project && !S.projects.find(p=>p.id===project.id)) {
@@ -1264,6 +1616,108 @@ function initSocket() {
     if (S.currentChannel === channelId) showHome();
     renderSBChannels();
   });
+
+  // ── NEW: handle previously-missing socket events ──
+  S.socket.on('channel:created', ({ channel }) => {
+    if (channel && !S.channels.find(c => c.id === channel.id)) {
+      S.channels.push(channel);
+      renderSBChannels();
+    }
+  });
+
+  S.socket.on('msg:pinned', ({ messageId, channelId }) => {
+    if (channelId === S.currentChannel) loadChannelPins(channelId);
+    toast('i', '📌 Message pinned', '');
+  });
+
+  S.socket.on('msg:unpinned', ({ messageId, channelId }) => {
+    if (channelId === S.currentChannel) loadChannelPins(channelId);
+  });
+
+  S.socket.on('thread:new', ({ parentMessageId, reply }) => {
+    // Show thread reply count on the parent message
+    const msgEl = document.querySelector('[data-mid="' + parentMessageId + '"]');
+    if (msgEl) {
+      let threadBadge = msgEl.querySelector('.thread-badge');
+      if (!threadBadge) {
+        threadBadge = document.createElement('div');
+        threadBadge.className = 'thread-badge';
+        threadBadge.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-top:5px;font-size:10px;color:var(--blue);cursor:pointer;background:var(--blue-d);border:1px solid rgba(59,130,246,.2);padding:2px 8px;border-radius:99px';
+        threadBadge.onclick = () => toast('i', 'Threads', 'Full thread UI coming soon');
+        msgEl.querySelector('.msg-body')?.appendChild(threadBadge);
+      }
+      const cur = parseInt(threadBadge.dataset.count||'0') + 1;
+      threadBadge.dataset.count = cur;
+      threadBadge.innerHTML = '↩ ' + cur + ' repl' + (cur===1?'y':'ies');
+    }
+  });
+
+  S.socket.on('task:approved', ({ taskId }) => {
+    const t = S.tasks.find(x => x.id === taskId);
+    if (t) { t.status = 'approved'; }
+    toast('s', 'Task Approved ✓', '');
+    if (S.dashMode === 'collab') loadCollabDash();
+    if (S.dashMode === 'manager') loadMgrDash();
+  });
+
+  S.socket.on('task:rejected', ({ taskId, reason }) => {
+    const t = S.tasks.find(x => x.id === taskId);
+    if (t) { t.status = 'in_progress'; t.rejection_reason = reason; }
+    toast('a', '⚠ Changes Requested', reason || '');
+    if (S.dashMode === 'collab') loadCollabDash();
+  });
+
+  S.socket.on('task:submitted', ({ taskId, pr }) => {
+    const t = S.tasks.find(x => x.id === taskId);
+    if (t) { t.status = 'in_review'; if (pr?.html_url) t.pr_url = pr.html_url; }
+    if (S.dashMode === 'manager') loadMgrDash();
+  });
+
+  S.socket.on('member:role_changed', ({ userId, role }) => {
+    const u = S.users.find(x => x.id === userId);
+    if (u) u.role = role;
+    if (userId === S.user?.id) { S.myRole = role; document.getElementById('sb-role-label').textContent = role; }
+    if (typeof renderRPMembers === 'function') renderRPMembers();
+  });
+
+  S.socket.on('msg:read:ack', ({ userId, messageId }) => {
+    const msgEl = document.querySelector('[data-mid="' + messageId + '"]');
+    if (!msgEl) return;
+    let rcpt = msgEl.querySelector('.read-receipts');
+    if (!rcpt) { rcpt = document.createElement('div'); rcpt.className='read-receipts'; rcpt.style.cssText='display:flex;gap:2px;margin-top:3px;padding-left:42px'; msgEl.querySelector('.msg-body')?.appendChild(rcpt); }
+    const u = S.users.find(x=>x.id===userId);
+    if (!u || msgEl.querySelector('[data-rcpt="'+userId+'"]')) return;
+    const dot = document.createElement('div'); dot.dataset.rcpt=userId; dot.title='Read by '+(u.display_name||u.handle||'');
+    dot.style.cssText='width:12px;height:12px;border-radius:50%;overflow:hidden;flex-shrink:0';
+    const color = u.avatar_color||'#22c55e'; const inits=(u.display_name||u.handle||'?').slice(0,1).toUpperCase();
+    dot.innerHTML = u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;object-fit:cover">`:`<div style="width:100%;height:100%;background:${color};display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#000">${inits}</div>`;
+    rcpt.appendChild(dot);
+  });
+
+  S.socket.on('pr:created', ({ pr }) => {
+    toast('i', '⇄ PR Opened', (pr?.title||'').slice(0,60));
+    document.getElementById('notif-dot').style.display = 'block';
+  });
+  S.socket.on('pr:merged', ({ pr }) => { toast('s', '✓ PR Merged', (pr?.title||'').slice(0,60)); });
+  S.socket.on('pr:approved', ({ pr }) => { toast('s', '✓ PR Approved', ''); });
+
+  S.socket.on('github:event', ({ type, repo, sender }) => {
+    // Update GitHub panel
+    if (typeof loadRPGitHub === 'function') setTimeout(loadRPGitHub, 1000);
+  });
+
+  S.socket.on('code:assigned', ({ note, from }) => {
+    toast('a', '⌨ Code Assignment', (note||'').slice(0,80));
+    document.getElementById('notif-dot').style.display = 'block';
+  });
+
+  S.socket.on('error', ({ message }) => {
+    console.error('[socket error]', message);
+    // Only show user-facing errors for specific types
+    if (message && !message.includes('not authorized')) {
+      toast('e', 'Error', message.slice(0, 100));
+    }
+  });
 }
 
 function renderTyping() {
@@ -1277,6 +1731,13 @@ function renderTyping() {
 // ── INVITE (fixed - shows actual user name not UUID) ──────────────────────
 let _inviteSelected = null;
 let _inviteSearchTimer = null;
+
+function copyInviteLink() {
+  const link = location.origin + '/app.html?join=' + (S.ws?.id||'');
+  navigator.clipboard.writeText(link).then(() => {
+    toast('s', '🔗 Invite link copied', 'Share this link with your team');
+  }).catch(() => toast('e','Error','Could not copy'));
+}
 
 function openInvite() {
   _inviteSelected = null;
@@ -1635,9 +2096,81 @@ function renderAllTasks() {
         ${t.status==='not_started'?`<button class="btn btn-xs" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="startTask('${t.id}')">▶ Start</button>`:''}
         ${t.status==='in_progress'?`<button class="btn btn-xs" style="background:var(--blue-d);color:var(--blue);border:1px solid rgba(59,130,246,.2)" onclick="submitReview('${t.id}')">⇄ Submit</button>`:''}
         ${(S.myPerms?.APPROVE_PR||S.isOwner)&&t.status==='in_review'?`<button class="btn btn-xs" style="background:var(--green-d);color:var(--green)" onclick="approveTask('${t.id}')">✓ Approve</button><button class="btn btn-xs" style="background:var(--red-d);color:var(--red)" onclick="rejectTask('${t.id}')">✕</button>`:''}
+        <button class="btn btn-xs btn-ghost" onclick="openEditTask('${t.id}')" style="margin-left:auto" title="Edit task">✏️</button>
+        <button class="btn btn-xs" style="background:var(--red-d);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="deleteTask('${t.id}')" title="Delete task">🗑</button>
       </div>
     </div>`;
   }).join('');
+}
+
+async function deleteTask(id) {
+  const t = S.tasks.find(x => x.id === id);
+  if (!confirm('Delete task "' + (t?.title || '') + '"? This cannot be undone.')) return;
+  try {
+    await DEL('/tasks/' + id);
+    S.tasks = S.tasks.filter(x => x.id !== id);
+    renderAllTasks();
+    if (S.dashMode === 'collab') loadCollabDash();
+    if (S.dashMode === 'manager') loadMgrDash();
+    toast('s', 'Task deleted', '');
+  } catch(e) { toast('e', 'Error', e.message); }
+}
+
+function openEditTask(id) {
+  const t = S.tasks.find(x => x.id === id);
+  if (!t) return;
+  const mo = document.createElement('div');
+  mo.className = 'modal-backdrop'; mo.id = 'edit-task-modal';
+  mo.onclick = e => { if (e.target === mo) mo.remove(); };
+  mo.innerHTML = `<div class="modal">
+    <div class="modal-hdr"><div class="modal-title">Edit Task</div><div class="modal-close" onclick="document.getElementById('edit-task-modal').remove()">✕</div></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">Title</label><input class="field-input" id="et-title" value="${esc(t.title||'')}"></div>
+      <div class="field"><label class="field-label">Description</label><textarea class="field-textarea" id="et-desc" rows="3">${esc(t.description||'')}</textarea></div>
+      <div class="field-row">
+        <div class="field" style="margin-bottom:0"><label class="field-label">Priority</label>
+          <select class="field-select" id="et-prio">
+            <option value="urgent" ${t.priority==='urgent'?'selected':''}>🔴 Urgent</option>
+            <option value="medium" ${t.priority==='medium'?'selected':''}>🟡 Medium</option>
+            <option value="normal" ${t.priority==='normal'?'selected':''}>🟢 Normal</option>
+          </select></div>
+        <div class="field" style="margin-bottom:0"><label class="field-label">Status</label>
+          <select class="field-select" id="et-status">
+            <option value="not_started" ${t.status==='not_started'?'selected':''}>To Do</option>
+            <option value="in_progress" ${t.status==='in_progress'?'selected':''}>In Progress</option>
+            <option value="in_review" ${t.status==='in_review'?'selected':''}>In Review</option>
+            <option value="blocked" ${t.status==='blocked'?'selected':''}>Blocked</option>
+            <option value="done" ${t.status==='done'?'selected':''}>Done</option>
+          </select></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label class="field-label">Deadline</label><input class="field-input" id="et-deadline" type="date" value="${t.deadline?t.deadline.slice(0,10):''}"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-danger btn-sm" onclick="deleteTask('${esc(id)}');document.getElementById('edit-task-modal')?.remove()">🗑 Delete</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('edit-task-modal').remove()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditTask('${esc(id)}')">Save Changes</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+}
+
+async function saveEditTask(id) {
+  const title = safe(document.getElementById('et-title')?.value||'', 300);
+  const desc  = safe(document.getElementById('et-desc')?.value||'', 5000);
+  const prio  = document.getElementById('et-prio')?.value || 'medium';
+  const status= document.getElementById('et-status')?.value || 'not_started';
+  const dl    = document.getElementById('et-deadline')?.value || '';
+  if (!title) { toast('e','Error','Title required'); return; }
+  try {
+    const updated = await PATCH('/tasks/' + id, { title, description:desc, priority:prio, status, deadline:dl||null });
+    const i = S.tasks.findIndex(t => t.id === id);
+    if (i >= 0) S.tasks[i] = { ...S.tasks[i], ...updated };
+    document.getElementById('edit-task-modal')?.remove();
+    renderAllTasks();
+    if (S.dashMode === 'collab') loadCollabDash();
+    if (S.dashMode === 'manager') loadMgrDash();
+    toast('s', 'Task updated ✓', '');
+  } catch(e) { toast('e','Error', e.message); }
 }
 
 async function startTask(id) {
@@ -1739,24 +2272,79 @@ function memberCtx(e, userId) {
   if (!u) return;
   const isMe = userId === S.user?.id;
   const name = safe(u.display_name || u.github_username || u.handle || 'User', 40);
+  const canManage = S.isOwner || ['admin','manager'].includes(S.myRole);
   const items = [
-    { label: name, icon: '' },
+    { label: name + (u.role ? ' · ' + u.role : ''), icon: '' },
     { sep: true },
     ...(!isMe ? [
       { label: 'Send DM', icon: '💬', fn: () => startDM(userId) },
       { label: 'Assign Task', icon: '📋', fn: () => { openNewTask(); setTimeout(()=>{ const el=document.getElementById('nt-assign');if(el)el.value='@'+(u.handle||u.github_username||''); },100); }},
       { label: 'Mention in Chat', icon: '@', fn: () => insertAt('@'+(u.handle||u.github_username||'')) },
-    ] : []),
+    ] : [{ label: 'My Profile', icon: '👤', fn: () => openProfile() }]),
     { label: 'Copy @handle', icon: '📋', fn: () => navigator.clipboard.writeText('@'+(u.handle||u.github_username||'')).then(()=>toast('s','Copied','')) },
-    ...(S.isOwner && !isMe ? [
+    ...(canManage && !isMe ? [
       { sep: true },
-      { label: 'Change Role', icon: '🔑', fn: () => {
-        const newRole = prompt('New role (owner/admin/lead/senior/developer/junior/viewer):', u.role||'developer');
-        if (newRole) PATCH('/workspaces/'+S.ws.id+'/members/'+userId+'/role',{role:newRole}).then(()=>{u.role=newRole;renderRPMembers();toast('s','Role updated',newRole);}).catch(e2=>toast('e','Error',e2.message));
+      { label: 'Change Role', icon: '🔑', fn: () => openRoleChangeModal(userId, name, u.role||'developer') },
+      { label: 'Remove from Workspace', icon: '🚫', danger: true, fn: () => {
+        if (!confirm('Remove ' + name + ' from workspace?')) return;
+        DEL('/workspaces/' + S.ws.id + '/members/' + userId + '?v=1')
+          .then(() => {
+            S.users = S.users.filter(x => x.id !== userId);
+            renderSBDMs(); renderRPMembers();
+            toast('s','Member removed','');
+          })
+          .catch(err => {
+            // Try alternate endpoint pattern
+            fetch(API_URL + '/workspaces/' + S.ws.id + '/members/' + userId, {
+              method:'DELETE', headers:{'Authorization':'Bearer '+S.token,'Content-Type':'application/json'}
+            }).then(r => {
+              if(r.ok) { S.users = S.users.filter(x => x.id !== userId); renderSBDMs(); renderRPMembers(); toast('s','Removed',''); }
+              else toast('e','Error', 'Could not remove member');
+            }).catch(e2=>toast('e','Error',e2.message));
+          });
       }},
     ] : []),
   ];
   buildCtx(e, items);
+}
+
+function openRoleChangeModal(userId, userName, currentRole) {
+  const mo = document.createElement('div');
+  mo.className = 'modal-backdrop'; mo.id = 'role-modal';
+  mo.onclick = e => { if (e.target === mo) mo.remove(); };
+  const roles = ['owner','admin','manager','lead','senior','developer','junior','qa','viewer'];
+  mo.innerHTML = `<div class="modal modal-sm">
+    <div class="modal-hdr"><div class="modal-title">Change Role — ${esc(userName)}</div><div class="modal-close" onclick="document.getElementById('role-modal').remove()">✕</div></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">New Role</label>
+        <select class="field-select" id="new-role-sel">
+          ${roles.map(r=>`<option value="${r}" ${r===currentRole?'selected':''}>${r.charAt(0).toUpperCase()+r.slice(1)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="font-size:11px;color:var(--t4);line-height:1.6">
+        owner > admin > manager > lead > senior > developer > junior/qa > viewer
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="document.getElementById('role-modal').remove()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmRoleChange('${esc(userId)}')">Update Role</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+}
+
+async function confirmRoleChange(userId) {
+  const role = document.getElementById('new-role-sel')?.value;
+  if (!role) return;
+  try {
+    await PATCH('/workspaces/' + S.ws.id + '/members/' + userId + '/role', { role });
+    const u = S.users.find(x => x.id === userId);
+    if (u) u.role = role;
+    if (userId === S.user?.id) { S.myRole = role; document.getElementById('sb-role-label').textContent = role; }
+    document.getElementById('role-modal')?.remove();
+    renderRPMembers();
+    toast('s', 'Role updated → ' + role, '');
+  } catch(e) { toast('e','Error',e.message); }
 }
 
 function startDM(userId) { toast('i','DMs','Click the + next to Direct Messages'); }
@@ -1905,9 +2493,41 @@ async function loadMgrDash() {
   // Velocity
   if(el('vel-chart')){const days=[];for(let i=6;i>=0;i--){const d2=new Date();d2.setDate(d2.getDate()-i);d2.setHours(0,0,0,0);const nextD=new Date(d2);nextD.setDate(nextD.getDate()+1);const cnt=S.tasks.filter(t=>t.status==='done'&&new Date(t.updated_at||0)>=d2&&new Date(t.updated_at||0)<nextD).length;days.push({label:['Su','Mo','Tu','We','Th','Fr','Sa'][d2.getDay()],cnt});}const maxV=Math.max(...days.map(d=>d.cnt),1);el('vel-chart').innerHTML=days.map(d=>{const h=Math.max(4,Math.round(d.cnt/maxV*52));return`<div class="vel-col"><div class="vel-num">${d.cnt}</div><div class="vel-bar" style="height:${h}px;background:${d.cnt>0?'var(--blue)':'var(--s4)'}"></div><div class="vel-lbl">${d.label}</div></div>`;}).join('');}
   // Team
+  window._mgrTeamView = window._mgrTeamView || 'status';
+  window.setTeamView = function(v) {
+    window._mgrTeamView = v;
+    document.getElementById('mgr-team-view-btn').style.cssText = v==='status'?'font-size:10px;font-weight:600;color:var(--blue);background:var(--blue-d);padding:2px 8px;border-radius:5px;cursor:pointer':'font-size:10px;font-weight:600;color:var(--t4);padding:2px 8px;border-radius:5px;cursor:pointer';
+    document.getElementById('mgr-activity-view-btn').style.cssText = v==='activity'?'font-size:10px;font-weight:600;color:var(--green);background:var(--green-d);padding:2px 8px;border-radius:5px;cursor:pointer':'font-size:10px;font-weight:600;color:var(--t4);padding:2px 8px;border-radius:5px;cursor:pointer';
+    if (v==='activity') loadTeamActivity(); else loadMgrDash();
+  };
   if(el('mgr-team'))el('mgr-team').innerHTML=S.users.slice(0,8).map(u2=>{const isOnline=S.online[u2.id];const inits=initials(u2.display_name||u2.handle||'?');const myT=S.tasks.find(t=>t.assigned_to===u2.id&&t.status!=='done');return`<div class="team-row"><div style="position:relative"><div class="av av-28" style="background:${esc(u2.avatar_color||'#22c55e')}">${inits}</div><div class="status-dot" style="position:absolute;bottom:0;right:0;border:2px solid var(--s1);background:${isOnline?'var(--green)':'var(--s6)'}"></div></div><div class="team-row-info"><div class="team-row-name">${esc(u2.display_name||u2.github_username||u2.handle||'User')}</div>${myT?`<div class="team-row-task">📋 ${esc(myT.title.slice(0,40))}</div>`:'<div style="font-size:10px;color:var(--t4)">No active task</div>'}</div></div>`;}).join('')||'<div class="panel-empty"><div class="panel-empty-text">No team members</div></div>';
   // Quick assign
   const qaWho=el('qa-who');if(qaWho)qaWho.innerHTML=S.users.map(u2=>`<option value="${esc(u2.id)}">@${esc(u2.handle||u2.github_username||'')}</option>`).join('');
+}
+
+async function loadTeamActivity() {
+  const el = document.getElementById('mgr-team');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:12px;text-align:center"><div class="spinner spinner-sm"></div></div>';
+  try {
+    const acts = await GET('/workspaces/' + S.ws.id + '/activity');
+    if (!acts?.length) { el.innerHTML='<div class="panel-empty"><div class="panel-empty-text">No activity yet</div></div>'; return; }
+    const ICONS = { task_created:'📋', task_updated:'✏️', task_completed:'✅', pr_created:'⇄', pr_merged:'✓', message:'💬', member_joined:'👋', project_created:'🚀' };
+    el.innerHTML = acts.slice(0,12).map(a => {
+      const u = S.users.find(x=>x.id===a.user_id)||{};
+      const name = safe(u.display_name||u.github_username||u.handle||'Someone',30);
+      const color = u.avatar_color||'#22c55e';
+      const inits = initials(name);
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <div class="av av-24" style="background:${esc(color)}">${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:inits}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)} <span style="color:var(--t3);font-weight:400">${esc(a.description||a.action||'')}</span></div>
+          <div style="font-size:9px;color:var(--t4);margin-top:1px">${timeAgo(a.created_at)}</div>
+        </div>
+        <span style="font-size:14px;flex-shrink:0">${ICONS[a.type]||'📌'}</span>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML=`<div class="panel-empty"><div class="panel-empty-text">${esc(e.message)}</div></div>`; }
 }
 
 async function quickAssign() {
@@ -1925,6 +2545,10 @@ async function quickAssign() {
 }
 
 async function loadCollabDash() {
+  // Update sidebar task badge
+  const myUrgent = (S.tasks||[]).filter(t => t.assigned_to===S.user?.id && t.status!=='done' && t.status!=='approved' && (t.priority==='urgent' || (t.deadline && new Date(t.deadline)<new Date())));
+  const badge = document.getElementById('sb-task-badge');
+  if (badge) { if (myUrgent.length) { badge.textContent = myUrgent.length; badge.style.display=''; } else badge.style.display='none'; }
   const u=S.user||{};
   if(document.getElementById('col-name'))document.getElementById('col-name').textContent=safe(u.display_name||u.github_username||'Dev',25);
   if(document.getElementById('col-sub'))document.getElementById('col-sub').textContent=(S.ws?.name||'Workspace')+' · '+new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
@@ -2013,6 +2637,138 @@ async function logout() {
   window.location.href='index.html';
 }
 
+async function showWsSwitcher() {
+  document.getElementById('ws-switch-panel')?.remove();
+  const panel = document.createElement('div');
+  panel.id = 'ws-switch-panel';
+  panel.style.cssText = 'position:fixed;bottom:70px;left:12px;width:240px;background:rgba(14,14,16,.98);border:1px solid rgba(255,255,255,.09);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.7);z-index:500;backdrop-filter:blur(16px);overflow:hidden';
+  panel.innerHTML = `<div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px;font-weight:700;color:var(--t3)">Your Workspaces</div><div id="ws-list-inner"><div style="padding:16px;font-size:11px;color:var(--t4);text-align:center">Loading...</div></div>`;
+  document.body.appendChild(panel);
+  setTimeout(() => document.addEventListener('click', function _cl(e){if(!panel.contains(e.target)){panel.remove();document.removeEventListener('click',_cl);}}, {once:false}), 100);
+  try {
+    const workspaces = await GET('/workspaces');
+    const inner = panel.querySelector('#ws-list-inner');
+    if (!inner) return;
+    if (!workspaces?.length) { inner.innerHTML='<div style="padding:16px;font-size:11px;color:var(--t4);text-align:center">No workspaces</div>'; return; }
+    inner.innerHTML = workspaces.map(ws => `<div onclick="switchWorkspace('${esc(ws.id)}')" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background .1s;${ws.id===S.ws?.id?'background:rgba(34,197,94,.08);':''}" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background='${ws.id===S.ws?.id?'rgba(34,197,94,.08)':''}'" >
+      <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--green),var(--green2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#000;flex-shrink:0">${esc((ws.name||'?').slice(0,2).toUpperCase())}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ws.name||'Workspace')}</div><div style="font-size:10px;color:var(--t4)">${ws.id===S.ws?.id?'Current':'Click to switch'}</div></div>
+      ${ws.id===S.ws?.id?'<div style="width:6px;height:6px;border-radius:50%;background:var(--green)"></div>':''}
+    </div>`).join('') +
+    '<div style="padding:8px 14px;border-top:1px solid rgba(255,255,255,.05)"><button onclick="openCreateWsModal()" style="width:100%;padding:8px;background:var(--s3);border:1px solid rgba(255,255,255,.07);border-radius:8px;color:var(--t3);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">+ Create New Workspace</button></div>';
+  } catch(e) { const inner=panel.querySelector('#ws-list-inner');if(inner)inner.innerHTML=`<div style="padding:14px;font-size:11px;color:var(--red)">${esc(e.message)}</div>`; }
+}
+
+async function switchWorkspace(wsId) {
+  if (wsId === S.ws?.id) { document.getElementById('ws-switch-panel')?.remove(); return; }
+  toast('i','Switching workspace...','');
+  document.getElementById('ws-switch-panel')?.remove();
+  // Reload with new workspace context
+  try {
+    const ws = await GET('/workspaces/' + wsId);
+    S.ws = ws;
+    localStorage.setItem('dc_last_ws', wsId);
+    await loadAll();
+    renderApp();
+    toast('s','Switched to ' + (ws.name||'Workspace'),'');
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+function openCreateWsModal() {
+  document.getElementById('ws-switch-panel')?.remove();
+  const mo = document.createElement('div'); mo.className='modal-backdrop'; mo.id='create-ws-modal';
+  mo.onclick = e => { if(e.target===mo) mo.remove(); };
+  mo.innerHTML=`<div class="modal modal-sm">
+    <div class="modal-hdr"><div class="modal-title">Create Workspace</div><div class="modal-close" onclick="document.getElementById('create-ws-modal').remove()">✕</div></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">Workspace Name *</label><input class="field-input" id="new-ws-name" placeholder="e.g. Acme Engineering"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="document.getElementById('create-ws-modal').remove()">Cancel</button>
+      <button class="btn btn-primary" onclick="createNewWorkspace()">Create</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+}
+
+async function createNewWorkspace() {
+  const name = safe(document.getElementById('new-ws-name')?.value||'',100).trim();
+  if (!name) { toast('e','Error','Name required'); return; }
+  try {
+    const ws = await POST('/workspaces', { name });
+    document.getElementById('create-ws-modal')?.remove();
+    toast('s','Workspace created!','Switching...');
+    setTimeout(() => switchWorkspace(ws.id), 500);
+  } catch(e) { toast('e','Error',e.message); }
+}
+
+function wsCtx(e) {
+  e.preventDefault();
+  const canManage = S.isOwner || ['admin','manager'].includes(S.myRole);
+  if (!canManage) { toast('i','Info','Only admins can rename the workspace'); return; }
+  buildCtx(e, [
+    { label: S.ws?.name || 'Workspace', icon: '' },
+    { sep: true },
+    { label: 'Rename Workspace', icon: '✏️', fn: () => {
+      const n = prompt('New workspace name:', S.ws?.name || '');
+      if (!n?.trim()) return;
+      PATCH('/workspaces/' + S.ws.id, { name: n.trim() })
+        .then(() => {
+          S.ws.name = n.trim();
+          document.getElementById('nav-ws-name').textContent = n.trim();
+          toast('s','Workspace renamed ✓','');
+        })
+        .catch(err => toast('e','Error',err.message));
+    }},
+    { label: 'Workspace Settings', icon: '⚙️', fn: () => openWsSettings() },
+    { label: 'Invite Member', icon: '+ ', fn: () => openInvite() },
+  ]);
+}
+
+function openWsSettings() {
+  const mo = document.createElement('div');
+  mo.className = 'modal-backdrop'; mo.id = 'ws-settings-modal';
+  mo.onclick = e => { if (e.target === mo) mo.remove(); };
+  mo.innerHTML = `<div class="modal">
+    <div class="modal-hdr"><div class="modal-title">⚙ Workspace Settings</div><div class="modal-close" onclick="document.getElementById('ws-settings-modal').remove()">✕</div></div>
+    <div class="modal-body">
+      <div class="field"><label class="field-label">Workspace Name</label><input class="field-input" id="ws-name-input" value="${esc(S.ws?.name||'')}"></div>
+      <div style="margin-top:16px">
+        <div class="t-tiny mb-8">Members (${S.users.length})</div>
+        <div style="max-height:200px;overflow-y:auto">
+          ${S.users.map(u => {
+            const nm = safe(u.display_name||u.github_username||u.handle||'User',40);
+            const isMe = u.id === S.user?.id;
+            return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+              <div class="av av-24" style="background:${esc(u.avatar_color||'#22c55e')}">${safe(nm,2).toUpperCase().slice(0,2)}</div>
+              <div style="flex:1;font-size:12px;font-weight:500">${esc(nm)}</div>
+              <span class="role role-${esc(u.role||'developer')}" style="font-size:8px">${esc(u.role||'member')}</span>
+              ${!isMe && (S.isOwner||S.myRole==='admin') ? `<button onclick="memberCtx(event,'${esc(u.id)}')" style="font-size:10px;padding:2px 7px;border:1px solid rgba(255,255,255,.07);border-radius:5px;background:none;color:var(--t4);cursor:pointer">···</button>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="document.getElementById('ws-settings-modal').remove()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveWsSettings()">Save</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+}
+
+async function saveWsSettings() {
+  const name = safe(document.getElementById('ws-name-input')?.value||'',100).trim();
+  if (!name) return;
+  try {
+    await PATCH('/workspaces/' + S.ws.id, { name });
+    S.ws.name = name;
+    document.getElementById('nav-ws-name').textContent = name;
+    document.getElementById('ws-settings-modal')?.remove();
+    toast('s','Settings saved ✓','');
+  } catch(e) { toast('e','Error',e.message); }
+}
+
 // ── THEME ─────────────────────────────────────────────────────────────────
 function toggleTheme() {
   const isLight=document.documentElement.classList.toggle('light');
@@ -2027,12 +2783,49 @@ document.addEventListener('keydown', e => {
   if (e.key==='Escape') {
     document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach(m=>m.classList.add('hidden'));
     closeAI();
+    document.getElementById('shortcuts-modal')?.remove();
   }
   if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();document.getElementById('nav-search')?.focus();}
   if((e.metaKey||e.ctrlKey)&&e.key==='b'){e.preventDefault();toggleSidebar();}
+  if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)){e.preventDefault();showShortcuts();}
 });
 
+function showShortcuts() {
+  document.getElementById('shortcuts-modal')?.remove();
+  const mo = document.createElement('div');
+  mo.id = 'shortcuts-modal'; mo.className = 'modal-backdrop';
+  mo.onclick = e => { if (e.target === mo) mo.remove(); };
+  const shortcuts = [
+    ['Navigation',''],
+    ['⌘K','Open search'],['⌘B','Toggle sidebar'],['/ ','Open shortcuts'],['Esc','Close panels'],
+    ['Messaging',''],
+    ['Enter','Send message'],['Shift+Enter','New line'],['@','Mention someone'],
+    ['Tasks',''],
+    ['No shortcut yet','Create task → click My Tasks'],
+    ['View',''],
+    ['⌘,','Open profile/settings'],
+  ];
+  mo.innerHTML = `<div class="modal modal-sm">
+    <div class="modal-hdr"><div class="modal-title">⌨ Keyboard Shortcuts</div><div class="modal-close" onclick="document.getElementById('shortcuts-modal').remove()">✕</div></div>
+    <div class="modal-body" style="padding:12px">
+      ${shortcuts.map(([k,v])=>!v?`<div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--t4);padding:12px 0 4px;border-top:1px solid rgba(255,255,255,.04);margin-top:4px">${k}</div>`:
+        `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.03)"><span style="font-family:monospace;font-size:11px;background:var(--s3);padding:2px 7px;border-radius:5px;color:var(--t1)">${esc(k)}</span><span style="font-size:11px;color:var(--t3)">${esc(v)}</span></div>`).join('')}
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+}
+
 // ── MOBILE SIDEBAR ────────────────────────────────────────────────────────
+const _sbCollapsed = {};
+function toggleSbSection(contentId, arrowId) {
+  const el = document.getElementById(contentId);
+  const arrow = document.getElementById(arrowId + '-arrow');
+  if (!el) return;
+  _sbCollapsed[contentId] = !_sbCollapsed[contentId];
+  el.style.display = _sbCollapsed[contentId] ? 'none' : '';
+  if (arrow) arrow.style.transform = _sbCollapsed[contentId] ? 'rotate(-90deg)' : '';
+}
+
 function toggleSidebar() {
   const sb=document.getElementById('sidebar');const ov=document.getElementById('sb-overlay');
   const open=sb.classList.toggle('mobile-open');
@@ -2047,6 +2840,47 @@ function closeSidebar() {
 // ── MISC ──────────────────────────────────────────────────────────────────
 function doSearch(q) { if(!q.trim())return; toast('i','Search','Results for: '+q); }
 function showAllPins() { toast('i','Pins','Pin management coming soon'); }
+
+// Inject code block + extra styles
+(function() {
+  const s = document.createElement('style');
+  s.textContent = `
+    .code-block { background: #0d0d0f; border: 1px solid rgba(255,255,255,.07); border-radius: 10px; overflow: hidden; margin: 4px 0; }
+    .code-hdr { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.06); }
+    .code-lang { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--blue); font-family: 'JetBrains Mono', monospace; }
+    .code-body { padding: 12px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.7; color: #d4d4d8; overflow-x: auto; white-space: pre; }
+    .code-copy-btn { font-size: 10px; font-weight: 600; color: var(--t4); cursor: pointer; padding: 2px 8px; border-radius: 5px; background: none; border: none; font-family: inherit; transition: all .1s; }
+    .code-copy-btn:hover { background: rgba(255,255,255,.08); color: var(--t2); }
+    .thread-badge { font-size: 10px; font-weight: 600; }
+    .msg-rxns { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+    .read-receipts { display: flex; gap: 2px; margin-top: 3px; padding-left: 42px; }
+    @keyframes scaleIn { from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)} }
+    @keyframes fadeUp  { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)} }
+    .anim-fade-up { animation: fadeUp .2s ease forwards; }
+    /* Onboarding dots animation */
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
+  `;
+  document.head.appendChild(s);
+})();
+
+// Inject message hover action styles
+(function() {
+  const s = document.createElement('style');
+  s.textContent = `
+    .msg { position: relative; }
+    .msg-hover-actions { position: absolute; right: 8px; top: 4px; background: var(--s2); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 2px; box-shadow: var(--sh2); z-index: 10; }
+    .msg-act-btn { width: 26px; height: 26px; border-radius: 6px; font-size: 13px; cursor: pointer; background: none; border: none; color: var(--t3); transition: all .1s; display: flex; align-items: center; justify-content: center; }
+    .msg-act-btn:hover { background: rgba(255,255,255,.08); color: var(--t1); }
+    .msg-edit-area { width: 100%; padding: 7px 10px; background: rgba(0,0,0,.3); border: 1px solid var(--green); border-radius: 8px; color: var(--t1); font-size: 13px; font-family: inherit; resize: none; margin-top: 4px; min-height: 36px; max-height: 120px; line-height: 1.55; }
+    .msg-edit-area:focus { outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,.1); }
+    .msg-edit-hint { font-size: 10px; color: var(--t4); margin-top: 4px; }
+  `;
+  document.head.appendChild(s);
+})();
+
+// Load muted/starred channels from localStorage
+S._mutedChannels = new Set(JSON.parse(localStorage.getItem('dc_muted')||'[]'));
+S._starredChannels = new Set(JSON.parse(localStorage.getItem('dc_starred')||'[]'));
 
 // Apply saved theme
 if(localStorage.getItem('dc_theme')==='light'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='☀️';}
