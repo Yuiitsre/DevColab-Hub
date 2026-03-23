@@ -201,7 +201,7 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
     <div class="nav-ws-pill" id="nav-ws-name" onclick="showHome()" oncontextmenu="wsCtx(event)" title="Right-click to rename">–</div>
     <div class="nav-search-wrap">
       <svg class="nav-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input class="nav-search-input" id="nav-search" placeholder="Search users, channels, tasks..." autocomplete="off" onkeydown="if(event.key==='Enter')doSearch(this.value)">
+      <input class="nav-search-input" id="nav-search" placeholder="Search users, channels, tasks..." autocomplete="off" onkeydown="if(event.key==='Enter')doSearch(this.value);if(event.key==='Escape'){this.value='';document.getElementById('_search-drop')?.remove();}" oninput="if(this.value.length>1)doSearch(this.value);else document.getElementById('_search-drop')?.remove()">
       <span class="nav-search-kbd">⌘K</span>
     </div>
     <div class="nav-spacer"></div>
@@ -218,7 +218,7 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
       <!-- Notifications -->
       <div class="nav-btn" onclick="openNotifs()" title="Notifications" style="position:relative">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <div class="nav-notif-dot" id="notif-dot" style="display:none;position:absolute;top:3px;right:3px;min-width:14px;height:14px;border-radius:99px;background:var(--red);border:2px solid var(--bg);font-size:8px;font-weight:800;color:#fff;display:none;align-items:center;justify-content:center;padding:0 3px" id="notif-dot"></div>
+        <div id="notif-dot" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;border-radius:99px;background:var(--red);border:2px solid var(--bg);font-size:8px;font-weight:800;color:#fff;align-items:center;justify-content:center;padding:0 3px"></div>
       </div>
       <!-- Theme -->
       <div class="nav-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</div>
@@ -307,13 +307,10 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
             <span id="sb-role-label">Online</span>
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <div class="sb-logout-btn" onclick="showWsSwitcher()" title="Switch workspace" style="font-size:11px">⇄</div>
-          <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
           <div class="sb-logout-btn" id="set-status-btn" onclick="openSetStatus()" title="Set status" style="font-size:12px">😊</div>
           <div class="sb-logout-btn" onclick="showWsSwitcher()" title="Switch workspace" style="font-size:11px">⇄</div>
           <div class="sb-logout-btn" onclick="logout()" title="Sign out">⇥</div>
-        </div>
         </div>
       </div>
     </aside>
@@ -507,9 +504,13 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
 
       <!-- TASKS VIEW -->
       <div id="tasks-view" class="hidden" style="flex:1;overflow-y:auto;padding:28px 32px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-          <div class="t-h2">My Tasks</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="t-h2">Tasks</div>
           <button class="btn btn-primary btn-sm" onclick="openNewTask()">+ New Task</button>
+        </div>
+        <div style="display:flex;gap:4px;margin-bottom:20px;padding:3px;background:var(--s2);border-radius:10px;width:fit-content">
+          <button id="task-tab-mine" onclick="switchTaskTab('mine')" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:inherit;background:var(--s4);color:var(--t1);transition:all .15s">My Tasks</button>
+          <button id="task-tab-assigned" onclick="switchTaskTab('assigned')" style="padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:inherit;background:transparent;color:var(--t3);transition:all .15s" title="Tasks you assigned to others">Assigned by Me</button>
         </div>
         <div id="tasks-list"></div>
       </div>
@@ -763,14 +764,17 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
       <div class="field"><label class="field-label">Title *</label><input class="field-input" id="nt-title" type="text" placeholder="What needs to be done?"></div>
       <div class="field"><label class="field-label">Description</label><textarea class="field-textarea" id="nt-desc" rows="3" placeholder="Details, acceptance criteria..."></textarea></div>
       <div class="field-row">
+        <div class="field" style="margin-bottom:0"><label class="field-label">Project *</label><select class="field-select" id="nt-project"></select></div>
+        <div class="field" style="margin-bottom:0"><label class="field-label">Assign To</label><select class="field-select" id="nt-assign"></select></div>
+      </div>
+      <div class="field-row" style="margin-top:12px">
         <div class="field" style="margin-bottom:0"><label class="field-label">Priority</label><select class="field-select" id="nt-prio"><option value="urgent">🔴 Urgent</option><option value="medium" selected>🟡 Medium</option><option value="normal">🟢 Normal</option></select></div>
         <div class="field" style="margin-bottom:0"><label class="field-label">Deadline</label><input class="field-input" id="nt-deadline" type="date"></div>
       </div>
-      <div class="field" style="margin-top:12px"><label class="field-label">Assign To (@handle)</label><input class="field-input" id="nt-assign" type="text" placeholder="@username"></div>
     </div>
     <div class="modal-ftr">
       <button class="btn btn-secondary" onclick="closeModal('task-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+      <button class="btn btn-primary" id="nt-create-btn" onclick="createTask()">Create Task</button>
     </div>
   </div>
 </div>
@@ -1227,14 +1231,76 @@ function showHome() {
   closeSidebar();
 }
 
+let _taskTab = 'mine';
+function switchTaskTab(tab) {
+  _taskTab = tab;
+  const mineBtn = document.getElementById('task-tab-mine');
+  const assignedBtn = document.getElementById('task-tab-assigned');
+  if (mineBtn) { mineBtn.style.background = tab==='mine'?'var(--s4)':'transparent'; mineBtn.style.color = tab==='mine'?'var(--t1)':'var(--t3)'; }
+  if (assignedBtn) { assignedBtn.style.background = tab==='assigned'?'var(--s4)':'transparent'; assignedBtn.style.color = tab==='assigned'?'var(--t1)':'var(--t3)'; }
+  if (tab === 'mine') renderAllTasks();
+  else renderAssignedByMeTasks();
+}
+
+function renderAssignedByMeTasks() {
+  const el = document.getElementById('tasks-list');
+  if (!el) return;
+  const canAssign = S.isOwner || ['admin','manager','lead','senior'].includes(S.myRole);
+  if (!canAssign) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><div class="empty-state-title">Not available</div><div class="empty-state-desc">Only team leads and managers can assign tasks to others.</div></div>';
+    return;
+  }
+  // Tasks created by me and assigned to someone else
+  const assignedTasks = S.tasks.filter(t => t.created_by === S.user?.id && t.assigned_to !== S.user?.id);
+  if (!assignedTasks.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-title">No tasks assigned yet</div><div class="empty-state-desc">Tasks you assign to team members will appear here. Use Quick Assign in the Manager dashboard.</div><button class="btn btn-primary" style="margin-top:12px" onclick="openNewTask()">+ Assign a Task</button></div>';
+    return;
+  }
+  const STATUS_LABELS = { not_started:'To Do', in_progress:'In Progress', in_review:'In Review', blocked:'Blocked', done:'Done', approved:'Approved ✓' };
+  const STATUS_COLORS = { not_started:'var(--t4)', in_progress:'var(--blue)', in_review:'var(--yellow)', blocked:'var(--red)', approved:'var(--green)', done:'var(--purple)' };
+  el.innerHTML = assignedTasks.map(t => {
+    const assignee = S.users.find(u => u.id === t.assigned_to);
+    const name = assignee ? safe(assignee.display_name || assignee.github_username || assignee.handle || 'User', 25) : 'Unknown';
+    const color = assignee?.avatar_color || '#22c55e';
+    const inits = initials(name);
+    const dl = deadline(t.deadline);
+    const sc = STATUS_COLORS[t.status] || 'var(--t4)';
+    return `<div style="background:var(--s1);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:8px;transition:border-color .15s" onmouseenter="this.style.borderColor='rgba(255,255,255,.09)'" onmouseleave="this.style.borderColor='rgba(255,255,255,.05)'">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span class="prio prio-${esc(t.priority||'normal')}">${(t.priority||'normal').toUpperCase()}</span>
+        <span style="flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title||'')}</span>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:${sc}20;color:${sc};flex-shrink:0">${STATUS_LABELS[t.status]||t.status}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px;color:var(--t3);margin-bottom:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:5px"><div class="av av-20" style="background:${esc(color)}">${assignee?.avatar_url?`<img src="${esc(assignee.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:inits}</div><span>→ ${esc(name)}</span></div>
+        <span style="color:${dl.color}">📅 ${dl.label}${dl.cls==='dl-over'?' ⚠':''}</span>
+        ${t.branch_name?`<span style="color:var(--blue);font-family:monospace;font-size:9px">🌿 ${esc(t.branch_name)}</span>`:''}
+        ${t.pr_url?`<a href="${esc(t.pr_url)}" target="_blank" style="color:var(--blue)">⇄ PR ↗</a>`:''}
+      </div>
+      ${t.rejection_reason ? `<div style="font-size:11px;color:var(--t4);background:var(--s3);border-radius:6px;padding:5px 8px;margin-bottom:8px">Previously rejected: ${esc(t.rejection_reason.slice(0,80))}</div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        ${t.status==='in_review'?`<button class="btn btn-xs" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="approveTask('${t.id}')">✓ Approve</button><button class="btn btn-xs" style="background:var(--red-d);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="rejectTask('${t.id}')">✕ Request Changes</button>`:''}
+        ${t.status==='blocked'?`<span style="font-size:10px;color:var(--red);font-weight:600">🚫 Blocked</span>`:''}
+        <button class="btn btn-xs btn-ghost" onclick="startDM('${esc(t.assigned_to||'')}')" style="color:var(--blue)">💬 Message</button>
+        <button class="btn btn-xs btn-ghost" onclick="openEditTask('${t.id}')" style="margin-left:auto">✏️ Edit</button>
+        <button class="btn btn-xs" style="background:var(--red-d);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="deleteTask('${t.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function showTasks() {
   showView('tasks-view');
   document.getElementById('sb-tasks')?.classList.add('active');
+  _taskTab = 'mine';
   renderAllTasks();
+  // Reset tabs visually
+  const mineBtn = document.getElementById('task-tab-mine');
+  const assignedBtn = document.getElementById('task-tab-assigned');
+  if (mineBtn) { mineBtn.style.background = 'var(--s4)'; mineBtn.style.color = 'var(--t1)'; }
+  if (assignedBtn) { assignedBtn.style.background = 'transparent'; assignedBtn.style.color = 'var(--t3)'; }
   closeSidebar();
 }
-
-function showRepos() {
   showView('repos-view');
   document.getElementById('sb-repos')?.classList.add('active');
   loadRepos();
@@ -1511,7 +1577,28 @@ function msgCtx(e, msgId) {
   buildCtx(e, items);
 }
 
-function pickReact(msgId) { toast('i','Reactions','Coming soon'); }
+function pickReact(msgId) {
+  document.getElementById('_rxpicker')?.remove();
+  const EMOJIS = ['👍','👎','❤️','😂','😮','🎉','🚀','✅','🔥','👀','💯','⭐'];
+  const pick = document.createElement('div');
+  pick.id = '_rxpicker';
+  pick.style.cssText = 'position:fixed;z-index:700;background:rgba(14,14,16,.98);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:8px;display:flex;flex-wrap:wrap;gap:2px;width:200px;box-shadow:0 8px 32px rgba(0,0,0,.6);backdrop-filter:blur(16px);animation:scaleIn .12s cubic-bezier(.16,1,.3,1)';
+  pick.innerHTML = EMOJIS.map(e => `<button onclick="addReaction('${msgId}','${e}');document.getElementById('_rxpicker')?.remove()" style="width:32px;height:32px;border-radius:6px;background:none;border:none;font-size:16px;cursor:pointer;transition:background .1s;display:flex;align-items:center;justify-content:center" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background='none'">${e}</button>`).join('');
+  // Position near cursor
+  const lastCtx = document.querySelector('.ctx');
+  const x = Math.min(window.innerWidth - 215, lastCtx ? parseInt(lastCtx.style.left||0) : window.innerWidth/2 - 100);
+  const y = Math.min(window.innerHeight - 80, lastCtx ? parseInt(lastCtx.style.top||0) + 40 : window.innerHeight/2);
+  pick.style.left = x + 'px'; pick.style.top = y + 'px';
+  document.body.appendChild(pick);
+  setTimeout(() => document.addEventListener('click', () => pick.remove(), { once: true }), 50);
+}
+
+function addReaction(msgId, emoji) {
+  if (!msgId || !S.socket?.connected) return;
+  S.socket.emit('msg:react', { messageId: msgId, emoji, channelId: S.currentChannel });
+  // Optimistic render
+  _renderRxns(msgId, { [emoji]: { count: 1, mine: true } });
+}
 
 function startInlineEdit(msgId) {
   // Remove any existing edit
@@ -1985,20 +2072,33 @@ function initSocket() {
     if (t) { t.status='in_progress'; t.branch_name=branchName; }
     if (S.dashMode === 'collab') loadCollabDash();
   });
-  S.socket.on('notification:new', ({ type, title, body }) => {
-    toast(type==='pr_approved'?'s':type==='nudge'?'a':'i', title, body||'', type==='nudge'?7000:4000);
-    // Update notification count badge
-    const dot = document.getElementById('notif-dot');
-    if (dot) {
-      const cnt = parseInt(dot.dataset.count||'0') + 1;
-      dot.dataset.count = cnt;
-      dot.style.display = 'flex';
-      dot.textContent = cnt > 9 ? '9+' : cnt;
-    }
+  S.socket.on('notification:new', ({ type, title, body, data }) => {
+    const toastType = type==='pr_approved'?'s':type==='task_rejected'?'a':type==='nudge'?'a':'i';
+    toast(toastType, title, body||'', type==='nudge'?7000:4000);
+    S._unreadNotifs = (S._unreadNotifs || 0) + 1;
+    updateNotifBadge(S._unreadNotifs);
     // Desktop notification
     if (Notification.permission === 'granted' && document.hidden) {
       try { new Notification(title || 'DevCollab', { body: body || '', icon: '/favicon.ico', tag: type }); } catch {}
     }
+  });
+
+  // New task assigned to me
+  S.socket.on('task:assigned', ({ task }) => {
+    if (!task) return;
+    const existing = S.tasks.findIndex(t => t.id === task.id);
+    if (existing >= 0) S.tasks[existing] = { ...S.tasks[existing], ...task };
+    else S.tasks.unshift(task);
+    if (task.assigned_to === S.user?.id) {
+      S._unreadNotifs = (S._unreadNotifs || 0) + 1;
+      updateNotifBadge(S._unreadNotifs);
+      toast('i', '📋 New Task Assigned', task.title ? task.title.slice(0,60) : '');
+      const badge = document.getElementById('sb-task-badge');
+      if (badge) { badge.textContent = S.tasks.filter(t => t.assigned_to === S.user?.id && t.status !== 'done' && t.status !== 'approved').length; badge.style.display = ''; }
+    }
+    if (S.dashMode === 'collab') loadCollabDash();
+    if (S.dashMode === 'manager') loadMgrDash();
+    renderAllTasks();
   });
   S.socket.on('project:created', ({ project }) => {
     if (project && !S.projects.find(p=>p.id===project.id)) {
@@ -2048,7 +2148,7 @@ function initSocket() {
         threadBadge = document.createElement('div');
         threadBadge.className = 'thread-badge';
         threadBadge.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-top:5px;font-size:10px;color:var(--blue);cursor:pointer;background:var(--blue-d);border:1px solid rgba(59,130,246,.2);padding:2px 8px;border-radius:99px';
-        threadBadge.onclick = () => toast('i', 'Threads', 'Full thread UI coming soon');
+        threadBadge.onclick = () => openThreadPanel(msgId);
         msgEl.querySelector('.msg-body')?.appendChild(threadBadge);
       }
       const cur = parseInt(threadBadge.dataset.count||'0') + 1;
@@ -2101,19 +2201,30 @@ function initSocket() {
 
   S.socket.on('pr:created', ({ pr }) => {
     toast('i', '⇄ PR Opened', (pr?.title||'').slice(0,60));
-    document.getElementById('notif-dot').style.display = 'block';
+    S._unreadNotifs = (S._unreadNotifs || 0) + 1;
+    updateNotifBadge(S._unreadNotifs);
   });
   S.socket.on('pr:merged', ({ pr }) => { toast('s', '✓ PR Merged', (pr?.title||'').slice(0,60)); });
   S.socket.on('pr:approved', ({ pr }) => { toast('s', '✓ PR Approved', ''); });
 
   S.socket.on('github:event', ({ type, repo, sender }) => {
-    // Update GitHub panel
     if (typeof loadRPGitHub === 'function') setTimeout(loadRPGitHub, 1000);
   });
 
   S.socket.on('code:assigned', ({ note, from }) => {
     toast('a', '⌨ Code Assignment', (note||'').slice(0,80));
-    document.getElementById('notif-dot').style.display = 'block';
+    S._unreadNotifs = (S._unreadNotifs || 0) + 1;
+    updateNotifBadge(S._unreadNotifs);
+  });
+
+  // Track unread notifications from new messages (mentions)
+  S.socket.on('msg:new', (msg) => {
+    // If message mentions me and I'm not viewing that channel, bump badge
+    const myHandle = S.user?.handle || S.user?.github_username || '';
+    if (myHandle && msg.content && msg.content.includes('@' + myHandle) && msg.channelId !== S.currentChannel) {
+      S._unreadNotifs = (S._unreadNotifs || 0) + 1;
+      updateNotifBadge(S._unreadNotifs);
+    }
   });
 
   S.socket.on('error', ({ message }) => {
@@ -2515,7 +2626,38 @@ async function createChannel() {
 }
 
 // ── TASKS ─────────────────────────────────────────────────────────────────
-function openNewTask() { openModal('task-modal'); }
+function openNewTask(preAssignUserId) {
+  // Populate project dropdown
+  const projSel = document.getElementById('nt-project');
+  if (projSel) {
+    projSel.innerHTML = S.projects.length
+      ? S.projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')
+      : '<option value="">No projects yet</option>';
+  }
+  // Populate assignee dropdown — managers/leads can assign to others, devs assign to self
+  const canAssignOthers = S.isOwner || ['admin','manager','lead','senior'].includes(S.myRole);
+  const assignSel = document.getElementById('nt-assign');
+  if (assignSel) {
+    const selfOption = `<option value="${esc(S.user?.id)}" ${!preAssignUserId?'selected':''}>Myself (@${esc(S.user?.handle||S.user?.github_username||'me')})</option>`;
+    const otherOptions = canAssignOthers
+      ? S.users
+          .filter(u => u.id !== S.user?.id)
+          .map(u => `<option value="${esc(u.id)}" ${u.id===preAssignUserId?'selected':''}>${esc(u.display_name||u.github_username||u.handle||'User')} (@${esc(u.handle||u.github_username||'')})</option>`)
+          .join('')
+      : '';
+    assignSel.innerHTML = selfOption + otherOptions;
+  }
+  // Reset form
+  const titleEl = document.getElementById('nt-title');
+  if (titleEl) { titleEl.value = ''; titleEl.focus && setTimeout(() => titleEl.focus(), 100); }
+  const descEl = document.getElementById('nt-desc');
+  if (descEl) descEl.value = '';
+  const dlEl = document.getElementById('nt-deadline');
+  if (dlEl) dlEl.value = '';
+  const prioEl = document.getElementById('nt-prio');
+  if (prioEl) prioEl.value = 'medium';
+  openModal('task-modal');
+}
 async function createTask() {
   const title=safe(document.getElementById('nt-title')?.value||'',300);
   const desc=safe(document.getElementById('nt-desc')?.value||'',5000);
@@ -2537,31 +2679,43 @@ async function createTask() {
 }
 
 function renderAllTasks() {
-  const el=document.getElementById('tasks-list');if(!el)return;
-  const myTasks=S.tasks;
-  if(!myTasks.length){el.innerHTML='<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-title">No tasks yet</div></div>';return;}
-  const STATUS_LABELS={not_started:'To Do',in_progress:'In Progress',in_review:'In Review',approved:'Approved ✓',done:'Done',blocked:'Blocked'};
-  const STATUS_COLORS={not_started:'var(--t4)',in_progress:'var(--blue)',in_review:'var(--yellow)',approved:'var(--green)',done:'var(--purple)',blocked:'var(--red)'};
-  el.innerHTML=myTasks.map(t=>{
-    const dl=deadline(t.deadline);
-    const sc=STATUS_COLORS[t.status]||'var(--t4)';
-    return `<div style="background:var(--s1);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:8px">
+  const el = document.getElementById('tasks-list');
+  if (!el) return;
+  // BUG FIX: Only show tasks assigned TO ME — not all workspace tasks
+  const myTasks = S.tasks.filter(t => t.assigned_to === S.user?.id);
+  if (!myTasks.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-title">No tasks assigned to you</div><div class="empty-state-desc">Tasks assigned to you by a team lead will appear here. You can also create your own.</div></div>`;
+    return;
+  }
+  const STATUS_LABELS = { not_started:'To Do', in_progress:'In Progress', in_review:'In Review', approved:'Approved ✓', done:'Done', blocked:'Blocked' };
+  const STATUS_COLORS = { not_started:'var(--t4)', in_progress:'var(--blue)', in_review:'var(--yellow)', approved:'var(--green)', done:'var(--purple)', blocked:'var(--red)' };
+  el.innerHTML = myTasks.map(t => {
+    const dl = deadline(t.deadline);
+    const sc = STATUS_COLORS[t.status] || 'var(--t4)';
+    const assigner = S.users.find(u => u.id === t.created_by);
+    const assignerName = assigner ? safe(assigner.display_name || assigner.github_username || assigner.handle || '', 20) : '';
+    const isWorkerTask = t.assigned_to === S.user?.id; // This is always true here
+    return `<div style="background:var(--s1);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:14px;margin-bottom:8px;transition:border-color .15s" onmouseenter="this.style.borderColor='rgba(255,255,255,.09)'" onmouseleave="this.style.borderColor='rgba(255,255,255,.05)'">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span class="prio prio-${esc(t.priority||'normal')}">${(t.priority||'normal').toUpperCase()}</span>
-        <span style="flex:1;font-size:13px;font-weight:600">${esc(t.title||'')}</span>
-        <span style="font-size:10px;font-weight:700;color:${sc}">${STATUS_LABELS[t.status]||t.status}</span>
+        <span style="flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title||'')}</span>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:${sc}20;color:${sc};flex-shrink:0">${STATUS_LABELS[t.status]||t.status}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;font-size:10px;color:var(--t3)">
-        <span style="color:${dl.color};font-weight:${dl.cls==='dl-over'||dl.cls==='dl-today'?'700':'400'}">${dl.label}${dl.cls==='dl-over'?' ⚠':''}${dl.cls==='dl-today'?' 🔔':''}</span>
-        ${t.branch_name?`<span style="color:var(--blue);font-family:monospace">🌿 ${esc(t.branch_name)}</span>`:''}
-        ${t.pr_url?`<a href="${esc(t.pr_url)}" target="_blank" style="color:var(--blue)">⇄ PR ↗</a>`:''}
+      ${t.description ? `<div style="font-size:11px;color:var(--t3);margin-bottom:8px;line-height:1.5">${esc(t.description.slice(0,120))}${t.description.length>120?'…':''}</div>` : ''}
+      <div style="display:flex;align-items:center;gap:10px;font-size:10px;color:var(--t3);margin-bottom:${t.rejection_reason?'8px':'10px'};flex-wrap:wrap">
+        <span style="color:${dl.color};font-weight:${dl.cls==='dl-over'||dl.cls==='dl-today'?'700':'400'}">📅 ${dl.label}${dl.cls==='dl-over'?' ⚠':dl.cls==='dl-today'?' 🔔':''}</span>
+        ${t.branch_name?`<span style="color:var(--blue);font-family:monospace;font-size:9px">🌿 ${esc(t.branch_name)}</span>`:''}
+        ${t.pr_url?`<a href="${esc(t.pr_url)}" target="_blank" style="color:var(--blue)">⇄ View PR ↗</a>`:''}
+        ${assignerName ? `<span style="color:var(--t4)">Assigned by: ${esc(assignerName)}</span>` : ''}
       </div>
-      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-        ${t.status==='not_started'?`<button class="btn btn-xs" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="startTask('${t.id}')">▶ Start</button>`:''}
-        ${t.status==='in_progress'?`<button class="btn btn-xs" style="background:var(--blue-d);color:var(--blue);border:1px solid rgba(59,130,246,.2)" onclick="submitReview('${t.id}')">⇄ Submit</button>`:''}
-        ${(S.myPerms?.APPROVE_PR||S.isOwner)&&t.status==='in_review'?`<button class="btn btn-xs" style="background:var(--green-d);color:var(--green)" onclick="approveTask('${t.id}')">✓ Approve</button><button class="btn btn-xs" style="background:var(--red-d);color:var(--red)" onclick="rejectTask('${t.id}')">✕</button>`:''}
-        <button class="btn btn-xs btn-ghost" onclick="openEditTask('${t.id}')" style="margin-left:auto" title="Edit task">✏️</button>
-        <button class="btn btn-xs" style="background:var(--red-d);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="deleteTask('${t.id}')" title="Delete task">🗑</button>
+      ${t.rejection_reason ? `<div style="font-size:11px;color:var(--red);background:var(--red-d);border:1px solid rgba(239,68,68,.15);border-radius:8px;padding:7px 10px;margin-bottom:8px">⚠ Changes requested: ${esc(t.rejection_reason)}</div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        ${t.status==='not_started'?`<button class="btn btn-xs" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="startTask('${t.id}')">▶ Start Task</button>`:''}
+        ${t.status==='in_progress'?`<button class="btn btn-xs" style="background:var(--blue-d);color:var(--blue);border:1px solid rgba(59,130,246,.2)" onclick="submitReview('${t.id}')">⇄ Submit for Review</button>`:''}
+        ${t.status==='in_review'?`<span style="font-size:10px;color:var(--yellow);font-weight:600;padding:2px 8px;background:var(--yellow-d);border-radius:99px">⏳ Awaiting review</span>`:''}
+        ${t.status==='approved'?`<span style="font-size:10px;color:var(--green);font-weight:600;padding:2px 8px;background:var(--green-d);border-radius:99px">✅ Approved!</span>`:''}
+        ${t.status==='blocked'?`<button class="btn btn-xs" style="background:var(--red-d);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="openEditTask('${t.id}')">📢 Update Blocker</button>`:''}
+        <button class="btn btn-xs btn-ghost" onclick="openEditTask('${t.id}')" style="margin-left:auto" title="Edit task">✏️ Edit</button>
       </div>
     </div>`;
   }).join('');
@@ -2650,10 +2804,55 @@ async function startTask(id) {
   catch(e){toast('e','Error',e.message);}
 }
 async function submitReview(id) {
-  const t=S.tasks.find(x=>x.id===id);if(!t)return;
-  const prTitle=prompt('PR Title:',t.title||'');if(prTitle===null)return;
-  try{const r=await POST('/tasks/'+id+'/submit-review',{prTitle,prBody:''});t.status='in_review';t.pr_url=r.pr?.html_url||null;renderAllTasks();toast('s','Submitted','');}
-  catch(e){toast('e','Error',e.message);}
+  const t = S.tasks.find(x => x.id === id);
+  if (!t) return;
+  // Show proper modal instead of browser prompt
+  const mo = document.createElement('div');
+  mo.className = 'modal-backdrop'; mo.id = 'submit-review-modal';
+  mo.onclick = e => { if (e.target === mo) mo.remove(); };
+  mo.innerHTML = `<div class="modal modal-sm">
+    <div class="modal-hdr">
+      <div class="modal-title">Submit for Review</div>
+      <div class="modal-close" onclick="document.getElementById('submit-review-modal').remove()">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--t3);margin-bottom:14px">Submitting: <strong style="color:var(--t1)">${esc(t.title || '')}</strong></div>
+      <div class="field">
+        <label class="field-label">PR Title</label>
+        <input class="field-input" id="sr-pr-title" type="text" value="${esc(t.title || '')}" placeholder="Pull request title...">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label class="field-label">Description (optional)</label>
+        <textarea class="field-textarea" id="sr-pr-body" rows="3" placeholder="What did you change? Any notes for reviewers..."></textarea>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="document.getElementById('submit-review-modal').remove()">Cancel</button>
+      <button class="btn btn-primary" id="sr-submit-btn" onclick="confirmSubmitReview('${esc(id)}')">⇄ Submit PR</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+  setTimeout(() => document.getElementById('sr-pr-title')?.select(), 100);
+}
+
+async function confirmSubmitReview(id) {
+  const prTitle = document.getElementById('sr-pr-title')?.value?.trim();
+  const prBody  = document.getElementById('sr-pr-body')?.value?.trim() || '';
+  if (!prTitle) { toast('e', 'Error', 'PR title is required'); return; }
+  const btn = document.getElementById('sr-submit-btn');
+  if (btn) { btn.textContent = 'Submitting…'; btn.disabled = true; }
+  try {
+    const r = await POST('/tasks/' + id + '/submit-review', { prTitle, prBody });
+    const t = S.tasks.find(x => x.id === id);
+    if (t) { t.status = 'in_review'; t.pr_url = r.pr?.html_url || null; }
+    document.getElementById('submit-review-modal')?.remove();
+    renderAllTasks();
+    if (S.dashMode === 'collab') loadCollabDash();
+    toast('s', 'Submitted for review ✓', r.pr?.html_url ? 'PR created on GitHub' : 'Awaiting review');
+  } catch(e) {
+    toast('e', 'Error', e.message);
+    if (btn) { btn.textContent = '⇄ Submit PR'; btn.disabled = false; }
+  }
 }
 async function approveTask(id) {
   try {
@@ -2686,9 +2885,49 @@ function celebrateTask() {
   }
 }
 async function rejectTask(id) {
-  const reason=prompt('Reason for requesting changes:');if(!reason)return;
-  try{await POST('/tasks/'+id+'/reject',{reason});const t=S.tasks.find(x=>x.id===id);if(t){t.status='in_progress';t.rejection_reason=reason;}renderAllTasks();toast('i','Changes requested','');}
-  catch(e){toast('e','Error',e.message);}
+  const t = S.tasks.find(x => x.id === id);
+  if (!t) return;
+  const mo = document.createElement('div');
+  mo.className = 'modal-backdrop'; mo.id = 'reject-task-modal';
+  mo.onclick = e => { if (e.target === mo) mo.remove(); };
+  mo.innerHTML = `<div class="modal modal-sm">
+    <div class="modal-hdr">
+      <div class="modal-title">Request Changes</div>
+      <div class="modal-close" onclick="document.getElementById('reject-task-modal').remove()">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--t3);margin-bottom:12px">Task: <strong style="color:var(--t1)">${esc(t.title || '')}</strong></div>
+      <div class="field" style="margin-bottom:0">
+        <label class="field-label">Reason / Feedback *</label>
+        <textarea class="field-textarea" id="reject-reason" rows="3" placeholder="What needs to be changed? Be specific..."></textarea>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="document.getElementById('reject-task-modal').remove()">Cancel</button>
+      <button class="btn btn-danger" id="reject-confirm-btn" onclick="confirmRejectTask('${esc(id)}')">Request Changes</button>
+    </div>
+  </div>`;
+  document.body.appendChild(mo);
+  setTimeout(() => document.getElementById('reject-reason')?.focus(), 100);
+}
+
+async function confirmRejectTask(id) {
+  const reason = document.getElementById('reject-reason')?.value?.trim();
+  if (!reason) { toast('e', 'Error', 'Please provide a reason'); return; }
+  const btn = document.getElementById('reject-confirm-btn');
+  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
+  try {
+    await POST('/tasks/' + id + '/reject', { reason });
+    const t = S.tasks.find(x => x.id === id);
+    if (t) { t.status = 'in_progress'; t.rejection_reason = reason; }
+    document.getElementById('reject-task-modal')?.remove();
+    renderAllTasks();
+    if (S.dashMode === 'manager') loadMgrDash();
+    toast('i', 'Changes requested', 'Developer has been notified');
+  } catch(e) {
+    toast('e', 'Error', e.message);
+    if (btn) { btn.textContent = 'Request Changes'; btn.disabled = false; }
+  }
 }
 
 // ── REPOS VIEW ────────────────────────────────────────────────────────────
@@ -2776,30 +3015,24 @@ function memberCtx(e, userId) {
     { sep: true },
     ...(!isMe ? [
       { label: 'Send DM', icon: '💬', fn: () => startDM(userId) },
-      { label: 'Assign Task', icon: '📋', fn: () => { openNewTask(); setTimeout(()=>{ const el=document.getElementById('nt-assign');if(el)el.value='@'+(u.handle||u.github_username||''); },100); }},
+      { label: 'Assign Task', icon: '📋', fn: () => { openNewTask(userId); } },
       { label: 'Mention in Chat', icon: '@', fn: () => insertAt('@'+(u.handle||u.github_username||'')) },
     ] : [{ label: 'My Profile', icon: '👤', fn: () => openProfile() }]),
     { label: 'Copy @handle', icon: '📋', fn: () => navigator.clipboard.writeText('@'+(u.handle||u.github_username||'')).then(()=>toast('s','Copied','')) },
     ...(canManage && !isMe ? [
       { sep: true },
       { label: 'Change Role', icon: '🔑', fn: () => openRoleChangeModal(userId, name, u.role||'developer') },
-      { label: 'Remove from Workspace', icon: '🚫', danger: true, fn: () => {
-        if (!confirm('Remove ' + name + ' from workspace?')) return;
-        DEL('/workspaces/' + S.ws.id + '/members/' + userId + '?v=1')
-          .then(() => {
-            S.users = S.users.filter(x => x.id !== userId);
-            renderSBDMs(); renderRPMembers();
-            toast('s','Member removed','');
-          })
-          .catch(err => {
-            // Try alternate endpoint pattern
-            fetch(API_URL + '/workspaces/' + S.ws.id + '/members/' + userId, {
-              method:'DELETE', headers:{'Authorization':'Bearer '+S.token,'Content-Type':'application/json'}
-            }).then(r => {
-              if(r.ok) { S.users = S.users.filter(x => x.id !== userId); renderSBDMs(); renderRPMembers(); toast('s','Removed',''); }
-              else toast('e','Error', 'Could not remove member');
-            }).catch(e2=>toast('e','Error',e2.message));
-          });
+      { label: 'Remove from Workspace', icon: '🚫', danger: true, fn: async () => {
+        if (!confirm('Remove ' + name + ' from workspace? They will lose access immediately.')) return;
+        try {
+          await DEL('/workspaces/' + S.ws.id + '/members/' + userId);
+          S.users = S.users.filter(x => x.id !== userId);
+          if (typeof renderSBDMs === 'function') renderSBDMs();
+          renderRPMembers();
+          toast('s', 'Member removed', name + ' has been removed from the workspace');
+        } catch(err) {
+          toast('e', 'Error removing member', err.message || 'Please try again');
+        }
       }},
     ] : []),
   ];
@@ -2845,7 +3078,8 @@ async function confirmRoleChange(userId) {
   } catch(e) { toast('e','Error',e.message); }
 }
 
-function startDM(userId) { toast('i','DMs','Click the + next to Direct Messages'); }
+// startDM is handled properly by app-fixes.js — this is a no-op override guard
+// The real implementation is in app-fixes.js renderSBDMs and startDM
 
 // ── AI PANEL ──────────────────────────────────────────────────────────────
 let _aiMode = 'chat';
@@ -2964,30 +3198,67 @@ async function loadMgrDash() {
     {v:blocked,l:'Blocked',c:'var(--red)',a:'mgr-hc-blocked'},
     {v:done,l:'Done',c:'var(--blue)',a:'mgr-hc-done'},
   ].map(s=>`<div class="stat-card ${s.a}"><div class="stat-card-val" style="color:${s.c}">${s.v}</div><div class="stat-card-label">${s.l}</div></div>`).join('');
-  // Attention
+  // Attention — show ALL team tasks that need attention (manager sees everything)
   if(el('mgr-attention')){
-    const overdue=S.tasks.filter(t=>t.status!=='done'&&t.deadline&&new Date(t.deadline)<new Date()).slice(0,3);
-    const review=S.tasks.filter(t=>t.status==='in_review').slice(0,3);
-    const items=[...overdue.map(t=>{const dev=S.users.find(u2=>u2.id===t.assigned_to);return`<div class="attn-item"><div class="attn-icon">🔴</div><div style="flex:1"><div class="attn-title">${esc(t.title||'')}</div><div class="attn-sub">Overdue · ${esc(dev?.display_name||dev?.handle||'Unassigned')}</div></div></div>`;}),
-                ...review.map(t=>{const dev=S.users.find(u2=>u2.id===t.assigned_to);return`<div class="attn-item"><div class="attn-icon">⏳</div><div style="flex:1"><div class="attn-title">${esc(t.title||'')}</div><div class="attn-sub">Ready for review · ${esc(dev?.display_name||dev?.handle||'')}</div></div><div class="attn-action" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="approveTask('${t.id}')">✓</div></div>`;}),
+    const now = new Date();
+    const overdue = S.tasks.filter(t => t.status !== 'done' && t.status !== 'approved' && t.deadline && new Date(t.deadline) < now).slice(0, 5);
+    const blocked = S.tasks.filter(t => t.status === 'blocked').slice(0, 3);
+    const noActivity = S.tasks.filter(t => t.status === 'in_progress' && t.updated_at && (Date.now() - new Date(t.updated_at).getTime()) > 3 * 24 * 60 * 60 * 1000).slice(0, 2);
+    const items = [
+      ...overdue.map(t => { const dev = S.users.find(u2 => u2.id === t.assigned_to); const devName = safe(dev?.display_name || dev?.github_username || dev?.handle || 'Unassigned', 20); return `<div class="attn-item"><div class="attn-icon">🔴</div><div style="flex:1;min-width:0"><div class="attn-title">${esc(t.title||'')}</div><div class="attn-sub">Overdue · ${esc(devName)}</div></div><button onclick="openEditTask('${t.id}')" class="attn-action" style="background:var(--yellow-d);color:var(--yellow);border:1px solid rgba(234,179,8,.2)">Edit</button></div>`; }),
+      ...blocked.map(t => { const dev = S.users.find(u2 => u2.id === t.assigned_to); const devName = safe(dev?.display_name || dev?.github_username || dev?.handle || 'Unassigned', 20); return `<div class="attn-item"><div class="attn-icon">🚫</div><div style="flex:1;min-width:0"><div class="attn-title">${esc(t.title||'')}</div><div class="attn-sub">Blocked · ${esc(devName)}</div></div><button onclick="startDM('${t.assigned_to||''}')" class="attn-action" style="background:var(--blue-d);color:var(--blue);border:1px solid rgba(59,130,246,.2)">DM</button></div>`; }),
+      ...noActivity.map(t => { const dev = S.users.find(u2 => u2.id === t.assigned_to); const devName = safe(dev?.display_name || dev?.github_username || dev?.handle || 'Unassigned', 20); return `<div class="attn-item"><div class="attn-icon">💤</div><div style="flex:1;min-width:0"><div class="attn-title">${esc(t.title||'')}</div><div class="attn-sub">No activity 3+ days · ${esc(devName)}</div></div></div>`; }),
     ];
-    el('mgr-attention').innerHTML=items.join('')||'<div class="panel-empty"><div class="panel-empty-text">✓ All clear!</div></div>';
+    el('mgr-attention').innerHTML = items.join('') || '<div class="panel-empty"><div class="panel-empty-icon">✅</div><div class="panel-empty-text">All clear!</div></div>';
   }
   // Workload
   if(el('mgr-workload')){
-    const wl=S.users.map(u2=>({user:u2,count:S.tasks.filter(t=>t.assigned_to===u2.id&&t.status!=='done').length})).filter(m=>m.count>0||S.online[m.user.id]).sort((a,b)=>b.count-a.count).slice(0,6);
-    const max=Math.max(...wl.map(m=>m.count),1);
-    el('mgr-workload').innerHTML=wl.map(m=>{
-      const inits=initials(m.user.display_name||m.user.handle||'?');
-      const pct=Math.round(m.count/max*100);
-      const barColor=m.count>5?'var(--red)':m.count>2?'var(--yellow)':'var(--green)';
-      return`<div class="wl-row"><div class="av av-24" style="background:${esc(m.user.avatar_color||'#22c55e')}">${inits}</div><div class="wl-name">${esc(safe(m.user.display_name||m.user.handle||'',15))}</div><div class="wl-track"><div class="wl-fill" style="width:${pct}%;background:${barColor}"></div></div><div class="wl-count">${m.count}</div></div>`;
-    }).join('')||'<div class="panel-empty"><div class="panel-empty-text">No task data</div></div>';
+    const wl = S.users.map(u2 => ({
+      user: u2,
+      count: S.tasks.filter(t => t.assigned_to === u2.id && t.status !== 'done' && t.status !== 'approved').length,
+      online: S.online[u2.id]
+    })).filter(m => m.count > 0 || m.online).sort((a, b) => b.count - a.count).slice(0, 8);
+    const max = Math.max(...wl.map(m => m.count), 1);
+    el('mgr-workload').innerHTML = wl.map(m => {
+      const u2 = m.user;
+      const inits = initials(u2.display_name || u2.handle || '?');
+      const pct = Math.round(m.count / max * 100);
+      const barColor = m.count > 5 ? 'var(--red)' : m.count > 2 ? 'var(--yellow)' : 'var(--green)';
+      return `<div class="wl-row" onclick="startDM('${esc(u2.id)}')" style="cursor:pointer" onmouseenter="this.style.background='rgba(255,255,255,.03)'" onmouseleave="this.style.background=''">
+        <div style="position:relative;flex-shrink:0"><div class="av av-24" style="background:${esc(u2.avatar_color||'#22c55e')}">${u2.avatar_url?`<img src="${esc(u2.avatar_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:inits}</div><div style="position:absolute;bottom:-1px;right:-1px;width:7px;height:7px;border-radius:50%;background:${m.online?'var(--green)':'var(--s6)'};border:1.5px solid var(--s1)"></div></div>
+        <div class="wl-name">${esc(safe(u2.display_name || u2.github_username || u2.handle || '', 15))}</div>
+        <div class="wl-track"><div class="wl-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        <div class="wl-count">${m.count}</div>
+      </div>`;
+    }).join('') || '<div class="panel-empty"><div class="panel-empty-text">No active tasks</div></div>';
   }
-  // Approval queue
-  const aqTasks=S.tasks.filter(t=>t.status==='in_review');
-  const aqCount=el('aq-count');if(aqCount)aqCount.textContent=aqTasks.length||'';
-  if(el('mgr-approval'))el('mgr-approval').innerHTML=aqTasks.slice(0,4).map(t=>{const dev=S.users.find(u2=>u2.id===t.assigned_to);return`<div class="aq-item"><div class="attn-icon">⇄</div><div style="flex:1"><div class="attn-title">${esc(t.title||'')}</div><div class="attn-sub">by ${esc(dev?.display_name||dev?.handle||'')}${t.pr_url?` · <a href="${esc(t.pr_url)}" target="_blank" style="color:var(--blue)">PR ↗</a>`:''}</div></div><div class="aq-actions"><div class="attn-action" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="approveTask('${t.id}')">✓</div><div class="attn-action" style="background:var(--red-d);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="rejectTask('${t.id}')">✕</div></div></div>`;}).join('')||'<div class="panel-empty"><div class="panel-empty-text">No PRs awaiting review</div></div>';
+  // Approval queue — only show if user can approve
+  const canApprove = S.isOwner || S.myPerms?.APPROVE_PR || ['admin','manager','lead'].includes(S.myRole);
+  const aqTasks = S.tasks.filter(t => t.status === 'in_review');
+  const aqCount = el('aq-count'); if(aqCount) aqCount.textContent = aqTasks.length || '';
+  if(el('mgr-approval')) {
+    if (!canApprove) {
+      el('mgr-approval').innerHTML = '<div class="panel-empty"><div class="panel-empty-text">Only leads and managers can approve tasks</div></div>';
+    } else if (!aqTasks.length) {
+      el('mgr-approval').innerHTML = '<div class="panel-empty"><div class="panel-empty-text">No PRs awaiting review</div></div>';
+    } else {
+      el('mgr-approval').innerHTML = aqTasks.slice(0, 5).map(t => {
+        const dev = S.users.find(u2 => u2.id === t.assigned_to);
+        const devName = safe(dev?.display_name || dev?.github_username || dev?.handle || 'Unknown', 20);
+        return `<div class="aq-item">
+          <div class="attn-icon">⇄</div>
+          <div style="flex:1;min-width:0">
+            <div class="attn-title">${esc(t.title||'')}</div>
+            <div class="attn-sub">by ${esc(devName)}${t.pr_url?` · <a href="${esc(t.pr_url)}" target="_blank" style="color:var(--blue)">View PR ↗</a>`:''}</div>
+          </div>
+          <div class="aq-actions">
+            <button class="attn-action" style="background:var(--green-d);color:var(--green);border:1px solid rgba(34,197,94,.2)" onclick="approveTask('${t.id}')">✓</button>
+            <button class="attn-action" style="background:var(--red-d);color:var(--red);border:1px solid rgba(239,68,68,.2)" onclick="rejectTask('${t.id}')">✕</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
   // Velocity
   if(el('vel-chart')){const days=[];for(let i=6;i>=0;i--){const d2=new Date();d2.setDate(d2.getDate()-i);d2.setHours(0,0,0,0);const nextD=new Date(d2);nextD.setDate(nextD.getDate()+1);const cnt=S.tasks.filter(t=>t.status==='done'&&new Date(t.updated_at||0)>=d2&&new Date(t.updated_at||0)<nextD).length;days.push({label:['Su','Mo','Tu','We','Th','Fr','Sa'][d2.getDay()],cnt});}const maxV=Math.max(...days.map(d=>d.cnt),1);el('vel-chart').innerHTML=days.map(d=>{const h=Math.max(4,Math.round(d.cnt/maxV*52));return`<div class="vel-col"><div class="vel-num">${d.cnt}</div><div class="vel-bar" style="height:${h}px;background:${d.cnt>0?'var(--blue)':'var(--s4)'}"></div><div class="vel-lbl">${d.label}</div></div>`;}).join('');}
   // Team
@@ -3029,17 +3300,24 @@ async function loadTeamActivity() {
 }
 
 async function quickAssign() {
-  const title=safe(document.getElementById('qa-task')?.value||'',300);
-  const assigneeId=document.getElementById('qa-who')?.value;
-  const prio=document.getElementById('qa-prio')?.value||'medium';
-  if(!title||!assigneeId){toast('e','Error','Fill task title and select member');return;}
-  try{
-    if(!S.projects.length){toast('e','No project','Create a project first');return;}
-    await POST('/projects/'+S.projects[0].id+'/tasks',{title,priority:prio,assignedTo:assigneeId});
-    document.getElementById('qa-task').value='';
-    await GET('/tasks/mine').then(tasks=>{S.tasks=tasks||[];});
-    loadMgrDash(); toast('s','Task assigned! ✓','');
-  }catch(e){toast('e','Error',e.message);}
+  const title = safe(document.getElementById('qa-task')?.value || '', 300);
+  const assigneeId = document.getElementById('qa-who')?.value;
+  const prio = document.getElementById('qa-prio')?.value || 'medium';
+  if (!title) { toast('e', 'Error', 'Enter a task title'); return; }
+  if (!assigneeId) { toast('e', 'Error', 'Select a team member'); return; }
+  if (!S.projects.length) { toast('e', 'No projects', 'Create a project first'); return; }
+  // Use current project if set, otherwise first project
+  const projectId = S.currentProject?.id || S.projects[0].id;
+  try {
+    const task = await POST('/projects/' + projectId + '/tasks', { title, priority: prio, assignedTo: assigneeId });
+    if (!S.tasks) S.tasks = [];
+    S.tasks.unshift(task);
+    document.getElementById('qa-task').value = '';
+    const assignee = S.users.find(u => u.id === assigneeId);
+    const name = assignee ? safe(assignee.display_name || assignee.github_username || assignee.handle || '', 20) : 'member';
+    loadMgrDash();
+    toast('s', 'Task assigned! ✓', title.slice(0, 40) + ' → ' + name);
+  } catch(e) { toast('e', 'Error', e.message); }
 }
 
 async function loadCollabDash() {
@@ -3119,14 +3397,149 @@ function stopPomo() {
 }
 
 // ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+let _notifsData = [];
+
 async function openNotifs() {
-  document.getElementById('notif-dot').style.display='none';
-  try{const notifs=await GET('/notifications');toast('i','Notifications',notifs?.length?notifs.length+' notifications':'All caught up');}
-  catch{}
+  document.getElementById('_notif-panel')?.remove();
+  const dot = document.getElementById('notif-dot');
+  if (dot) dot.style.display = 'none';
+
+  const panel = document.createElement('div');
+  panel.id = '_notif-panel';
+  panel.style.cssText = 'position:fixed;top:54px;right:12px;width:340px;max-height:480px;background:rgba(14,14,16,.98);border:1px solid rgba(255,255,255,.09);border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.7);z-index:500;backdrop-filter:blur(20px);display:flex;flex-direction:column;overflow:hidden;animation:scaleIn .15s cubic-bezier(.16,1,.3,1)';
+  panel.innerHTML = `
+    <div style="padding:14px 16px 10px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:13px;font-weight:700">Notifications</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="markAllNotifsRead()" style="font-size:10px;font-weight:600;color:var(--t4);background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;font-family:inherit" onmouseover="this.style.color='var(--t2)'" onmouseout="this.style.color='var(--t4)'">Mark all read</button>
+        <button onclick="document.getElementById('_notif-panel')?.remove()" style="width:22px;height:22px;border-radius:5px;background:none;border:none;color:var(--t4);cursor:pointer;font-size:13px;font-family:inherit">✕</button>
+      </div>
+    </div>
+    <div id="_notif-list" style="overflow-y:auto;flex:1;padding:6px">
+      <div style="padding:24px;text-align:center;font-size:11px;color:var(--t4)"><div class="spinner" style="margin:0 auto 10px"></div>Loading...</div>
+    </div>`;
+  document.body.appendChild(panel);
+  setTimeout(() => document.addEventListener('click', function _cl(e) {
+    if (!panel.contains(e.target) && !e.target.closest('[onclick*="openNotifs"]')) {
+      panel.remove(); document.removeEventListener('click', _cl);
+    }
+  }), 100);
+
+  try {
+    const notifs = await GET('/notifications');
+    _notifsData = notifs || [];
+    renderNotifList(_notifsData);
+  } catch (e) {
+    document.getElementById('_notif-list').innerHTML = '<div style="padding:24px;text-align:center;font-size:11px;color:var(--t4)">No notifications</div>';
+  }
 }
 
-// ── PROFILE ───────────────────────────────────────────────────────────────
-function openProfile() { window.open('profile.html','_blank'); }
+function renderNotifList(notifs) {
+  const el = document.getElementById('_notif-list');
+  if (!el) return;
+  if (!notifs.length) {
+    el.innerHTML = '<div style="padding:32px;text-align:center"><div style="font-size:32px;margin-bottom:8px">🎉</div><div style="font-size:12px;color:var(--t4)">All caught up!</div></div>';
+    return;
+  }
+  const ICONS = { message: '💬', task_assigned: '📋', task_approved: '✅', task_rejected: '⚠️', mention: '@', pr_created: '⇄', pr_merged: '✓', member_joined: '👋', system: '🔔' };
+  el.innerHTML = notifs.slice(0, 20).map((n, i) => {
+    const icon = ICONS[n.type] || '🔔';
+    const time = timeAgo ? timeAgo(n.created_at) : '';
+    const isUnread = !n.read_at;
+    return `<div onclick="handleNotifClick(${i})" style="display:flex;align-items:flex-start;gap:10px;padding:10px 10px;border-radius:10px;cursor:pointer;transition:background .1s;${isUnread ? 'background:rgba(34,197,94,.04);' : ''}" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background='${isUnread ? 'rgba(34,197,94,.04)' : ''}'">
+      <div style="width:32px;height:32px;border-radius:8px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:${isUnread ? '600' : '400'};line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title || n.message || 'Notification')}</div>
+        ${n.body || n.description ? `<div style="font-size:11px;color:var(--t4);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((n.body || n.description || '').slice(0, 60))}</div>` : ''}
+        <div style="font-size:10px;color:var(--t4);margin-top:2px">${time}</div>
+      </div>
+      ${isUnread ? '<div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:5px"></div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function handleNotifClick(idx) {
+  const n = _notifsData[idx];
+  if (!n) return;
+  document.getElementById('_notif-panel')?.remove();
+  // Navigate based on notification type
+  if (n.type === 'message' || n.type === 'mention') {
+    // Navigate to the channel
+    const chId = n.channel_id || n.data?.channel_id;
+    if (chId) { switchChannel(chId); return; }
+    // If DM, navigate to DM
+    const fromId = n.from_user_id || n.data?.from_user_id;
+    if (fromId) { startDM(fromId); return; }
+  }
+  if (n.type === 'task_assigned' || n.type === 'task_approved' || n.type === 'task_rejected') {
+    showTasks(); return;
+  }
+  if (n.type === 'pr_created' || n.type === 'pr_merged') {
+    showRepos(); return;
+  }
+  // Mark read via API
+  POST('/notifications/' + n.id + '/read', {}).catch(() => {});
+}
+
+function markAllNotifsRead() {
+  POST('/notifications/read-all', {}).catch(() => {});
+  _notifsData = _notifsData.map(n => ({ ...n, read_at: new Date().toISOString() }));
+  renderNotifList(_notifsData);
+  const dot = document.getElementById('notif-dot');
+  if (dot) dot.style.display = 'none';
+}
+
+// Update notif badge count
+function updateNotifBadge(count) {
+  const dot = document.getElementById('notif-dot');
+  if (!dot) return;
+  if (count > 0) {
+    dot.style.display = 'flex';
+    dot.textContent = count > 9 ? '9+' : count;
+  } else {
+    dot.style.display = 'none';
+  }
+}
+
+function openProfile() {
+  document.getElementById('_profile-panel')?.remove();
+  const u = S.user || {};
+  const name = safe(u.display_name || u.github_username || u.handle || 'User', 40);
+  const handle = u.handle || u.github_username || '';
+  const color = u.avatar_color || '#22c55e';
+  const inits = initials(name);
+  const roleLabel = S.myRole || 'developer';
+  const savedStatus = JSON.parse(localStorage.getItem('dc_status') || '{}');
+  const panel = document.createElement('div');
+  panel.id = '_profile-panel';
+  panel.style.cssText = 'position:fixed;bottom:70px;left:12px;width:280px;background:rgba(14,14,16,.98);border:1px solid rgba(255,255,255,.09);border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.8);z-index:500;backdrop-filter:blur(20px);overflow:hidden;animation:scaleIn .15s cubic-bezier(.16,1,.3,1)';
+  panel.innerHTML = `
+    <div style="padding:20px 16px 14px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div class="av av-48" style="background:${esc(color)};border-radius:14px;font-size:16px;font-weight:900;flex-shrink:0">${u.avatar_url?`<img src="${esc(u.avatar_url)}" style="width:100%;height:100%;border-radius:14px;object-fit:cover">`:inits}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</div>
+          <div style="font-size:11px;color:var(--t4)">${handle?'@'+esc(handle):''}</div>
+          <span class="role role-${esc(roleLabel)}" style="margin-top:4px;display:inline-flex">${esc(roleLabel)}</span>
+        </div>
+      </div>
+      ${savedStatus.text ? `<div style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:var(--s3);border-radius:8px;margin-bottom:10px;font-size:12px">${esc(savedStatus.emoji||'😊')} ${esc(savedStatus.text)}</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <button onclick="openSetStatus();document.getElementById('_profile-panel')?.remove()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">😊 Set Status</button>
+        <button onclick="showWsSwitcher();document.getElementById('_profile-panel')?.remove()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">⇄ Switch Workspace</button>
+        <button onclick="toggleTheme();document.getElementById('_profile-panel')?.remove()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">🌙 Toggle Theme</button>
+        <button onclick="window.open('profile.html?handle=${esc(handle)}','_blank')" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">👤 Full Profile ↗</button>
+        <div style="height:1px;background:rgba(255,255,255,.05);margin:4px 0"></div>
+        <button onclick="logout()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='var(--red-d)'" onmouseout="this.style.background=''">⇥ Sign Out</button>
+      </div>
+    </div>`;
+  document.body.appendChild(panel);
+  setTimeout(() => document.addEventListener('click', function _cl(e) {
+    if (!panel.contains(e.target) && !e.target.closest('#nav-av') && !e.target.closest('#sb-av') && !e.target.closest('#sb-user-info')) {
+      panel.remove(); document.removeEventListener('click', _cl);
+    }
+  }), 100);
+}
 
 // ── AUTH ──────────────────────────────────────────────────────────────────
 async function logout() {
@@ -3353,8 +3766,87 @@ function closeSidebar() {
 }
 
 // ── MISC ──────────────────────────────────────────────────────────────────
-function doSearch(q) { if(!q.trim())return; toast('i','Search','Results for: '+q); }
-function showAllPins() { toast('i','Pins','Pin management coming soon'); }
+function doSearch(q) {
+  if (!q.trim()) return;
+  document.getElementById('_search-drop')?.remove();
+  const results = [];
+  const ql = q.toLowerCase();
+  // Search users
+  (S.users || []).forEach(u => {
+    const name = safe(u.display_name || u.github_username || u.handle || '', 40);
+    if (name.toLowerCase().includes(ql) || (u.handle||'').toLowerCase().includes(ql)) {
+      results.push({ type: 'user', icon: '👤', title: name, sub: '@' + (u.handle || u.github_username || ''), fn: () => startDM(u.id) });
+    }
+  });
+  // Search channels
+  (S.channels || []).forEach(ch => {
+    if ((ch.name || '').toLowerCase().includes(ql)) {
+      results.push({ type: 'channel', icon: '#', title: ch.name, sub: ch.description || 'Channel', fn: () => switchChannel(ch.id) });
+    }
+  });
+  // Search tasks
+  (S.tasks || []).filter(t => t.assigned_to === S.user?.id).forEach(t => {
+    if ((t.title || '').toLowerCase().includes(ql)) {
+      results.push({ type: 'task', icon: '📋', title: t.title, sub: t.status, fn: () => showTasks() });
+    }
+  });
+  // Search projects
+  (S.projects || []).forEach(p => {
+    if ((p.name || '').toLowerCase().includes(ql)) {
+      results.push({ type: 'project', icon: '🚀', title: p.name, sub: 'Project', fn: () => openProject(p.id) });
+    }
+  });
+  if (!results.length) { toast('i', 'No results', 'Nothing found for "' + q.slice(0,30) + '"'); return; }
+  // Show results dropdown
+  const inp = document.getElementById('nav-search');
+  const rect = inp?.getBoundingClientRect() || { left: 200, bottom: 54, width: 300 };
+  const drop = document.createElement('div');
+  drop.id = '_search-drop';
+  drop.style.cssText = `position:fixed;top:${rect.bottom + 4}px;left:${rect.left}px;width:${Math.max(rect.width, 320)}px;background:rgba(14,14,16,.98);border:1px solid rgba(255,255,255,.09);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.7);z-index:600;backdrop-filter:blur(16px);overflow:hidden;animation:scaleIn .12s cubic-bezier(.16,1,.3,1)`;
+  drop.innerHTML = results.slice(0, 8).map(r =>
+    `<div onclick="this.closest('#_search-drop').remove();(${r.fn.toString()})()" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">
+      <span style="font-size:14px;width:20px;text-align:center;flex-shrink:0">${r.icon}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.title)}</div><div style="font-size:10px;color:var(--t4)">${esc(r.sub)}</div></div>
+      <span style="font-size:9px;color:var(--t4);font-weight:600;text-transform:uppercase">${r.type}</span>
+    </div>`
+  ).join('') + (results.length > 8 ? `<div style="padding:8px 12px;font-size:10px;color:var(--t4);text-align:center">+${results.length-8} more results</div>` : '');
+  document.body.appendChild(drop);
+  setTimeout(() => document.addEventListener('click', e => { if (!drop.contains(e.target)) drop.remove(); }, { once: true }), 50);
+}
+async function showAllPins() {
+  if (!S.currentChannel) return;
+  const mo = document.createElement('div');
+  mo.className = 'modal-backdrop'; mo.id = '_pins-modal';
+  mo.onclick = e => { if (e.target === mo) mo.remove(); };
+  mo.innerHTML = `<div class="modal modal-sm">
+    <div class="modal-hdr"><div class="modal-title">📌 Pinned Messages</div><div class="modal-close" onclick="document.getElementById('_pins-modal').remove()">✕</div></div>
+    <div class="modal-body" id="_pins-body" style="min-height:120px"><div style="text-align:center;padding:20px"><div class="spinner" style="margin:0 auto"></div></div></div>
+  </div>`;
+  document.body.appendChild(mo);
+  try {
+    const pins = await GET('/channels/' + S.currentChannel + '/pins');
+    const body = document.getElementById('_pins-body');
+    if (!body) return;
+    if (!pins?.length) { body.innerHTML = '<div class="panel-empty"><div class="panel-empty-text">No pinned messages yet</div></div>'; return; }
+    body.innerHTML = pins.map(m => {
+      const uid = m.user_id || m.userId;
+      const u = S.users.find(x => x.id === uid) || {};
+      const name = safe(u.display_name || u.github_username || u.handle || 'User', 30);
+      const time = typeof fmtTime === 'function' ? fmtTime(m.ts || m.created_at) : '';
+      return `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span style="font-size:11px;font-weight:600">${esc(name)}</span>
+          <span style="font-size:10px;color:var(--t4)">${time}</span>
+        </div>
+        <div style="font-size:12px;color:var(--t2);line-height:1.5">${typeof fmtText==='function'?fmtText(m.content||''):esc(m.content||'')}</div>
+        <button onclick="if(S.socket?.connected)S.socket.emit('msg:unpin',{messageId:'${m.id}',channelId:'${S.currentChannel}'});this.closest('[style*=border-bottom]').remove();toast('s','Unpinned','')" style="font-size:10px;color:var(--t4);background:none;border:none;cursor:pointer;margin-top:5px;padding:0" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--t4)'">Unpin</button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    const body = document.getElementById('_pins-body');
+    if (body) body.innerHTML = `<div class="panel-empty"><div class="panel-empty-text">${esc(e.message)}</div></div>`;
+  }
+}
 
 // Inject code block + extra styles
 (function() {
