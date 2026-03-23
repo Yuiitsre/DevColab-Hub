@@ -640,37 +640,42 @@ window.searchUsers=function(query){
   },300);
 };
 
-// Fix createTask — safe handle lookup
+// Fix createTask — use dropdown selectors + notify assignee
 ;(()=>{
-  const _orig=window.createTask;
-  window.createTask=async function(){
-    const safe_v=(id,max)=>(document.getElementById(id)?.value||'').trim().slice(0,max||300);
-    const title=safe_v('nt-title',300);
-    const desc=safe_v('nt-desc',5000);
-    const prio=document.getElementById('nt-prio')?.value||'medium';
-    const dl=document.getElementById('nt-deadline')?.value||'';
-    const raw=safe_v('nt-assign',50).replace('@','');
-    if(!title){toast('e','Error','Title required');return}
-    let assignedTo=S.user?.id;
-    if(raw){
-      const rawL=raw.toLowerCase();
-      const found=(S.users||[]).find(u=>{
-        const h=typeof u.handle==='string'?u.handle.toLowerCase():null;
-        const gh=typeof u.github_username==='string'?u.github_username.toLowerCase():null;
-        const dn=typeof u.display_name==='string'&&!_isEnc(u.display_name)?u.display_name.toLowerCase():null;
-        return h===rawL||gh===rawL||dn===rawL;
-      });
-      if(found?.id)assignedTo=found.id;
+  window.createTask = async function() {
+    const safe_v = (id, max) => (document.getElementById(id)?.value || '').trim().slice(0, max || 300);
+    const title = safe_v('nt-title', 300);
+    const desc  = safe_v('nt-desc', 5000);
+    const prio  = document.getElementById('nt-prio')?.value || 'medium';
+    const dl    = document.getElementById('nt-deadline')?.value || '';
+    // BUG FIX: Read from the select dropdown, not a text field
+    const assignedTo = document.getElementById('nt-assign')?.value || S.user?.id;
+    const projectId  = document.getElementById('nt-project')?.value;
+    if (!title) { toast('e', 'Error', 'Task title is required'); return; }
+    if (!projectId) { toast('e', 'No project', 'Please select a project for this task'); return; }
+    const btn = document.getElementById('nt-create-btn');
+    if (btn) { btn.textContent = 'Creating…'; btn.disabled = true; }
+    try {
+      const task = await POST('/projects/' + projectId + '/tasks', { title, description: desc, priority: prio, assignedTo, deadline: dl || null });
+      if (!S.tasks) S.tasks = [];
+      S.tasks.unshift(task);
+      if (typeof closeModal === 'function') closeModal('task-modal');
+      // Show confirmation with assignee name if assigning to someone else
+      if (assignedTo !== S.user?.id) {
+        const assignee = (S.users || []).find(u => u.id === assignedTo);
+        const name = assignee ? _safeName(assignee) : 'teammate';
+        toast('s', 'Task created & assigned ✓', 'Assigned to ' + name);
+      } else {
+        toast('s', 'Task created ✓', title.slice(0, 40));
+      }
+      if (typeof renderAllTasks === 'function') renderAllTasks();
+      if (typeof loadCollabDash === 'function') loadCollabDash();
+      if (typeof loadMgrDash === 'function' && S.dashMode === 'manager') loadMgrDash();
+    } catch(e) {
+      toast('e', 'Error creating task', e.message);
+    } finally {
+      if (btn) { btn.textContent = 'Create Task'; btn.disabled = false; }
     }
-    if(!S.projects?.length){toast('e','No project','Create a project first');return}
-    try{
-      const task=await POST('/projects/'+S.projects[0].id+'/tasks',{title,description:desc,priority:prio,assignedTo,deadline:dl||null});
-      if(!S.tasks)S.tasks=[];S.tasks.unshift(task);
-      if(typeof closeModal==='function')closeModal('task-modal');
-      toast('s','Task created','');
-      if(typeof loadCollabDash==='function')loadCollabDash();
-      if(typeof loadMgrDash==='function'&&S.dashMode==='manager')loadMgrDash();
-    }catch(e){toast('e','Error',e.message);}
   };
 })();
 
