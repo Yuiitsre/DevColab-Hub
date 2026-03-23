@@ -479,8 +479,10 @@ input,textarea,select{font-family:inherit;font-size:inherit;color:inherit;backgr
         <div><label class="field-lbl">Priority</label><select class="field-in" id="nt-prio"><option value="urgent">🔴 Urgent</option><option value="medium" selected>🟡 Medium</option><option value="normal">🟢 Normal</option></select></div>
         <div><label class="field-lbl">Deadline</label><input class="field-in" id="nt-deadline" type="date" style="cursor:pointer"></div>
       </div>
-      <div class="field-mb"><label class="field-lbl">Assign To (@handle)</label><input class="field-in" id="nt-assign" type="text" placeholder="@username"></div>
-      <div class="field-mb"><label class="field-lbl">Linked File</label><input class="field-in" id="nt-file" type="text" placeholder="src/auth.js"></div>
+      <div class="field-row field-mb">
+        <div><label class="field-lbl">Assign To</label><select class="field-in" id="nt-assign"><option value="">Myself</option></select></div>
+        <div><label class="field-lbl">Linked File</label><input class="field-in" id="nt-file" type="text" placeholder="src/auth.js"></div>
+      </div>
     </div>
     <div class="task-modal-ftr"><button class="btn btn-secondary" onclick="document.getElementById('new-task-modal').style.display='none'">Cancel</button><button class="btn btn-primary" onclick="submitNewTask()">Create Task</button></div>
   </div>
@@ -841,31 +843,53 @@ function openTaskDetail(taskId){
 }
 function closeTaskModal(){ document.getElementById('task-modal').style.display='none'; }
 
-function openNewTaskModal(defaultStatus){
-  document.getElementById('new-task-modal').style.display='flex';
-  if(defaultStatus) document.getElementById('nt-prio').value=(defaultStatus==='not_started'?'normal':'medium');
+function openNewTaskModal(defaultStatus) {
+  const mo = document.getElementById('new-task-modal');
+  // Populate assignee dropdown
+  const sel = document.getElementById('nt-assign');
+  if (sel) {
+    sel.innerHTML = `<option value="${esc(S.user?.id||'')}">Myself (${esc(S.user?.display_name||S.user?.github_username||'me')})</option>` +
+      (S.members || [])
+        .filter(m => (m.user?.id || m.user_id) !== S.user?.id)
+        .map(m => {
+          const u = m.user || {};
+          const uid = u.id || m.user_id;
+          const name = safe(u.display_name || u.github_username || u.handle || 'User', 30);
+          return `<option value="${esc(uid)}">${esc(name)} (${esc(m.role||'dev')})</option>`;
+        }).join('');
+  }
+  // Reset form fields
+  ['nt-title','nt-desc','nt-file'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  if(document.getElementById('nt-prio')) document.getElementById('nt-prio').value = defaultStatus==='not_started'?'normal':'medium';
+  if(document.getElementById('nt-deadline')) document.getElementById('nt-deadline').value = '';
+  mo.style.display = 'flex';
+  setTimeout(() => document.getElementById('nt-title')?.focus(), 100);
 }
 
-async function submitNewTask(){
-  const title=safe(document.getElementById('nt-title').value,300);
-  const desc=safe(document.getElementById('nt-desc').value,5000);
-  const prio=document.getElementById('nt-prio').value;
-  const dl=document.getElementById('nt-deadline').value;
-  const handle=safe(document.getElementById('nt-assign').value,50).replace('@','');
-  const file=safe(document.getElementById('nt-file').value,500);
-  if(!title){toast('e','Error','Title required');return;}
-  let assignedTo=S.user?.id;
-  if(handle){const u=S.members.find(m=>m.user?.handle===handle||m.user?.github_username===handle);if(u?.user?.id)assignedTo=u.user.id;}
-  try{
-    // Get project ID
-    const projs=await GET('/workspaces/'+S.project?.workspace_id+'/projects');
-    const proj=projs.find(p=>p.id===S.projectId)||projs[0];
-    const task=await POST('/projects/'+S.projectId+'/tasks',{title,description:desc,priority:prio,assignedTo,deadline:dl||null,linkedFile:file||null});
-    S.tasks.unshift(task);renderKanban();
-    document.getElementById('new-task-modal').style.display='none';
-    toast('s','Task created','');
-    ['nt-title','nt-desc','nt-assign','nt-file'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  }catch(e){toast('e','Error',e.message);}
+async function submitNewTask() {
+  const title = safe(document.getElementById('nt-title').value, 300);
+  const desc  = safe(document.getElementById('nt-desc').value, 5000);
+  const prio  = document.getElementById('nt-prio').value;
+  const dl    = document.getElementById('nt-deadline').value;
+  const assignedTo = document.getElementById('nt-assign')?.value || S.user?.id;
+  const file  = safe(document.getElementById('nt-file').value, 500);
+  if (!title) { toast('e','Error','Title required'); return; }
+  const btn = document.querySelector('#new-task-modal .btn-primary');
+  if (btn) { btn.textContent = 'Creating…'; btn.disabled = true; }
+  try {
+    const task = await POST('/projects/'+S.projectId+'/tasks', { title, description:desc, priority:prio, assignedTo, deadline:dl||null, linkedFile:file||null });
+    S.tasks.unshift(task);
+    renderKanban();
+    document.getElementById('new-task-modal').style.display = 'none';
+    const assignee = S.members.find(m => (m.user?.id||m.user_id) === assignedTo);
+    const aName = assignee ? safe(assignee.user?.display_name||assignee.user?.handle||'teammate', 20) : 'you';
+    toast('s', 'Task created ✓', assignedTo !== S.user?.id ? 'Assigned to ' + aName : title.slice(0,40));
+    ['nt-title','nt-desc','nt-assign','nt-file'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  } catch(e) {
+    toast('e', 'Error', e.message);
+  } finally {
+    if (btn) { btn.textContent = 'Create Task'; btn.disabled = false; }
+  }
 }
 
 // ── TASK ACTIONS ──────────────────────────────────────────────────────────
@@ -878,25 +902,68 @@ async function startTask(id){
     toast('s','Task started!',r.branchName?'Branch: '+r.branchName:'');
   }catch(e){toast('e','Error',e.message);}
 }
-async function submitTaskReview(id){
-  const t=S.tasks.find(x=>x.id===id);
-  if(!t)return;
-  const prTitle=prompt('PR Title:',t.title||'');
-  if(prTitle===null)return;
-  try{
-    const r=await POST('/tasks/'+id+'/submit-review',{prTitle,prBody:''});
-    t.status='in_review';t.pr_url=r.pr?.html_url||null;
-    renderKanban();toast('s','Submitted for review ⇄',r.pr?.html_url?'PR opened on GitHub':'Lead notified');
-  }catch(e){toast('e','Error',e.message);}
+async function submitTaskReview(id) {
+  const t = S.tasks.find(x => x.id === id);
+  if (!t) return;
+  // Show inline modal instead of browser prompt
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `<div style="background:#0f0f11;border:1px solid rgba(255,255,255,.08);border-radius:16px;width:420px;max-width:calc(100vw-24px);overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:14px;font-weight:700">Submit for Review</div>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="color:var(--tx3,#71717a);font-size:16px;cursor:pointer;background:none;border:none;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center" onmouseover="this.style.background='rgba(255,255,255,.07)'" onmouseout="this.style.background=''">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="font-size:11px;color:var(--tx3,#71717a);margin-bottom:12px">Submitting: <strong style="color:#fafafa">${esc(t.title||'')}</strong></div>
+      <div style="margin-bottom:12px"><label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx4,#52525b);margin-bottom:6px">PR Title</label>
+        <input id="_sr-title" style="width:100%;padding:9px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.07);border-radius:8px;color:#fafafa;font-size:13px;font-family:inherit" value="${esc(t.title||'')}">
+      </div>
+      <div><label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx4,#52525b);margin-bottom:6px">Description (optional)</label>
+        <textarea id="_sr-body" style="width:100%;padding:9px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.07);border-radius:8px;color:#fafafa;font-size:12px;font-family:inherit;resize:none;min-height:80px;line-height:1.6" placeholder="What did you change? Notes for reviewers..."></textarea>
+      </div>
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="this.closest('[style*=fixed]').remove()" style="padding:8px 16px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:var(--tx2,#a1a1aa);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+      <button id="_sr-btn" onclick="(async()=>{const prTitle=document.getElementById('_sr-title')?.value?.trim();if(!prTitle){toast('e','Error','PR title required');return;}this.textContent='Submitting…';this.disabled=true;try{const r=await POST('/tasks/${esc(id)}/submit-review',{prTitle,prBody:document.getElementById('_sr-body')?.value?.trim()||''});const t=S.tasks.find(x=>x.id==='${esc(id)}');if(t){t.status='in_review';t.pr_url=r.pr?.html_url||null;}renderKanban();this.closest('[style*=fixed]').remove();toast('s','Submitted for review ⇄',r.pr?.html_url?'PR created on GitHub':'Awaiting review');}catch(e){toast('e','Error',e.message);this.textContent='⇄ Submit PR';this.disabled=false;}})()" style="padding:8px 16px;border-radius:8px;background:#22c55e;border:none;color:#000;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">⇄ Submit PR</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('_sr-title')?.select(), 100);
 }
-async function approveTask(id){
-  try{await POST('/tasks/'+id+'/approve',{});const t=S.tasks.find(x=>x.id===id);if(t)t.status='approved';renderKanban();toast('s','Approved ✓','');}
-  catch(e){toast('e','Error',e.message);}
+
+async function approveTask(id) {
+  try {
+    await POST('/tasks/'+id+'/approve', {});
+    const t = S.tasks.find(x => x.id === id);
+    if (t) t.status = 'approved';
+    renderKanban();
+    toast('s', 'Approved ✓', '');
+  } catch(e) { toast('e', 'Error', e.message); }
 }
-async function rejectTask(id){
-  const reason=prompt('Reason for requesting changes:');if(!reason)return;
-  try{await POST('/tasks/'+id+'/reject',{reason});const t=S.tasks.find(x=>x.id===id);if(t){t.status='in_progress';t.rejection_reason=reason;}renderKanban();toast('i','Changes requested','');}
-  catch(e){toast('e','Error',e.message);}
+
+async function rejectTask(id) {
+  const t = S.tasks.find(x => x.id === id);
+  if (!t) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `<div style="background:#0f0f11;border:1px solid rgba(255,255,255,.08);border-radius:16px;width:400px;max-width:calc(100vw-24px);overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:14px;font-weight:700">Request Changes</div>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="color:var(--tx3);cursor:pointer;background:none;border:none;font-size:16px;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div style="padding:16px 20px">
+      <div style="font-size:11px;color:var(--tx3);margin-bottom:12px">Task: <strong style="color:#fafafa">${esc(t.title||'')}</strong></div>
+      <div><label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx4);margin-bottom:6px">Feedback *</label>
+        <textarea id="_rj-reason" style="width:100%;padding:9px 12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.07);border-radius:8px;color:#fafafa;font-size:12px;font-family:inherit;resize:none;min-height:80px;line-height:1.6" placeholder="What needs to be changed? Be specific..."></textarea>
+      </div>
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="this.closest('[style*=fixed]').remove()" style="padding:8px 16px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.07);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Cancel</button>
+      <button onclick="(async()=>{const reason=document.getElementById('_rj-reason')?.value?.trim();if(!reason){toast('e','Error','Please provide feedback');return;}this.textContent='Sending…';this.disabled=true;try{await POST('/tasks/${esc(id)}/reject',{reason});const t=S.tasks.find(x=>x.id==='${esc(id)}');if(t){t.status='in_progress';t.rejection_reason=reason;}renderKanban();this.closest('[style*=fixed]').remove();toast('i','Changes requested','Developer has been notified');}catch(e){toast('e','Error',e.message);this.textContent='Request Changes';this.disabled=false;}})()" style="padding:8px 16px;border-radius:8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.25);color:#ef4444;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Request Changes</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('_rj-reason')?.focus(), 100);
 }
 
 // ── CHAT ──────────────────────────────────────────────────────────────────
