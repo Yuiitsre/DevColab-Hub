@@ -20,4 +20,3 @@ const plugin: FastifyPluginAsync = async (app) => {
 };
 
 export default fp(plugin, { name: 'prisma' });
-
