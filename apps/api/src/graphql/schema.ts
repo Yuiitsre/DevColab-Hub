@@ -1,6 +1,6 @@
 import { GraphQLSchema } from 'graphql';
 import { makeExecutableSchema } from '@graphql-tools/schema';
-import { decrypt, encrypt } from '../lib/crypto';
+import { decrypt, encrypt } from '../lib/crypto.js';
 
 const typeDefs = `
   scalar DateTime
