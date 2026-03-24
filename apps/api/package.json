@@ -25,7 +25,7 @@
     "@graphql-tools/schema": "^10.0.25",
     "@types/jsonwebtoken": "^9.0.9",
     "argon2": "^0.41.1",
-    "dotenv": "^16.4.5",
+    "dotenv": "^17.3.1",
     "fastify": "^4.29.0",
     "@fastify/cors": "^8.0.0",
     "@fastify/cookie": "^9.4.0",
