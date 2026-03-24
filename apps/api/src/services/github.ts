@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { timingSafeEqual } from '../lib/crypto';
+import { timingSafeEqual } from '../lib/crypto.js';
 
 type GitHubTokenResponse = {
   access_token?: string;
@@ -55,4 +55,3 @@ export function verifyWebhookSignature(rawBody: Buffer, signatureHeader: string 
   const expected = `sha256=${crypto.createHmac('sha256', secret).update(rawBody).digest('hex')}`;
   return timingSafeEqual(signatureHeader, expected);
 }
-
