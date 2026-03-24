@@ -28,6 +28,9 @@ model User {
   sessions          UserSession[]
   projectMembers    ProjectMember[]
   channelMembers    ChannelMember[]
+  messageReactions  MessageReaction[]
+  messagePins       MessagePin[]
+  directMessages    DirectMessage[]
 
   @@map("users")
 }
@@ -61,6 +64,7 @@ model Workspace {
   members     WorkspaceMember[]
   channels    Channel[]
   projects    Project[]
+  linkedRepos LinkedRepo[]
 
   @@map("workspaces")
 }
