@@ -1,6 +1,9 @@
 {
   "name": "devcolab-hub",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
