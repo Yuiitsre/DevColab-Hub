@@ -8,21 +8,21 @@ import mercurius from 'mercurius';
 import { Server as IOServer } from 'socket.io';
 import rawBody from 'fastify-raw-body';
 import * as Sentry from '@sentry/node';
-import { startOtel } from './otel';
-import prismaPlugin from './plugins/prisma';
-import redisPlugin from './plugins/redis';
-import authPlugin from './plugins/auth';
-import authRoutes from './routes/auth';
-import webhookRoutes from './routes/webhooks';
-import { buildSchema } from './graphql/schema';
-import { verifyToken } from './lib/jwt';
+import { startOtel } from './otel.js';
+import prismaPlugin from './plugins/prisma.js';
+import redisPlugin from './plugins/redis.js';
+import authPlugin from './plugins/auth.js';
+import authRoutes from './routes/auth.js';
+import webhookRoutes from './routes/webhooks.js';
+import { buildSchema } from './graphql/schema.js';
+import { verifyToken } from './lib/jwt.js';
 
 const port = Number(process.env.PORT || 4000);
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 await startOtel();
 
-const app = Fastify({ logger: true, trustProxy: true });
+const app = Fastify({ logger: true });
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
