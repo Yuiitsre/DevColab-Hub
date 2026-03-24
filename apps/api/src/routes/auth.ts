@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { encrypt, randomBase64Url, sha256Hex } from '../lib/crypto';
-import { signToken } from '../lib/jwt';
-import { exchangeCode, getAuthUser } from '../services/github';
+import { encrypt, randomBase64Url, sha256Hex } from '../lib/crypto.js';
+import { signToken } from '../lib/jwt.js';
+import { exchangeCode, getAuthUser } from '../services/github.js';
 
 const plugin: FastifyPluginAsync = async (app) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
