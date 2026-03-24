@@ -22,7 +22,7 @@ const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 await startOtel();
 
-const app = Fastify({ logger: true });
+const app = Fastify({ logger: true, trustProxy: true });
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
