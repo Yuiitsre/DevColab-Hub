@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { verifyWebhookSignature } from '../services/github';
-import { encrypt } from '../lib/crypto';
+import { verifyWebhookSignature } from '../services/github.js';
+import { encrypt } from '../lib/crypto.js';
 
 type GitHubWebhookEvent = {
   repository?: { id?: number; full_name?: string; html_url?: string };
