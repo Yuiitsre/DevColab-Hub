@@ -34,7 +34,7 @@
     "ioredis": "^5.5.0",
     "jsonwebtoken": "^9.0.2",
     "mercurius": "^14.3.0",
-    "fastify-raw-body": "^5.1.0",
+    "fastify-raw-body": "^4.3.0",
     "socket.io": "^4.8.1",
     "zod": "^3.25.0"
   },
