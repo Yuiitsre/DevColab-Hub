@@ -1,7 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
-import { verifyToken } from '../lib/jwt';
-import { sha256Hex } from '../lib/crypto';
+import { verifyToken } from '../lib/jwt.js';
+import { sha256Hex } from '../lib/crypto.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -48,4 +48,3 @@ const plugin: FastifyPluginAsync = async (app) => {
 };
 
 export default fp(plugin, { name: 'auth' });
-
