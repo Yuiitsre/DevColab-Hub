@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 240 10% 4%;
+  --fg: 0 0% 98%;
+  --muted: 240 4% 46%;
+  --card: 240 10% 6%;
+  --border: 240 4% 16%;
+  --brand: 142 71% 45%;
+
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+}
+
+.light {
+  --bg: 0 0% 99%;
+  --fg: 240 10% 4%;
+  --muted: 240 4% 40%;
+  --card: 0 0% 100%;
+  --border: 240 6% 88%;
+  --brand: 142 71% 35%;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: hsl(var(--bg));
+  color: hsl(var(--fg));
+}
+

@@ -1,0 +1,272 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  githubId         String   @unique @map("github_id")
+  handle           String   @unique
+  displayNameEnc   String?  @map("display_name")
+  avatarUrl        String?  @map("avatar_url")
+  avatarColor      String?  @default("#39d353") @map("avatar_color")
+  githubUsername   String   @map("github_username")
+  githubTokenEnc   String?  @map("github_access_token")
+  bioEnc           String?  @map("bio")
+  role             String   @default("developer")
+  status           String   @default("offline")
+  setupComplete    Boolean  @default(false) @map("setup_complete")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @map("updated_at")
+
+  workspaceMembers  WorkspaceMember[]
+  messages          Message[]
+  sessions          UserSession[]
+  projectMembers    ProjectMember[]
+  channelMembers    ChannelMember[]
+
+  @@map("users")
+}
+
+model UserSession {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid @map("user_id")
+  tokenHash   String   @unique @map("token_hash")
+  refreshHash String?  @unique @map("refresh_hash")
+  deviceInfo  String?  @map("device_info")
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+  expiresAt   DateTime @map("expires_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("user_sessions")
+}
+
+model Workspace {
+  id             String   @id @default(uuid()) @db.Uuid
+  nameEnc        String   @map("name")
+  slug           String   @unique
+  descriptionEnc String?  @map("description")
+  ownerId        String?  @db.Uuid @map("owner_id")
+  plan           String   @default("free")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  members     WorkspaceMember[]
+  channels    Channel[]
+  projects    Project[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  workspaceId String   @db.Uuid @map("workspace_id")
+  userId      String   @db.Uuid @map("user_id")
+  role        String   @default("developer")
+  joinedAt    DateTime @default(now()) @map("joined_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+model Channel {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid @map("workspace_id")
+  name        String
+  description String   @default("")
+  type        String   @default("public")
+  createdBy   String?  @db.Uuid @map("created_by")
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  members     ChannelMember[]
+  pins        MessagePin[]
+
+  @@unique([workspaceId, name])
+  @@map("channels")
+}
+
+model Message {
+  id            String   @id @default(uuid()) @db.Uuid
+  channelId     String   @db.Uuid @map("channel_id")
+  userId        String?  @db.Uuid @map("user_id")
+  contentEnc    String?  @map("content_encrypted")
+  type          String   @default("text")
+  codeLang      String?  @map("code_lang")
+  codeBodyEnc   String?  @map("code_body")
+  metadataEnc   String?  @map("metadata")
+  threadId      String?  @db.Uuid @map("thread_id")
+  edited        Boolean  @default(false)
+  deleted       Boolean  @default(false)
+  deletedAt     DateTime? @map("deleted_at")
+  deletedBy     String?  @db.Uuid @map("deleted_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @map("updated_at")
+
+  channel       Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  reactions     MessageReaction[]
+  pins          MessagePin[]
+
+  @@index([channelId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+model ChannelMember {
+  channelId String @db.Uuid @map("channel_id")
+  userId    String @db.Uuid @map("user_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  lastRead  DateTime @default(now()) @map("last_read")
+
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([channelId, userId])
+  @@index([userId])
+  @@map("channel_members")
+}
+
+model MessageReaction {
+  messageId String @db.Uuid @map("message_id")
+  userId    String @db.Uuid @map("user_id")
+  emoji     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId, emoji])
+  @@index([userId])
+  @@map("message_reactions")
+}
+
+model MessagePin {
+  id        String @id @default(uuid()) @db.Uuid
+  channelId String @db.Uuid @map("channel_id")
+  messageId String @db.Uuid @map("message_id")
+  pinnedBy  String? @db.Uuid @map("pinned_by")
+  pinnedAt  DateTime @default(now()) @map("pinned_at")
+
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User?   @relation(fields: [pinnedBy], references: [id], onDelete: SetNull)
+
+  @@unique([channelId, messageId])
+  @@map("message_pins")
+}
+
+model Project {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid @map("workspace_id")
+  teamId      String?  @db.Uuid @map("team_id")
+  nameEnc     String   @map("name")
+  descriptionEnc String? @map("description")
+  color       String   @default("#39d353")
+  status      String   @default("active")
+  deadline    DateTime?
+  createdBy   String?  @db.Uuid @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members     ProjectMember[]
+  tasks       Task[]
+
+  @@index([workspaceId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  projectId String @db.Uuid @map("project_id")
+  userId    String @db.Uuid @map("user_id")
+  role      String @default("contributor")
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+model Task {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @db.Uuid @map("project_id")
+  workspaceId String?  @db.Uuid @map("workspace_id")
+  titleEnc    String   @map("title")
+  descriptionEnc String? @map("description")
+  priority    String   @default("normal")
+  status      String   @default("not_started")
+  assignedTo  String?  @db.Uuid @map("assigned_to")
+  assignedBy  String?  @db.Uuid @map("assigned_by")
+  deadline    DateTime?
+  linkedRepo  String?  @map("linked_repo")
+  linkedFile  String?  @map("linked_file")
+  linkedBranch String? @map("linked_branch")
+  linkedLines String?  @map("linked_lines")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([assignedTo])
+  @@index([deadline])
+  @@map("tasks")
+}
+
+model LinkedRepo {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @db.Uuid @map("workspace_id")
+  githubRepoId String   @map("github_repo_id")
+  fullName     String   @map("full_name")
+  description  String?  @map("description")
+  private      Boolean  @default(false)
+  webhookId    String?  @map("webhook_id")
+  linkedBy     String?  @db.Uuid @map("linked_by")
+  linkedAt     DateTime @default(now()) @map("linked_at")
+
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([githubRepoId])
+  @@map("linked_repos")
+}
+
+model DirectMessageRoom {
+  id           String    @id @map("id")
+  participants String[]  @db.Uuid @map("participants")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  messages     DirectMessage[]
+
+  @@map("direct_message_rooms")
+}
+
+model DirectMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  roomId      String   @map("room_id")
+  fromUser    String?  @db.Uuid @map("from_user")
+  contentEnc  String   @map("content_encrypted")
+  deletedFor  String[] @db.Uuid @default(dbgenerated("'{}'")) @map("deleted_for")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  room        DirectMessageRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user        User?             @relation(fields: [fromUser], references: [id], onDelete: SetNull)
+
+  @@index([roomId])
+  @@map("direct_messages")
+}

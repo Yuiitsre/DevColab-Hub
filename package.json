@@ -1,0 +1,40 @@
+{
+  "name": "devcolab-hub",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "semantic-release": "^24.2.3",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.2",
+    "@semantic-release/npm": "^12.0.1"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c red,blue \"npm run dev -w @devcolab/api\" \"npm run dev -w @devcolab/web\"",
+    "build": "npm run build -w @devcolab/api && npm run build -w @devcolab/web && npm run build -w @devcolab/storybook",
+    "lint": "npm run lint -w @devcolab/api && npm run lint -w @devcolab/web",
+    "typecheck": "npm run typecheck -w @devcolab/api && npm run typecheck -w @devcolab/web",
+    "test": "npm run test -w @devcolab/api && npm run test -w @devcolab/web",
+    "test:coverage": "npm run test:coverage -w @devcolab/api && npm run test:coverage -w @devcolab/web"
+  },
+  "release": {
+    "branches": ["main"],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/npm",
+      "@semantic-release/github",
+      [
+        "@semantic-release/git",
+        {
+          "assets": ["CHANGELOG.md", "package.json"]
+        }
+      ]
+    ]
+  }
+}
