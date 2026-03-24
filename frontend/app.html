@@ -221,7 +221,10 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
         <div id="notif-dot" style="display:none;position:absolute;top:2px;right:2px;min-width:16px;height:16px;border-radius:99px;background:var(--red);border:2px solid var(--bg);font-size:8px;font-weight:800;color:#fff;align-items:center;justify-content:center;padding:0 3px"></div>
       </div>
       <!-- Theme -->
-      <div class="nav-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">🌙</div>
+      <div class="nav-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+        <svg id="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </div>
       <!-- Avatar -->
       <div class="nav-avatar" id="nav-av" onclick="openProfile()" title="Profile"></div>
     </div>
@@ -308,9 +311,15 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
-          <div class="sb-logout-btn" id="set-status-btn" onclick="openSetStatus()" title="Set status" style="font-size:12px">😊</div>
-          <div class="sb-logout-btn" onclick="showWsSwitcher()" title="Switch workspace" style="font-size:11px">⇄</div>
-          <div class="sb-logout-btn" onclick="logout()" title="Sign out">⇥</div>
+          <div class="sb-logout-btn" id="set-status-btn" onclick="openSetStatus()" title="Set status">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+          </div>
+          <div class="sb-logout-btn" onclick="showWsSwitcher()" title="Switch workspace">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+          </div>
+          <div class="sb-logout-btn" onclick="logout()" title="Sign out">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </div>
         </div>
       </div>
     </aside>
@@ -459,7 +468,7 @@ pre, code, .t-mono { font-family: 'JetBrains Mono', monospace; }
           <span class="chat-hdr-desc" id="ch-desc"></span>
           <span id="ch-member-count" style="font-size:11px;color:var(--t4);margin-left:4px"></span><span id="ch-msg-count" style="font-size:11px;color:var(--t4);margin-left:4px"></span>
           <div class="chat-hdr-actions">
-            <button class="btn btn-ghost btn-sm" id="msg-search-btn" onclick="toggleMsgSearch()" title="Search messages">🔍</button>
+            <button class="btn btn-ghost btn-sm" id="msg-search-btn" onclick="toggleMsgSearch()" title="Search messages"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
             <button class="btn btn-ghost btn-sm" onclick="openAI()">✦ AI</button>
           </div>
         </div>
@@ -1301,6 +1310,7 @@ function showTasks() {
   if (assignedBtn) { assignedBtn.style.background = 'transparent'; assignedBtn.style.color = 'var(--t3)'; }
   closeSidebar();
 }
+function showRepos() {
   showView('repos-view');
   document.getElementById('sb-repos')?.classList.add('active');
   loadRepos();
@@ -2291,7 +2301,7 @@ function saveStatus() {
   const text = safe(document.getElementById('status-text')?.value||'', 60);
   const status = { emoji, text };
   localStorage.setItem('dc_status', JSON.stringify(status));
-  document.getElementById('set-status-btn').textContent = emoji;
+  // status emoji shown in tooltip (SVG icon preserved)
   document.getElementById('_status-modal')?.remove();
   // Update via API
   PATCH('/users/me', { status_emoji: emoji, status_text: text }).catch(() => {});
@@ -2299,13 +2309,13 @@ function saveStatus() {
 }
 function clearStatus() {
   localStorage.removeItem('dc_status');
-  document.getElementById('set-status-btn').textContent = '😊';
+  // status cleared (SVG icon preserved)
   document.getElementById('_status-modal')?.remove();
   PATCH('/users/me', { status_emoji: null, status_text: null }).catch(() => {});
   toast('s', 'Status cleared', '');
 }
 // Load saved status on boot
-;(()=>{ const s=JSON.parse(localStorage.getItem('dc_status')||'{}'); if(s.emoji){setTimeout(()=>{ const b=document.getElementById('set-status-btn'); if(b)b.textContent=s.emoji; },1000);} })();
+;(()=>{ const s=JSON.parse(localStorage.getItem('dc_status')||'{}'); if(s.emoji){ const btn=document.getElementById('set-status-btn'); if(btn)btn.title='Set status: '+s.emoji+' '+(s.text||''); } })();
 
 function copyInviteLink() {
   const link = location.origin + '/app.html?join=' + (S.ws?.id||'');
@@ -3525,9 +3535,9 @@ function openProfile() {
       </div>
       ${savedStatus.text ? `<div style="display:flex;align-items:center;gap:6px;padding:7px 10px;background:var(--s3);border-radius:8px;margin-bottom:10px;font-size:12px">${esc(savedStatus.emoji||'😊')} ${esc(savedStatus.text)}</div>` : ''}
       <div style="display:flex;flex-direction:column;gap:2px">
-        <button onclick="openSetStatus();document.getElementById('_profile-panel')?.remove()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">😊 Set Status</button>
-        <button onclick="showWsSwitcher();document.getElementById('_profile-panel')?.remove()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">⇄ Switch Workspace</button>
-        <button onclick="toggleTheme();document.getElementById('_profile-panel')?.remove()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">🌙 Toggle Theme</button>
+        <button onclick="openSetStatus();document.getElementById('_profile-panel')?.remove()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg> Set Status</button>
+        <button onclick="showWsSwitcher();document.getElementById('_profile-panel')?.remove()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Switch Workspace</button>
+        <button onclick="toggleTheme();document.getElementById('_profile-panel')?.remove()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> Toggle Theme</button>
         <button onclick="window.open('profile.html?handle=${esc(handle)}','_blank')" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--t2);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='rgba(255,255,255,.05)'" onmouseout="this.style.background=''">👤 Full Profile ↗</button>
         <div style="height:1px;background:rgba(255,255,255,.05);margin:4px 0"></div>
         <button onclick="logout()" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;font-family:inherit;width:100%;text-align:left;transition:background .1s" onmouseover="this.style.background='var(--red-d)'" onmouseout="this.style.background=''">⇥ Sign Out</button>
@@ -3684,7 +3694,10 @@ async function saveWsSettings() {
 function toggleTheme() {
   const isLight=document.documentElement.classList.toggle('light');
   localStorage.setItem('dc_theme',isLight?'light':'dark');
-  document.getElementById('theme-btn').textContent=isLight?'☀️':'🌙';
+  const moon=document.getElementById('theme-icon-moon');
+  const sun=document.getElementById('theme-icon-sun');
+  if(moon)moon.style.display=isLight?'none':'';
+  if(sun)sun.style.display=isLight?'':'none';
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────────────────────
@@ -3912,8 +3925,16 @@ window.onunhandledrejection = function(e) {
   }
 };
 
-// Apply saved theme
-if(localStorage.getItem('dc_theme')==='light'){document.documentElement.classList.add('light');document.getElementById('theme-btn').textContent='☀️';}
+// Apply saved theme - wrapped in DOMContentLoaded to prevent null crash
+if(localStorage.getItem('dc_theme')==='light'){document.documentElement.classList.add('light');}
+document.addEventListener('DOMContentLoaded',function(){
+  if(localStorage.getItem('dc_theme')==='light'){
+    const moon=document.getElementById('theme-icon-moon');
+    const sun=document.getElementById('theme-icon-sun');
+    if(moon)moon.style.display='none';
+    if(sun)sun.style.display='';
+  }
+});
 </script>
 </body>
 </html>
