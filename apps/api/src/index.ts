@@ -38,15 +38,28 @@ declare module 'fastify' {
 
 await app.register(helmet, { global: true });
 await app.register(cookie);
+
+// UPDATED CORS SECTION
 await app.register(cors, {
   origin: (origin, cb) => {
+    // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return cb(null, true);
-    if (origin === frontendUrl) return cb(null, true);
-    if (origin.endsWith('.vercel.app')) return cb(null, true);
+    
+    const allowedOrigins = [
+      frontendUrl,
+      'https://devcolab.dev',
+      'https://devcolab-hub.vercel.app' // Add your specific Vercel URL here
+    ];
+
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      return cb(null, true);
+    }
+    
     return cb(new Error('CORS'), false);
   },
   credentials: true
 });
+
 await app.register(prismaPlugin);
 await app.register(redisPlugin);
 await app.register(authPlugin);
@@ -58,6 +71,7 @@ app.get('/health', async () => ({ ok: true, service: 'api', version: '3.0.0' }))
 app.addHook('onError', async (_req, _reply, error) => {
   if (process.env.SENTRY_DSN) Sentry.captureException(error);
 });
+
 await app.register(mercurius, {
   schema: buildSchema(),
   graphiql: process.env.NODE_ENV !== 'production',
@@ -76,7 +90,7 @@ await app.register(mercurius, {
 
 const io = new IOServer(app.server, {
   cors: {
-    origin: [frontendUrl],
+    origin: [frontendUrl, 'https://devcolab.dev', 'https://devcolab-hub.vercel.app'],
     credentials: true
   }
 });
@@ -94,6 +108,7 @@ io.use(async (socket, next) => {
     next(new Error('Unauthorized'));
   }
 });
+
 io.on('connection', (socket) => {
   socket.emit('connected', { userId: socket.data.userId });
 
@@ -112,4 +127,5 @@ io.on('connection', (socket) => {
     socket.to(payload.roomId).emit('collab:presence', { userId: socket.data.userId, status: payload.status });
   });
 });
+
 await app.listen({ port, host: '0.0.0.0' });
