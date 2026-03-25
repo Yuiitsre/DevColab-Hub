@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function AuthCallbackPage() {
+function AuthCallbackInner() {
   const params = useSearchParams();
 
   useEffect(() => {
@@ -21,5 +21,13 @@ export default function AuthCallbackPage() {
         <p className="mt-3 text-sm text-muted">Finishing authentication and redirecting.</p>
       </div>
     </main>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense>
+      <AuthCallbackInner />
+    </Suspense>
   );
 }
