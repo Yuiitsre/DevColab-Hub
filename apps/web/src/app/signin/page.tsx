@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { getEnv } from '@/lib/env';
 
-const { apiUrl } = getEnv();
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://devcolab-backend.onrender.com';
 
 export default function SignInPage() {
   return (
@@ -11,8 +10,6 @@ export default function SignInPage() {
 
       <div className="relative mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6">
         <div className="w-full max-w-[440px] rounded-lg border border-border bg-card/90 p-10 shadow-[0_40px_120px_rgba(0,0,0,0.7)] backdrop-blur">
-          
-          {/* Header */}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[linear-gradient(135deg,hsla(var(--brand),1),hsla(142,71%,35%,1))] text-sm font-black text-black">
               DC
@@ -22,19 +19,16 @@ export default function SignInPage() {
             </div>
           </div>
 
-          {/* Title */}
           <h1 className="mt-8 text-2xl font-extrabold tracking-tight">
             Engineering operations,
             <br />
             done together.
           </h1>
-
-          {/* Description */}
           <p className="mt-3 text-sm leading-7 text-muted">
-            Real-time collaboration for dev teams. Tasks, code, channels, and AI — all in one place.
+            Real-time collaboration for dev teams.
+            Tasks, code, channels, and AI — all in one place.
           </p>
 
-          {/* GitHub Button */}
           <a
             href={`${apiUrl}/auth/github`}
             className="mt-8 flex w-full items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 py-3 text-sm font-semibold transition hover:bg-card"
@@ -45,7 +39,6 @@ export default function SignInPage() {
             Continue with GitHub
           </a>
 
-          {/* Features */}
           <div className="mt-8 grid grid-cols-2 gap-2 border-t border-border pt-6 text-xs text-muted">
             <div className="flex items-center gap-2">
               <span className="h-1 w-1 rounded-full bg-[hsl(var(--brand))]" />
@@ -65,13 +58,11 @@ export default function SignInPage() {
             </div>
           </div>
 
-          {/* Footer */}
           <div className="mt-8 text-center text-xs text-muted">
             <Link href="/status" className="underline underline-offset-4 hover:text-fg">
               System status
             </Link>
           </div>
-
         </div>
       </div>
     </main>
