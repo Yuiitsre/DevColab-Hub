@@ -20,7 +20,7 @@
     "@opentelemetry/auto-instrumentations-node": "^0.56.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.56.0",
     "@opentelemetry/sdk-node": "^0.56.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^7.5.0",
     "@sentry/node": "^9.0.0",
     "@graphql-tools/schema": "^10.0.25",
     "@types/jsonwebtoken": "^9.0.9",
